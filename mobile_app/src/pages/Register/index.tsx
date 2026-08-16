@@ -8,10 +8,12 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { z } from "zod";
+import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
 
 import AuthLayout from "@/components/AuthLayout";
 import CustomInput from "@/components/CustomInput";
+import api from "@/utils/api";
 
 const registerStep1Schema = z.object({
   fullName: z.string().trim().min(2, "Name is too short. Please enter your full name."),
@@ -36,7 +38,7 @@ export default function RegisterPage({ onGoBackToLogin }: RegisterPageProps) {
 
   const registerOpacity = useRef(new Animated.Value(1)).current;
 
-  const handleRegister = useCallback(() => {
+  const handleRegister = useCallback(async () => {
     const result = registerStep1Schema.safeParse({ fullName, email });
     if (!result.success) {
       const errors = result.error.format();
@@ -49,10 +51,15 @@ export default function RegisterPage({ onGoBackToLogin }: RegisterPageProps) {
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      // The Axios interceptor automatically attaches the JWT token we just received in Login/index.tsx!
+      await api.post("/auth/user/profile", { fullName, email: email || "" });
       router.replace("/home");
-    }, 1000);
+    } catch (error) {
+      setTermsError("Failed to save profile. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }, [fullName, email, termsAccepted, router]);
 
   return (

@@ -3,12 +3,14 @@ const router = express.Router();
 const authController = require("./auth.controller");
 const { loginLimiter } = require("../../middlewares/rateLimiter.middleware");
 const { validate } = require("../../middlewares/validate.middleware");
-const { sendOtpSchema, verifyOtpSchema, refreshTokenSchema } = require("./auth.validation");
+const { sendOtpSchema, verifyOtpSchema, refreshTokenSchema, profileSchema } = require("./auth.validation");
+const { verifyAuth } = require("../../middlewares/auth.middleware");
 
 // User routes
 router.post("/user/send-otp", loginLimiter, validate(sendOtpSchema), authController.userSendOtp);
 router.post("/user/verify-otp", loginLimiter, validate(verifyOtpSchema), authController.userVerifyOtp);
 router.post("/user/refresh-token", loginLimiter, validate(refreshTokenSchema), authController.refreshUserToken);
+router.post("/user/profile", verifyAuth, validate(profileSchema), authController.updateProfile);
 
 // Admin routes
 router.post("/admin/send-otp", loginLimiter, validate(sendOtpSchema), authController.adminSendOtp);

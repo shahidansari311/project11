@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Animated,
   StyleSheet,
+  ActivityIndicator,
   type NativeSyntheticEvent,
   type TextInputKeyPressEventData,
 } from "react-native";
@@ -131,13 +132,17 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
     setLoading(true);
     try {
       const response = await api.post("/auth/user/verify-otp", { phone, otp: fullOtp });
-      const { token, refreshToken } = response.data.data;
+      const { token, refreshToken, isNewUser } = response.data.data;
       
       // Save tokens securely
       await SecureStore.setItemAsync("access_token", token);
       await SecureStore.setItemAsync("refresh_token", refreshToken);
       
-      router.replace("/home");
+      if (isNewUser && onRegisterRequired) {
+        onRegisterRequired();
+      } else {
+        router.replace("/home");
+      }
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Invalid OTP";
       setOtpError(errorMsg);
@@ -146,12 +151,19 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
     }
   }, [otp, phone, router, onRegisterRequired]);
 
-  const handleResendOtp = useCallback(() => {
+  const handleResendOtp = useCallback(async () => {
     if (resendTimer > 0) return;
-    setResendTimer(60);
-    setShowResendSuccess(true);
-    setTimeout(() => setShowResendSuccess(false), 2000);
-  }, [resendTimer]);
+    
+    try {
+      await api.post("/auth/user/send-otp", { phone });
+      setResendTimer(60);
+      setShowResendSuccess(true);
+      setTimeout(() => setShowResendSuccess(false), 2000);
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || "Failed to resend OTP.";
+      setOtpError(errorMsg);
+    }
+  }, [resendTimer, phone]);
 
   return (
     <AuthLayout>
@@ -184,10 +196,14 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
             <TouchableOpacity
               style={[styles.primaryButton, { opacity: phone.length === 10 ? 1 : 0.5 }]}
               onPress={handleSendOtp}
-              disabled={phone.length !== 10}
+              disabled={phone.length !== 10 || loading}
               activeOpacity={0.9}
             >
-              <Text style={styles.primaryButtonText}>Send OTP</Text>
+              {loading ? (
+                <ActivityIndicator color={Colors.onPrimary} />
+              ) : (
+                <Text style={styles.primaryButtonText}>Send OTP</Text>
+              )}
             </TouchableOpacity>
           </View>
         )}
@@ -242,7 +258,11 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
               disabled={otp.join('').length !== 6 || loading}
               activeOpacity={0.9}
             >
-              <Text style={styles.primaryButtonText}>{loading ? "Verifying..." : "Verify OTP"}</Text>
+              {loading ? (
+                <ActivityIndicator color={Colors.onPrimary} />
+              ) : (
+                <Text style={styles.primaryButtonText}>Verify OTP</Text>
+              )}
             </TouchableOpacity>
           </View>
         )}

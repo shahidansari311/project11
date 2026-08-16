@@ -35,8 +35,18 @@ const refreshTokenSchema = z.object({
   params: z.object({}).passthrough().optional()
 });
 
+const profileSchema = z.object({
+  body: z.object({
+    fullName: z.string().min(2, "Full name must be at least 2 characters").max(100),
+    email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  }),
+  query: z.object({}).passthrough().optional(),
+  params: z.object({}).passthrough().optional()
+});
+
 module.exports = {
   sendOtpSchema,
   verifyOtpSchema,
-  refreshTokenSchema
+  refreshTokenSchema,
+  profileSchema
 };

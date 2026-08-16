@@ -77,10 +77,23 @@ async function refreshAdminToken(req, res, next) {
   }
 }
 
+async function updateProfile(req, res, next) {
+  try {
+    const { fullName, email } = req.body;
+    // req.user is set by the verifyAuth middleware
+    const updatedUser = await authService.updateUserProfile(req.user.id, { fullName, email });
+
+    return successResponse(res, 200, { user: updatedUser }, "Profile updated successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   userSendOtp,
   userVerifyOtp,
   refreshUserToken,
+  updateProfile,
   adminSendOtp,
   adminVerifyOtp,
   refreshAdminToken

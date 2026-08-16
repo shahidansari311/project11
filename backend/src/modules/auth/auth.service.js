@@ -1,7 +1,7 @@
 const prisma = require("../../config/db");
 const { generateOtp } = require("../../utils/generateOtp");
 const { signToken, generateRefreshToken } = require("../../utils/jwt.util");
-const { DEMO_USER_PHONE, DEMO_USER_OTP, DEMO_ADMIN_PHONE, DEMO_ADMIN_OTP } = require("../../config/env");
+const { DEMO_ADMIN_PHONE, DEMO_ADMIN_OTP } = require("../../config/env");
 
 async function sendOtpUser(phone) {
   let user = await prisma.user.findUnique({ where: { phone } });
@@ -10,14 +10,16 @@ async function sendOtpUser(phone) {
     user = await prisma.user.create({ data: { phone } });
   }
 
-  // If this is the demo user, use specific OTP, otherwise fallback to 123456 since no SMS provider is active
-  const otp = phone === DEMO_USER_PHONE ? DEMO_USER_OTP : "123456";
+  const otp = generateOtp();
   const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins from now
 
   await prisma.user.update({
     where: { id: user.id },
     data: { otp, otp_expiry: otpExpiry }
   });
+
+  // Log the OTP to terminal for development
+  console.log(`\n[DEVELOPMENT] OTP for User ${phone}: ${otp}\n`);
 
   return { success: true, message: `OTP sent successfully` };
 }
@@ -26,17 +28,12 @@ async function verifyOtpUser(phone, otp, deviceFingerprint) {
   const user = await prisma.user.findUnique({ where: { phone } });
   if (!user) throw new Error("User not found");
   
-  // Specific demo user check or database check
-  const isDemoLogin = phone === DEMO_USER_PHONE && otp === DEMO_USER_OTP;
+  if (!user.otp || user.otp !== otp) {
+    throw new Error("Invalid OTP");
+  }
   
-  if (!isDemoLogin) {
-    if (!user.otp || user.otp !== otp) {
-      throw new Error("Invalid OTP");
-    }
-    
-    if (user.otp_expiry && user.otp_expiry < new Date()) {
-      throw new Error("OTP expired");
-    }
+  if (user.otp_expiry && user.otp_expiry < new Date()) {
+    throw new Error("OTP expired");
   }
 
   await prisma.user.update({
@@ -57,7 +54,9 @@ async function verifyOtpUser(phone, otp, deviceFingerprint) {
     }
   });
 
-  return { token, refreshToken, user: { id: user.id, phone: user.phone, email: user.email } };
+  const isNewUser = !user.fullName;
+
+  return { token, refreshToken, isNewUser, user: { id: user.id, phone: user.phone, email: user.email } };
 }
 
 async function refreshUserToken(oldRefreshToken, deviceFingerprint) {
@@ -112,6 +111,10 @@ async function sendOtpAdmin(phone) {
     where: { id: admin.id },
     data: { otp, otp_expiry: otpExpiry }
   });
+
+  if (phone !== DEMO_ADMIN_PHONE) {
+    console.log(`\n[DEVELOPMENT] OTP for Admin ${phone}: ${otp}\n`);
+  }
 
   return { success: true, message: `OTP sent successfully` };
 }
@@ -190,10 +193,23 @@ async function refreshAdminToken(oldRefreshToken, deviceFingerprint) {
   return { token, refreshToken: newRefreshToken, admin: { id: session.admin.id, phone: session.admin.phone } };
 }
 
+async function updateUserProfile(userId, { fullName, email }) {
+  // Save null instead of empty string if optional
+  const emailToSave = email ? email : null;
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { fullName, email: emailToSave }
+  });
+
+  return { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email };
+}
+
 module.exports = {
   sendOtpUser,
   verifyOtpUser,
   refreshUserToken,
+  updateUserProfile,
   sendOtpAdmin,
   verifyOtpAdmin,
   refreshAdminToken

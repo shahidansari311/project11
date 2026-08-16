@@ -1,18 +1,19 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StatusBar,
   Dimensions,
+  StyleSheet,
   type NativeSyntheticEvent,
   type TextInputKeyPressEventData,
 } from "react-native";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import api from "@/utils/api";
@@ -119,24 +120,24 @@ export default function RegisterScreen() {
     return valid;
   };
 
-  const handleMobileChange = (text: string) => {
+  const handleMobileChange = useCallback((text: string) => {
     const digits = text.replace(/\D/g, "").slice(0, 10);
     setMobile(digits);
     if (mobileError) setMobileError("");
-  };
+  }, [mobileError]);
 
-  const handleNameChange = (text: string) => {
+  const handleNameChange = useCallback((text: string) => {
     setFullName(text);
     if (nameError) setNameError("");
-  };
+  }, [nameError]);
 
-  const handleEmailChange = (text: string) => {
+  const handleEmailChange = useCallback((text: string) => {
     setEmail(text);
     if (emailError) setEmailError("");
-  };
+  }, [emailError]);
 
   // ── OTP Handlers ─────────────────────────────────
-  const handleOtpChange = (text: string, index: number) => {
+  const handleOtpChange = useCallback((text: string, index: number) => {
     const newOtp = [...otpValues];
     newOtp[index] = text;
     setOtpValues(newOtp);
@@ -146,16 +147,16 @@ export default function RegisterScreen() {
     if (text.length === 1 && index < OTP_LENGTH - 1) {
       otpRefs.current[index + 1]?.focus();
     }
-  };
+  }, [otpValues, otpError]);
 
-  const handleOtpKeyPress = (
+  const handleOtpKeyPress = useCallback((
     e: NativeSyntheticEvent<TextInputKeyPressEventData>,
     index: number
   ) => {
     if (e.nativeEvent.key === "Backspace" && otpValues[index] === "" && index > 0) {
       otpRefs.current[index - 1]?.focus();
     }
-  };
+  }, [otpValues]);
 
   // ── Navigation ───────────────────────────────────
   const navigateToLogin = () => {
@@ -200,59 +201,24 @@ export default function RegisterScreen() {
       />
 
       {/* ─── Hero Image (Top 33%) ───────────────────── */}
-      <View
-        style={{
-          width: "100%",
-          height: SCREEN_WIDTH * 0.33 + 100,
-          position: "relative",
-        }}
-      >
+      <View style={styles.heroContainer}>
         <Image
           source={{
             uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuD7jZ0K5gCx8MSO2wSH8-dHA30nHbmnzaMbR0wbVU9eM99MsebRJQJ5ZsFmNFGkbX8pinzbT3N48WkYARzAguNtFMyzOpzcqCR4bsRS2LoF1yFg65vC6S5E5aUJG-YYJxg2hRHANuoAD_MM9WxfeU6MY26W6iS21cFHgO6SAusiPmtfI4D5IOcjxYv0lMCN4fM_kgZJpDhomwS61Wi0TpMIRoC9MrW-bx0B6AWmMzDwPNrRCpZmHTsL",
           }}
-          style={{
-            width: "100%",
-            height: "100%",
-            position: "absolute",
-          }}
-          resizeMode="cover"
+          style={styles.heroImage}
+          contentFit="cover"
         />
         {/* Gradient overlay */}
-        <View
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: "70%",
-            backgroundColor: "rgba(0,0,0,0.35)",
-          }}
-        />
+        <View style={styles.heroOverlay} />
 
         {/* Close Button (Top Left) */}
         <TouchableOpacity
           onPress={navigateToLogin}
-          style={{
-            position: "absolute",
-            top: Platform.OS === "ios" ? 56 : 44,
-            left: 16,
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: "rgba(255,255,255,0.85)",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 20,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
+          style={styles.closeButton}
           activeOpacity={0.8}
         >
-          <Text style={{ fontSize: 18, color: Colors.onSurface }}>✕</Text>
+          <Text style={styles.closeButtonText}>✕</Text>
         </TouchableOpacity>
       </View>
 
@@ -262,102 +228,33 @@ export default function RegisterScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView
-          style={{
-            flex: 1,
-            backgroundColor: Colors.surfaceContainerLowest,
-            borderTopLeftRadius: 32,
-            borderTopRightRadius: 32,
-            marginTop: -40,
-            shadowColor: Colors.onSurface,
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.05,
-            shadowRadius: 20,
-            elevation: 5,
-          }}
-          contentContainerStyle={{
-            paddingHorizontal: 24,
-            paddingTop: 32,
-            paddingBottom: 48,
-          }}
+          style={styles.formScrollView}
+          contentContainerStyle={styles.formScrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Header ──────────────────────────────── */}
-          <View style={{ alignItems: "center", marginBottom: 24 }}>
-            <Text
-              style={{
-                fontSize: 22,
-                fontWeight: "600",
-                color: Colors.onSurface,
-                marginBottom: 8,
-                letterSpacing: -0.22,
-              }}
-            >
-              Create an Account
-            </Text>
-            <Text
-              style={{
-                fontSize: 14,
-                color: Colors.onSurfaceVariant,
-                lineHeight: 20,
-              }}
-            >
+          <View style={styles.headerContainer}>
+            <Text style={styles.headerTitle}>Create an Account</Text>
+            <Text style={styles.headerSubtitle}>
               Join Silverreal Estate to start investing.
             </Text>
           </View>
 
           {/* ── Segmented Toggle ────────────────────── */}
-          <View
-            style={{
-              flexDirection: "row",
-              padding: 4,
-              backgroundColor: Colors.surfaceContainerLowest,
-              borderWidth: 1,
-              borderColor: Colors.border,
-              borderRadius: 12,
-              marginBottom: 24,
-            }}
-          >
+          <View style={styles.toggleContainer}>
             <TouchableOpacity
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                borderRadius: 8,
-                backgroundColor: "transparent",
-                alignItems: "center",
-              }}
+              style={styles.toggleButtonInactive}
               onPress={navigateToLogin}
               activeOpacity={0.8}
             >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "500",
-                  color: Colors.primary,
-                }}
-              >
-                Log In
-              </Text>
+              <Text style={styles.toggleButtonTextInactive}>Log In</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                borderRadius: 8,
-                backgroundColor: Colors.primaryContainer,
-                alignItems: "center",
-              }}
+              style={styles.toggleButtonActive}
               activeOpacity={0.8}
             >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "500",
-                  color: Colors.onPrimary,
-                }}
-              >
-                Sign Up
-              </Text>
+              <Text style={styles.toggleButtonTextActive}>Sign Up</Text>
             </TouchableOpacity>
           </View>
 
@@ -767,3 +664,111 @@ export default function RegisterScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  heroContainer: {
+    width: "100%",
+    height: SCREEN_WIDTH * 0.33 + 100,
+    position: "relative",
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+  },
+  heroOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "70%",
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  closeButton: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 56 : 44,
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: Colors.onSurface,
+  },
+  formScrollView: {
+    flex: 1,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -40,
+    shadowColor: Colors.onSurface,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  formScrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 48,
+  },
+  headerContainer: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "600",
+    color: Colors.onSurface,
+    marginBottom: 8,
+    letterSpacing: -0.22,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: Colors.onSurfaceVariant,
+    lineHeight: 20,
+  },
+  toggleContainer: {
+    flexDirection: "row",
+    padding: 4,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  toggleButtonInactive: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: "transparent",
+    alignItems: "center",
+  },
+  toggleButtonTextInactive: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: Colors.primary,
+  },
+  toggleButtonActive: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryContainer,
+    alignItems: "center",
+  },
+  toggleButtonTextActive: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: Colors.onPrimary,
+  }
+});

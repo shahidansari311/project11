@@ -1,21 +1,17 @@
 const prisma = require("../../config/db");
 const { generateOtp } = require("../../utils/generateOtp");
 const { signToken, generateRefreshToken } = require("../../utils/jwt.util");
-const { DEMO_ADMIN_PHONE, DEMO_ADMIN_OTP } = require("../../config/env");
+const { DEMO_ADMIN_PHONE, DEMO_ADMIN_OTP, JWT_SECRET } = require("../../config/env");
+const jwt = require("jsonwebtoken");
 
 async function sendOtpUser(phone) {
-  let user = await prisma.user.findUnique({ where: { phone } });
-  
-  if (!user) {
-    user = await prisma.user.create({ data: { phone } });
-  }
-
   const otp = generateOtp();
   const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins from now
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { otp, otp_expiry: otpExpiry }
+  await prisma.otpVerification.upsert({
+    where: { phone },
+    update: { otp, otp_expiry: otpExpiry },
+    create: { phone, otp, otp_expiry: otpExpiry }
   });
 
   // Log the OTP to terminal for development
@@ -25,20 +21,73 @@ async function sendOtpUser(phone) {
 }
 
 async function verifyOtpUser(phone, otp, deviceFingerprint) {
-  const user = await prisma.user.findUnique({ where: { phone } });
-  if (!user) throw new Error("User not found");
+  const otpRecord = await prisma.otpVerification.findUnique({ where: { phone } });
+  if (!otpRecord) throw new Error("No OTP request found for this number");
   
-  if (!user.otp || user.otp !== otp) {
+  if (otpRecord.otp !== otp) {
     throw new Error("Invalid OTP");
   }
   
-  if (user.otp_expiry && user.otp_expiry < new Date()) {
+  if (otpRecord.otp_expiry < new Date()) {
     throw new Error("OTP expired");
   }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { otp: null, otp_expiry: null }
+  // OTP verified, remove it
+  await prisma.otpVerification.delete({ where: { phone } });
+
+  const user = await prisma.user.findUnique({ where: { phone } });
+
+  if (!user) {
+    // New user, return a registration token instead of fully logging them in
+    const registrationToken = jwt.sign({ phone, isRegistration: true }, JWT_SECRET, { expiresIn: '15m' });
+    return { isNewUser: true, registrationToken };
+  }
+
+  // Existing user, log them in
+  const token = signToken({ id: user.id, role: "user" });
+  const refreshToken = generateRefreshToken();
+  
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  await prisma.session.create({
+    data: {
+      userId: user.id,
+      refreshToken,
+      deviceFingerprint,
+      expiresAt
+    }
+  });
+
+  return { token, refreshToken, isNewUser: false, user: { id: user.id, phone: user.phone, email: user.email } };
+}
+
+async function registerUser(registrationToken, { fullName, email }, deviceFingerprint) {
+  let decoded;
+  try {
+    decoded = jwt.verify(registrationToken, JWT_SECRET);
+  } catch (err) {
+    throw new Error("Invalid or expired registration token");
+  }
+
+  if (!decoded.isRegistration || !decoded.phone) {
+    throw new Error("Invalid registration token format");
+  }
+
+  const { phone } = decoded;
+
+  // Check if user already exists
+  let user = await prisma.user.findUnique({ where: { phone } });
+  if (user) {
+    throw new Error("User already registered. Please login.");
+  }
+
+  const emailToSave = email ? email : null;
+
+  user = await prisma.user.create({
+    data: {
+      phone,
+      fullName,
+      email: emailToSave
+    }
   });
 
   const token = signToken({ id: user.id, role: "user" });
@@ -54,9 +103,7 @@ async function verifyOtpUser(phone, otp, deviceFingerprint) {
     }
   });
 
-  const isNewUser = !user.fullName;
-
-  return { token, refreshToken, isNewUser, user: { id: user.id, phone: user.phone, email: user.email } };
+  return { token, refreshToken, user: { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email } };
 }
 
 async function refreshUserToken(oldRefreshToken, deviceFingerprint) {
@@ -210,6 +257,7 @@ module.exports = {
   verifyOtpUser,
   refreshUserToken,
   updateUserProfile,
+  registerUser,
   sendOtpAdmin,
   verifyOtpAdmin,
   refreshAdminToken

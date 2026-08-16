@@ -27,6 +27,22 @@ async function userVerifyOtp(req, res, next) {
   }
 }
 
+async function userRegister(req, res, next) {
+  try {
+    const { registrationToken, fullName, email } = req.body;
+    const deviceFingerprint = req.headers["x-device-id"] || "unknown-device";
+
+    if (!registrationToken || !fullName) {
+      return errorResponse(res, 400, "Registration token and full name are required");
+    }
+
+    const result = await authService.registerUser(registrationToken, { fullName, email }, deviceFingerprint);
+    return successResponse(res, 201, result, "Registration successful");
+  } catch (err) {
+    return errorResponse(res, 400, err.message);
+  }
+}
+
 async function refreshUserToken(req, res, next) {
   try {
     const { refreshToken } = req.body;
@@ -92,6 +108,7 @@ async function updateProfile(req, res, next) {
 module.exports = {
   userSendOtp,
   userVerifyOtp,
+  userRegister,
   refreshUserToken,
   updateProfile,
   adminSendOtp,

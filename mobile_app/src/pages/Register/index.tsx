@@ -21,10 +21,11 @@ const registerStep1Schema = z.object({
 });
 
 interface RegisterPageProps {
+  registrationToken?: string;
   onGoBackToLogin?: () => void;
 }
 
-export default function RegisterPage({ onGoBackToLogin }: RegisterPageProps) {
+export default function RegisterPage({ registrationToken, onGoBackToLogin }: RegisterPageProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -50,17 +51,32 @@ export default function RegisterPage({ onGoBackToLogin }: RegisterPageProps) {
       setTermsError("You must agree to the Terms and Privacy Policy.");
       return;
     }
+    if (!registrationToken) {
+      setTermsError("Session expired. Please login again.");
+      return;
+    }
+
     setLoading(true);
     try {
-      // The Axios interceptor automatically attaches the JWT token we just received in Login/index.tsx!
-      await api.post("/auth/user/profile", { fullName, email: email || "" });
+      const response = await api.post("/auth/user/register", { 
+        registrationToken,
+        fullName, 
+        email: email || "" 
+      });
+
+      const { token, refreshToken } = response.data.data;
+      
+      // Save tokens securely now that registration is complete
+      await SecureStore.setItemAsync("access_token", token);
+      await SecureStore.setItemAsync("refresh_token", refreshToken);
+
       router.replace("/home");
-    } catch (error) {
-      setTermsError("Failed to save profile. Please try again.");
+    } catch (error: any) {
+      setTermsError(error.response?.data?.message || "Failed to register. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [fullName, email, termsAccepted, router]);
+  }, [fullName, email, termsAccepted, registrationToken, router]);
 
   return (
     <AuthLayout>

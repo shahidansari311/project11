@@ -8,19 +8,18 @@ datasource db {
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
-  phone      String    @unique
-  fullName   String?
-  email      String?   @unique
-  otp        String?
-  otp_expiry DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  sessions   Session[]
+  id                   String    @id @default(cuid())
+  phone                String    @unique
+  fullName             String?
+  email                String?   @unique
+  hasPurchasedProperty Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  sessions             Session[]
 }
 
 model Admin {
-  id         Int       @id @default(autoincrement())
+  id         String    @id @default(cuid())
   phone      String    @unique
   otp        String?
   otp_expiry DateTime?
@@ -30,9 +29,9 @@ model Admin {
 }
 
 model Session {
-  id                Int      @id @default(autoincrement())
-  userId            Int?
-  adminId           Int?
+  id                String   @id @default(cuid())
+  userId            String?
+  adminId           String?
   refreshToken      String   @unique
   deviceFingerprint String
   expiresAt         DateTime
@@ -40,4 +39,13 @@ model Session {
 
   user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
   admin Admin? @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+model OtpVerification {
+  id         String   @id @default(cuid())
+  phone      String   @unique
+  otp        String
+  otp_expiry DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

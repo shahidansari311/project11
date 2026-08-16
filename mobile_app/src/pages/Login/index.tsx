@@ -24,7 +24,7 @@ const OTP_LENGTH = 6;
 const loginPhoneSchema = z.string().trim().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian mobile number.");
 
 interface LoginPageProps {
-  onRegisterRequired?: () => void;
+  onRegisterRequired?: (token: string) => void;
 }
 
 export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
@@ -132,15 +132,14 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
     setLoading(true);
     try {
       const response = await api.post("/auth/user/verify-otp", { phone, otp: fullOtp });
-      const { token, refreshToken, isNewUser } = response.data.data;
-      
-      // Save tokens securely
-      await SecureStore.setItemAsync("access_token", token);
-      await SecureStore.setItemAsync("refresh_token", refreshToken);
+      const { token, refreshToken, isNewUser, registrationToken } = response.data.data;
       
       if (isNewUser && onRegisterRequired) {
-        onRegisterRequired();
+        onRegisterRequired(registrationToken);
       } else {
+        // Save tokens securely for existing user
+        await SecureStore.setItemAsync("access_token", token);
+        await SecureStore.setItemAsync("refresh_token", refreshToken);
         router.replace("/home");
       }
     } catch (err: any) {

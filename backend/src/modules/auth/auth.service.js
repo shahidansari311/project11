@@ -1,38 +1,55 @@
 const prisma = require("../../config/db");
 const { generateOtp } = require("../../utils/generateOtp");
 const { signToken, generateRefreshToken } = require("../../utils/jwt.util");
-const { DEMO_ADMIN_PHONE, DEMO_ADMIN_OTP, JWT_SECRET } = require("../../config/env");
+const { ADMIN_PHONE, JWT_SECRET } = require("../../config/env");
 const jwt = require("jsonwebtoken");
 
-async function sendOtpUser(phone) {
-  const otp = generateOtp();
-  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins from now
+const OTP_EXPIRY_MS = 2 * 60 * 1000; // 5 minutes
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute
 
+async function sendOtpUser(phone) {
+  // Check if there is an existing active OTP requested less than 1 minute ago
+  const existingOtp = await prisma.otpVerification.findUnique({ where: { phone } });
+  if (existingOtp) {
+    const timeSinceLastOtp = Date.now() - new Date(existingOtp.updatedAt).getTime();
+    if (timeSinceLastOtp < OTP_RESEND_COOLDOWN_MS) {
+      const remainingSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - timeSinceLastOtp) / 1000);
+      throw new Error(`Please wait ${remainingSeconds} second(s) before requesting a new OTP.`);
+    }
+  }
+
+  // Generate cryptographically secure 6-digit OTP
+  const otp = generateOtp();
+  const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MS); // 5 minutes
+
+  // Upsert overwrites/deletes previous OTP with the new one
   await prisma.otpVerification.upsert({
     where: { phone },
     update: { otp, otp_expiry: otpExpiry },
     create: { phone, otp, otp_expiry: otpExpiry }
   });
 
-  // Log the OTP to terminal for development
-  console.log(`\n[DEVELOPMENT] OTP for User ${phone}: ${otp}\n`);
+  console.log(`📱 [USER SECURE OTP] Mobile: ${phone} | OTP: ${otp} (Valid for 5 mins)`);
+
 
   return { success: true, message: `OTP sent successfully` };
 }
 
 async function verifyOtpUser(phone, otp, deviceFingerprint) {
   const otpRecord = await prisma.otpVerification.findUnique({ where: { phone } });
-  if (!otpRecord) throw new Error("No OTP request found for this number");
+  if (!otpRecord) throw new Error("No OTP request found for this number. Please request OTP first.");
   
   if (otpRecord.otp !== otp) {
     throw new Error("Invalid OTP");
   }
   
   if (otpRecord.otp_expiry < new Date()) {
-    throw new Error("OTP expired");
+    // Delete expired OTP
+    await prisma.otpVerification.delete({ where: { phone } }).catch(() => {});
+    throw new Error("OTP has expired. Please request a new OTP.");
   }
 
-  // OTP verified, remove it
+  // OTP verified, remove it so it cannot be used again
   await prisma.otpVerification.delete({ where: { phone } });
 
   const user = await prisma.user.findUnique({ where: { phone } });
@@ -145,43 +162,65 @@ async function refreshUserToken(oldRefreshToken, deviceFingerprint) {
 }
 
 async function sendOtpAdmin(phone) {
+  // Check if phone matches the fixed Admin phone number
+  const fixedAdminPhone = ADMIN_PHONE || "9876543210";
+  if (phone !== fixedAdminPhone) {
+    throw new Error("Access denied: Not an authorized Admin mobile number");
+  }
+
   let admin = await prisma.admin.findUnique({ where: { phone } });
   
   if (!admin) {
     admin = await prisma.admin.create({ data: { phone } });
+  } else if (admin.otp && admin.updatedAt) {
+    // Check 1 minute resend cooldown
+    const timeSinceLastOtp = Date.now() - new Date(admin.updatedAt).getTime();
+    if (timeSinceLastOtp < OTP_RESEND_COOLDOWN_MS) {
+      const remainingSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - timeSinceLastOtp) / 1000);
+      throw new Error(`Please wait ${remainingSeconds} second(s) before requesting a new OTP.`);
+    }
   }
 
-  const otp = phone === DEMO_ADMIN_PHONE ? DEMO_ADMIN_OTP : generateOtp();
-  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  // Generate cryptographically secure OTP
+  const otp = generateOtp();
+  const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MS); // 5 minutes
 
+  // Overwrites previous OTP with the newly generated OTP
   await prisma.admin.update({
     where: { id: admin.id },
     data: { otp, otp_expiry: otpExpiry }
   });
 
-  if (phone !== DEMO_ADMIN_PHONE) {
-    console.log(`\n[DEVELOPMENT] OTP for Admin ${phone}: ${otp}\n`);
-  }
+  console.log(`\n======================================================`);
+  console.log(`🔐 [ADMIN SECURE OTP] Mobile: ${phone} | OTP: ${otp} (Valid for 5 mins)`);
+  console.log(`======================================================\n`);
 
-  return { success: true, message: `OTP sent successfully` };
+  return { success: true, message: `OTP sent successfully to Admin` };
 }
 
 async function verifyOtpAdmin(phone, otp, deviceFingerprint) {
-  const admin = await prisma.admin.findUnique({ where: { phone } });
-  if (!admin) throw new Error("Admin not found");
-  
-  const isDemoLogin = phone === DEMO_ADMIN_PHONE && otp === DEMO_ADMIN_OTP;
-
-  if (!isDemoLogin) {
-    if (!admin.otp || admin.otp !== otp) {
-      throw new Error("Invalid OTP");
-    }
-    
-    if (admin.otp_expiry && admin.otp_expiry < new Date()) {
-      throw new Error("OTP expired");
-    }
+  const fixedAdminPhone = ADMIN_PHONE || "9876543210";
+  if (phone !== fixedAdminPhone) {
+    throw new Error("Access denied: Not an authorized Admin mobile number");
   }
 
+  const admin = await prisma.admin.findUnique({ where: { phone } });
+  if (!admin) throw new Error("Admin not found. Please request OTP first.");
+
+  if (!admin.otp || admin.otp !== otp) {
+    throw new Error("Invalid OTP");
+  }
+  
+  if (admin.otp_expiry && admin.otp_expiry < new Date()) {
+    // Clear expired OTP
+    await prisma.admin.update({
+      where: { id: admin.id },
+      data: { otp: null, otp_expiry: null }
+    });
+    throw new Error("OTP has expired. Please request a new OTP.");
+  }
+
+  // Clear OTP immediately after successful verification
   await prisma.admin.update({
     where: { id: admin.id },
     data: { otp: null, otp_expiry: null }
@@ -200,7 +239,7 @@ async function verifyOtpAdmin(phone, otp, deviceFingerprint) {
     }
   });
 
-  return { token, refreshToken, admin: { id: admin.id, phone: admin.phone } };
+  return { token, refreshToken };
 }
 
 async function refreshAdminToken(oldRefreshToken, deviceFingerprint) {
@@ -237,7 +276,24 @@ async function refreshAdminToken(oldRefreshToken, deviceFingerprint) {
     }
   });
 
-  return { token, refreshToken: newRefreshToken, admin: { id: session.admin.id, phone: session.admin.phone } };
+  return { token, refreshToken: newRefreshToken };
+}
+
+
+async function logoutUser(userId, refreshToken) {
+  if (refreshToken) {
+    await prisma.session.deleteMany({
+      where: {
+        userId,
+        refreshToken
+      }
+    });
+  } else {
+    await prisma.session.deleteMany({
+      where: { userId }
+    });
+  }
+  return { success: true, message: "User logged out successfully" };
 }
 
 async function updateUserProfile(userId, { fullName, email }) {
@@ -252,13 +308,54 @@ async function updateUserProfile(userId, { fullName, email }) {
   return { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email };
 }
 
+async function resendOtpAdmin(phone) {
+  const fixedAdminPhone = ADMIN_PHONE || "9876543210";
+  if (phone !== fixedAdminPhone) {
+    throw new Error("Access denied: Not an authorized Admin mobile number");
+  }
+
+  const admin = await prisma.admin.findUnique({ where: { phone } });
+  if (!admin) {
+    throw new Error("No OTP was requested. Please use send-otp first.");
+  }
+
+  // Admin must have an active OTP to resend
+  if (!admin.otp) {
+    throw new Error("No active OTP found. Please use send-otp first.");
+  }
+
+  // Strictly enforce 1 minute cooldown
+  const timeSinceLastOtp = Date.now() - new Date(admin.updatedAt).getTime();
+  if (timeSinceLastOtp < OTP_RESEND_COOLDOWN_MS) {
+    const remainingSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - timeSinceLastOtp) / 1000);
+    throw new Error(`Please wait ${remainingSeconds} second(s) before resending OTP.`);
+  }
+
+  // Delete old OTP and generate a fresh one
+  const otp = generateOtp();
+  const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MS); // 5 minutes
+
+  await prisma.admin.update({
+    where: { id: admin.id },
+    data: { otp, otp_expiry: otpExpiry }
+  });
+
+  console.log(`\n======================================================`);
+  console.log(`🔄 [ADMIN RESEND OTP] Mobile: ${phone} | New OTP: ${otp} (Valid for 5 mins)`);
+  console.log(`======================================================\n`);
+
+  return { success: true, message: "OTP resent successfully to Admin" };
+}
+
 module.exports = {
   sendOtpUser,
   verifyOtpUser,
   refreshUserToken,
   updateUserProfile,
   registerUser,
+  logoutUser,
   sendOtpAdmin,
+  resendOtpAdmin,
   verifyOtpAdmin,
   refreshAdminToken
 };

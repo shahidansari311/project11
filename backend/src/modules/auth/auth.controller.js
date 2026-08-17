@@ -93,6 +93,28 @@ async function refreshAdminToken(req, res, next) {
   }
 }
 
+async function adminResendOtp(req, res, next) {
+  try {
+    const { phone } = req.body;
+    if (!phone) return errorResponse(res, 400, "Phone number is required");
+    
+    const result = await authService.resendOtpAdmin(phone);
+    return successResponse(res, 200, null, result.message);
+  } catch (err) {
+    return errorResponse(res, 400, err.message);
+  }
+}
+
+async function userLogout(req, res, next) {
+  try {
+    const { refreshToken } = req.body || {};
+    const result = await authService.logoutUser(req.user.id, refreshToken);
+    return successResponse(res, 200, null, result.message);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function updateProfile(req, res, next) {
   try {
     const { fullName, email } = req.body;
@@ -110,8 +132,10 @@ module.exports = {
   userVerifyOtp,
   userRegister,
   refreshUserToken,
+  userLogout,
   updateProfile,
   adminSendOtp,
+  adminResendOtp,
   adminVerifyOtp,
   refreshAdminToken
 };

@@ -5,10 +5,21 @@ const { verifyAuth } = require("../middlewares/auth.middleware");
 const { requireRole } = require("../middlewares/role.middleware");
 const { successResponse } = require("../utils/apiResponse");
 
+const { validate } = require("../middlewares/validate.middleware");
+const { adminCreateUserSchema, adminUpdateUserSchema } = require("../modules/auth/auth.validation");
+const authController = require("../modules/auth/auth.controller");
+
 // Mount auth routes
 router.use("/auth", authRoutes);
 
-// Example protected route for testing
+// Protected admin routes
+router.get("/admin/users", verifyAuth, requireRole("admin"), authController.getAllUsers);
+router.get("/admin/users/:id", verifyAuth, requireRole("admin"), authController.getUserById);
+router.post("/admin/users", verifyAuth, requireRole("admin"), validate(adminCreateUserSchema), authController.createUserByAdmin);
+router.put("/admin/users/:id", verifyAuth, requireRole("admin"), validate(adminUpdateUserSchema), authController.updateUserByAdmin);
+router.patch("/admin/users/:id", verifyAuth, requireRole("admin"), validate(adminUpdateUserSchema), authController.updateUserByAdmin);
+router.delete("/admin/users/:id", verifyAuth, requireRole("admin"), authController.deleteUserByAdmin);
+
 router.get("/user/profile", verifyAuth, requireRole("user"), (req, res) => {
   return successResponse(res, 200, { id: req.user.id }, "User profile data");
 });

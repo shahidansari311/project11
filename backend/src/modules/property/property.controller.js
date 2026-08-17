@@ -91,10 +91,30 @@ async function getPropertyById(req, res, next) {
   }
 }
 
+async function removePropertyImage(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { imageUrl } = req.body;
+
+    if (!imageUrl) {
+      return errorResponse(res, 400, "Image URL is required in the request body");
+    }
+
+    const result = await propertyService.removePropertyImage(id, imageUrl);
+    return successResponse(res, 200, result, "Image removed successfully");
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   createProperty,
   updateProperty,
   deleteProperty,
   getAllProperties,
   getPropertyById,
+  removePropertyImage,
 };

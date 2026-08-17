@@ -32,4 +32,7 @@ router.patch("/:id", upload.array("images", 10), uploadPropertyImages, validate(
 router.delete("/delete/:id", propertyController.deleteProperty);
 router.delete("/:id", propertyController.deleteProperty);
 
+// DELETE /admin/property/:id/image — delete a specific image from a property
+router.delete("/:id/image", propertyController.removePropertyImage);
+
 module.exports = router;

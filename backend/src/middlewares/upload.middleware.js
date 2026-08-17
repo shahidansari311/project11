@@ -7,10 +7,18 @@ const storageService = require("../services/storage.service");
 async function uploadPropertyImages(req, res, next) {
   try {
     // Ensure existing text-based image URLs sent in the form are converted to an array
-    let existingImages = req.body.images || [];
-    if (!Array.isArray(existingImages)) {
-      existingImages = [existingImages];
+    let existingImages = req.body.images;
+    
+    if (existingImages === "") {
+      existingImages = [];
+      req.body.clearImages = true; // Tell the service to NOT auto-merge old images
+    } else {
+      existingImages = existingImages || [];
+      if (!Array.isArray(existingImages)) {
+        existingImages = [existingImages];
+      }
     }
+    
     req.body.images = existingImages;
 
     if (!req.files || req.files.length === 0) {

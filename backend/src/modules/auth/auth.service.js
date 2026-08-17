@@ -74,10 +74,10 @@ async function verifyOtpUser(phone, otp, deviceFingerprint) {
     }
   });
 
-  return { token, refreshToken, isNewUser: false, user: { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email, profileImage: user.profileImage, createdBy: user.createdBy } };
+  return { token, refreshToken, isNewUser: false, user: { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email, profileUrl: user.profileUrl, createdby_admin: user.createdby_admin } };
 }
 
-async function registerUser(registrationToken, { fullName, email, profileImage, createdBy }, deviceFingerprint) {
+async function registerUser(registrationToken, { fullName, email, profileUrl, createdBy }, deviceFingerprint) {
   let decoded;
   try {
     decoded = jwt.verify(registrationToken, JWT_SECRET);
@@ -98,7 +98,7 @@ async function registerUser(registrationToken, { fullName, email, profileImage, 
   }
 
   const emailToSave = email ? email : null;
-  const imageToSave = profileImage ? profileImage : null;
+  const imageToSave = profileUrl ? profileUrl : null;
   const createdByToSave = createdBy ? createdBy : "false";
 
   user = await prisma.user.create({
@@ -106,8 +106,8 @@ async function registerUser(registrationToken, { fullName, email, profileImage, 
       phone,
       fullName,
       email: emailToSave,
-      profileImage: imageToSave,
-      createdBy: createdByToSave
+      profileUrl: imageToSave,
+      createdby_admin: createdByToSave
     }
   });
 
@@ -124,7 +124,7 @@ async function registerUser(registrationToken, { fullName, email, profileImage, 
     }
   });
 
-  return { token, refreshToken, user: { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email, profileImage: user.profileImage, createdBy: user.createdBy } };
+  return { token, refreshToken, user: { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email, profileUrl: user.profileUrl, createdby_admin: user.createdby_admin } };
 }
 
 async function refreshUserToken(oldRefreshToken, deviceFingerprint) {
@@ -300,22 +300,22 @@ async function logoutUser(userId, refreshToken) {
   return { success: true, message: "User logged out successfully" };
 }
 
-async function updateUserProfile(userId, { fullName, email, profileImage }) {
+async function updateUserProfile(userId, { fullName, email, profileUrl }) {
   // Save null instead of empty string if optional
   const emailToSave = email !== undefined ? (email ? email : null) : undefined;
-  const imageToSave = profileImage !== undefined ? (profileImage ? profileImage : null) : undefined;
+  const imageToSave = profileUrl !== undefined ? (profileUrl ? profileUrl : null) : undefined;
 
   const updateData = {};
   if (fullName !== undefined) updateData.fullName = fullName;
   if (emailToSave !== undefined) updateData.email = emailToSave;
-  if (imageToSave !== undefined) updateData.profileImage = imageToSave;
+  if (imageToSave !== undefined) updateData.profileUrl = imageToSave;
 
   const user = await prisma.user.update({
     where: { id: userId },
     data: updateData
   });
 
-  return { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email, profileImage: user.profileImage, createdBy: user.createdBy };
+  return { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email, profileUrl: user.profileUrl, createdby_admin: user.createdby_admin };
 }
 
 async function resendOtpAdmin(phone) {
@@ -364,8 +364,8 @@ async function getAllUsers() {
       phone: true,
       fullName: true,
       email: true,
-      profileImage: true,
-      createdBy: true,
+      profileUrl: true,
+      createdby_admin: true,
       hasPurchasedProperty: true,
       createdAt: true,
       updatedAt: true
@@ -378,7 +378,7 @@ async function getAllUsers() {
   return users;
 }
 
-async function createUserByAdmin({ fullName, phone, email, profileImage }) {
+async function createUserByAdmin({ fullName, phone, email, profileUrl }) {
   // Check if user with phone already exists
   const existingUser = await prisma.user.findUnique({ where: { phone } });
   if (existingUser) {
@@ -394,15 +394,15 @@ async function createUserByAdmin({ fullName, phone, email, profileImage }) {
     }
   }
 
-  const imageToSave = profileImage ? profileImage : null;
+  const imageToSave = profileUrl ? profileUrl : null;
 
   const newUser = await prisma.user.create({
     data: {
       phone,
       fullName,
       email: emailToSave,
-      profileImage: imageToSave,
-      createdBy: "true"
+      profileUrl: imageToSave,
+      createdby_admin: "true"
     }
   });
 
@@ -411,8 +411,8 @@ async function createUserByAdmin({ fullName, phone, email, profileImage }) {
     phone: newUser.phone,
     fullName: newUser.fullName,
     email: newUser.email,
-    profileImage: newUser.profileImage,
-    createdBy: newUser.createdBy,
+    profileUrl: newUser.profileUrl,
+    createdby_admin: newUser.createdby_admin,
     hasPurchasedProperty: newUser.hasPurchasedProperty,
     createdAt: newUser.createdAt,
     updatedAt: newUser.updatedAt
@@ -427,8 +427,8 @@ async function getUserById(userId) {
       phone: true,
       fullName: true,
       email: true,
-      profileImage: true,
-      createdBy: true,
+      profileUrl: true,
+      createdby_admin: true,
       hasPurchasedProperty: true,
       createdAt: true,
       updatedAt: true
@@ -442,7 +442,7 @@ async function getUserById(userId) {
   return user;
 }
 
-async function updateUserByAdmin(userId, { fullName, phone, email, profileImage, hasPurchasedProperty }) {
+async function updateUserByAdmin(userId, { fullName, phone, email, profileUrl, hasPurchasedProperty }) {
   const existingUser = await prisma.user.findUnique({ where: { id: userId } });
   if (!existingUser) {
     throw new Error("User not found with the provided ID");
@@ -465,13 +465,13 @@ async function updateUserByAdmin(userId, { fullName, phone, email, profileImage,
     }
   }
 
-  const imageToSave = profileImage !== undefined ? (profileImage ? profileImage : null) : undefined;
+  const imageToSave = profileUrl !== undefined ? (profileUrl ? profileUrl : null) : undefined;
 
   const updateData = {};
   if (fullName !== undefined) updateData.fullName = fullName;
   if (phone !== undefined) updateData.phone = phone;
   if (emailToSave !== undefined) updateData.email = emailToSave;
-  if (imageToSave !== undefined) updateData.profileImage = imageToSave;
+  if (imageToSave !== undefined) updateData.profileUrl = imageToSave;
   if (hasPurchasedProperty !== undefined) updateData.hasPurchasedProperty = hasPurchasedProperty;
 
   const updatedUser = await prisma.user.update({
@@ -484,8 +484,8 @@ async function updateUserByAdmin(userId, { fullName, phone, email, profileImage,
     phone: updatedUser.phone,
     fullName: updatedUser.fullName,
     email: updatedUser.email,
-    profileImage: updatedUser.profileImage,
-    createdBy: updatedUser.createdBy,
+    profileUrl: updatedUser.profileUrl,
+    createdby_admin: updatedUser.createdby_admin,
     hasPurchasedProperty: updatedUser.hasPurchasedProperty,
     createdAt: updatedUser.createdAt,
     updatedAt: updatedUser.updatedAt
@@ -501,6 +501,8 @@ async function deleteUserByAdmin(userId) {
   await prisma.user.delete({ where: { id: userId } });
 
   return { success: true, message: "User deleted successfully" };
+}
+
 async function resendOtpUser(phone) {
   // Must have an existing OTP session — can't resend what was never sent
   const existingOtp = await prisma.otpVerification.findUnique({ where: { phone } });

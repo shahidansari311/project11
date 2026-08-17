@@ -6,51 +6,72 @@ const VALID_CATEGORIES = ["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "LAND"];
 const createPropertySchema = z.object({
   body: z.object({
     title: z
-      .string({ required_error: "Title is required" })
+      .string({ 
+        required_error: "Please provide a title for the property.",
+        invalid_type_error: "The title must be text."
+      })
       .trim()
-      .min(3, "Title must be at least 3 characters"),
+      .min(3, "The title is too short. It must be at least 3 characters."),
 
     description: z
-      .string({ required_error: "Description is required" })
+      .string({ 
+        required_error: "Please add a description for this property.",
+        invalid_type_error: "The description must be text."
+      })
       .trim()
-      .min(10, "Description must be at least 10 characters"),
+      .min(10, "The description must be at least 10 characters to provide enough detail."),
 
     images: z
-      .array(z.string().url("Each image must be a valid URL"))
-      .min(1, "At least one image URL is required"),
+      .array(z.string().url("One of the image links is invalid. Please make sure they are correct URLs."))
+      .min(1, "Please upload at least one image for the property."),
 
     location: z
-      .string({ required_error: "Location is required" })
+      .string({ 
+        required_error: "Please specify the location.",
+        invalid_type_error: "The location must be text."
+      })
       .trim()
-      .min(2, "Location must be at least 2 characters"),
+      .min(2, "The location name is too short."),
 
     status: z
       .enum(VALID_STATUSES, {
-        errorMap: () => ({ message: `Status must be one of: ${VALID_STATUSES.join(", ")}` }),
+        errorMap: () => ({ message: `Please select a valid status (${VALID_STATUSES.join(", ")}).` }),
       })
       .optional()
       .default("AVAILABLE"),
 
-    targetReturn: z
-      .number({ required_error: "Target return is required" })
-      .positive("Target return must be a positive number"),
+    targetReturn: z.coerce
+      .number({ 
+        required_error: "Please enter the target return percentage.",
+        invalid_type_error: "Target return must be a valid number."
+      })
+      .positive("The target return must be greater than 0."),
 
-    minInvestment: z
-      .number({ required_error: "Minimum investment is required" })
-      .positive("Minimum investment must be a positive number"),
+    minInvestment: z.coerce
+      .number({ 
+        required_error: "Please enter the minimum investment amount.",
+        invalid_type_error: "Minimum investment must be a valid number."
+      })
+      .positive("The minimum investment must be greater than 0."),
 
-    totalPrice: z
-      .number({ required_error: "Total price is required" })
-      .positive("Total price must be a positive number"),
+    totalPrice: z.coerce
+      .number({ 
+        required_error: "Please enter the total price of the property.",
+        invalid_type_error: "Total price must be a valid number."
+      })
+      .positive("The total price must be greater than 0."),
 
     totalSize: z
-      .string({ required_error: "Total size is required" })
+      .string({ 
+        required_error: "Please enter the total size (e.g., '2400 sq ft').",
+        invalid_type_error: "The total size must be text."
+      })
       .trim()
-      .min(1, "Total size is required"),
+      .min(1, "Please enter the total size."),
 
     category: z.enum(VALID_CATEGORIES, {
-      required_error: "Category is required",
-      errorMap: () => ({ message: `Category must be one of: ${VALID_CATEGORIES.join(", ")}` }),
+      required_error: "Please select a category for the property.",
+      errorMap: () => ({ message: `Please select a valid category (${VALID_CATEGORIES.join(", ")}).` }),
     }),
   }),
   query: z.object({}).passthrough().optional(),

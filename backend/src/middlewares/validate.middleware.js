@@ -21,8 +21,21 @@ function validate(schema) {
       next();
     } catch (error) {
       if (error && error.name === "ZodError") {
-        const errorMessages = error.issues.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
-        return errorResponse(res, 400, `Validation Error: ${errorMessages}`);
+        // Return a simple, plain English list of what went wrong
+        const formattedErrors = error.issues.map(err => ({
+          field: err.path[err.path.length - 1], // Just the field name, e.g. 'title'
+          message: err.message
+        }));
+        
+        // Use the first error as the main message for easy Toast notifications, 
+        // but keep the full array so the frontend can highlight specific fields.
+        const mainMessage = formattedErrors.length > 0 ? formattedErrors[0].message : "Validation failed";
+        
+        return res.status(400).json({
+          success: false,
+          message: mainMessage,
+          errors: formattedErrors
+        });
       }
       next(error);
     }

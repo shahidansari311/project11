@@ -23,7 +23,7 @@ async function userVerifyOtp(req, res, next) {
     const result = await authService.verifyOtpUser(phone, otp, deviceFingerprint);
     return successResponse(res, 200, result, "Login successful");
   } catch (err) {
-    return errorResponse(res, 400, err.message);
+    next(err);
   }
 }
 
@@ -39,7 +39,7 @@ async function userRegister(req, res, next) {
     const result = await authService.registerUser(registrationToken, { fullName, email, profileUrl, createdBy }, deviceFingerprint);
     return successResponse(res, 201, result, "Registration successful");
   } catch (err) {
-    return errorResponse(res, 400, err.message);
+    next(err);
   }
 }
 
@@ -51,7 +51,7 @@ async function refreshUserToken(req, res, next) {
     const result = await authService.refreshUserToken(refreshToken, deviceFingerprint);
     return successResponse(res, 200, result, "Token refreshed successfully");
   } catch (err) {
-    return errorResponse(res, 401, err.message);
+    next(err);
   }
 }
 
@@ -77,7 +77,7 @@ async function adminVerifyOtp(req, res, next) {
     const result = await authService.verifyOtpAdmin(phone, otp, deviceFingerprint);
     return successResponse(res, 200, result, "Login successful");
   } catch (err) {
-    return errorResponse(res, 400, err.message);
+    next(err);
   }
 }
 
@@ -89,7 +89,7 @@ async function refreshAdminToken(req, res, next) {
     const result = await authService.refreshAdminToken(refreshToken, deviceFingerprint);
     return successResponse(res, 200, result, "Token refreshed successfully");
   } catch (err) {
-    return errorResponse(res, 401, err.message);
+    next(err);
   }
 }
 
@@ -101,7 +101,7 @@ async function adminResendOtp(req, res, next) {
     const result = await authService.resendOtpAdmin(phone);
     return successResponse(res, 200, null, result.message);
   } catch (err) {
-    return errorResponse(res, 400, err.message);
+    next(err);
   }
 }
 
@@ -135,7 +135,7 @@ async function createUserByAdmin(req, res, next) {
     const newUser = await authService.createUserByAdmin({ fullName, phone, email, profileUrl });
     return successResponse(res, 201, newUser, "User created successfully by Admin");
   } catch (error) {
-    return errorResponse(res, 400, error.message);
+    next(error);
   }
 }
 
@@ -145,7 +145,7 @@ async function getUserById(req, res, next) {
     const user = await authService.getUserById(id);
     return successResponse(res, 200, user, "User details retrieved successfully");
   } catch (error) {
-    return errorResponse(res, 404, error.message);
+    next(error);
   }
 }
 
@@ -155,7 +155,7 @@ async function updateUserByAdmin(req, res, next) {
     const updatedUser = await authService.updateUserByAdmin(id, req.body);
     return successResponse(res, 200, updatedUser, "User updated successfully");
   } catch (error) {
-    return errorResponse(res, 400, error.message);
+    next(error);
   }
 }
 
@@ -165,7 +165,7 @@ async function deleteUserByAdmin(req, res, next) {
     const result = await authService.deleteUserByAdmin(id);
     return successResponse(res, 200, null, result.message);
   } catch (error) {
-    return errorResponse(res, 400, error.message);
+    next(error);
   }
 }
 
@@ -177,7 +177,7 @@ async function userResendOtp(req, res, next) {
     const result = await authService.resendOtpUser(phone);
     return successResponse(res, 200, null, result.message);
   } catch (err) {
-    return errorResponse(res, 400, err.message);
+    next(err);
   }
 }
 
@@ -213,7 +213,7 @@ async function adminCancelOtp(req, res, next) {
     await authService.cancelOtpAdmin(phone);
     return successResponse(res, 200, null, "OTP session cleared");
   } catch (err) {
-    return errorResponse(res, 400, err.message);
+    next(err);
   }
 }
 

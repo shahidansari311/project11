@@ -29,14 +29,14 @@ async function userVerifyOtp(req, res, next) {
 
 async function userRegister(req, res, next) {
   try {
-    const { registrationToken, fullName, email, profileImage, createdBy } = req.body;
+    const { registrationToken, fullName, email, profileUrl, createdBy } = req.body;
     const deviceFingerprint = req.headers["x-device-id"] || "unknown-device";
 
     if (!registrationToken || !fullName) {
       return errorResponse(res, 400, "Registration token and full name are required");
     }
 
-    const result = await authService.registerUser(registrationToken, { fullName, email, profileImage, createdBy }, deviceFingerprint);
+    const result = await authService.registerUser(registrationToken, { fullName, email, profileUrl, createdBy }, deviceFingerprint);
     return successResponse(res, 201, result, "Registration successful");
   } catch (err) {
     return errorResponse(res, 400, err.message);
@@ -117,8 +117,13 @@ async function userLogout(req, res, next) {
 
 async function getAllUsers(req, res, next) {
   try {
-    const users = await authService.getAllUsers();
-    return successResponse(res, 200, users, "All users retrieved successfully");
+    // Parse query params — default 20 users per page, max 100 users per page
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = (req.query.search || "").trim();
+
+    const result = await authService.getAllUsers({ page, limit, search });
+    return successResponse(res, 200, result, "Users retrieved successfully");
   } catch (error) {
     next(error);
   }
@@ -126,8 +131,8 @@ async function getAllUsers(req, res, next) {
 
 async function createUserByAdmin(req, res, next) {
   try {
-    const { fullName, phone, email, profileImage } = req.body;
-    const newUser = await authService.createUserByAdmin({ fullName, phone, email, profileImage });
+    const { fullName, phone, email, profileUrl } = req.body;
+    const newUser = await authService.createUserByAdmin({ fullName, phone, email, profileUrl });
     return successResponse(res, 201, newUser, "User created successfully by Admin");
   } catch (error) {
     return errorResponse(res, 400, error.message);
@@ -161,6 +166,9 @@ async function deleteUserByAdmin(req, res, next) {
     return successResponse(res, 200, null, result.message);
   } catch (error) {
     return errorResponse(res, 400, error.message);
+  }
+}
+
 async function userResendOtp(req, res, next) {
   try {
     const { phone } = req.body;
@@ -187,9 +195,9 @@ async function userCancelOtp(req, res, next) {
 
 async function updateProfile(req, res, next) {
   try {
-    const { fullName, email, profileImage } = req.body;
+    const { fullName, email, profileUrl } = req.body;
     // req.user is set by the verifyAuth middleware
-    const updatedUser = await authService.updateUserProfile(req.user.id, { fullName, email, profileImage });
+    const updatedUser = await authService.updateUserProfile(req.user.id, { fullName, email, profileUrl });
 
     return successResponse(res, 200, { user: updatedUser }, "Profile updated successfully");
   } catch (error) {

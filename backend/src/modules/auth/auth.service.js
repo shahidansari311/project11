@@ -357,25 +357,52 @@ async function resendOtpAdmin(phone) {
   return { success: true, message: "OTP resent successfully to Admin" };
 }
 
-async function getAllUsers() {
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      phone: true,
-      fullName: true,
-      email: true,
-      profileUrl: true,
-      createdby_admin: true,
-      hasPurchasedProperty: true,
-      createdAt: true,
-      updatedAt: true
-    },
-    orderBy: {
-      createdAt: "desc"
-    }
-  });
+async function getAllUsers({ page = 1, limit = 20, search = "" } = {}) {
+  const skip = (page - 1) * limit;
 
-  return users;
+  // Build search filter — matches name OR email, case-insensitive
+  const where = search.trim()
+    ? {
+        OR: [
+          { fullName: { contains: search.trim(), mode: "insensitive" } },
+          { email:    { contains: search.trim(), mode: "insensitive" } },
+        ],
+      }
+    : {};
+
+  // Run count and data fetch in parallel for efficiency
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        phone: true,
+        fullName: true,
+        email: true,
+        profileUrl: true,
+        createdby_admin: true,
+        hasPurchasedProperty: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    users,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrev: page > 1,
+    },
+  };
 }
 
 async function createUserByAdmin({ fullName, phone, email, profileUrl }) {

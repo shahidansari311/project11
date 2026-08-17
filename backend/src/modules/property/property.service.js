@@ -51,6 +51,11 @@ async function updateProperty(id, data) {
     throw new Error("Property not found with the provided ID");
   }
 
+  // Remove the clearImages flag since we are strictly overwriting with the frontend's array
+  if (data.clearImages !== undefined) {
+    delete data.clearImages;
+  }
+
   const updatedProperty = await propertyModel.update({
     where: { id },
     data,
@@ -122,10 +127,33 @@ async function getPropertyById(id) {
   return property;
 }
 
+async function removePropertyImage(id, imageUrlToRemove) {
+  const propertyModel = getPropertyModel();
+  const existingProperty = await propertyModel.findUnique({ where: { id } });
+  if (!existingProperty) {
+    throw new Error("Property not found with the provided ID");
+  }
+
+  const existingImages = existingProperty.images || [];
+  const updatedImages = existingImages.filter((url) => url !== imageUrlToRemove);
+
+  if (existingImages.length === updatedImages.length) {
+    throw new Error("Image URL not found in this property");
+  }
+
+  const updatedProperty = await propertyModel.update({
+    where: { id },
+    data: { images: updatedImages },
+  });
+
+  return updatedProperty;
+}
+
 module.exports = {
   createProperty,
   updateProperty,
   deleteProperty,
   getAllProperties,
   getPropertyById,
+  removePropertyImage,
 };

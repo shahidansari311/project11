@@ -51,3 +51,34 @@ model OtpVerification {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+enum PropertyStatus {
+  AVAILABLE
+  SOLD
+  UNDER_REVIEW
+  COMING_SOON
+}
+
+enum PropertyCategory {
+  RESIDENTIAL
+  COMMERCIAL
+  INDUSTRIAL
+  LAND
+}
+
+model Property {
+  id            String           @id @default(cuid())
+  title         String
+  description   String
+  images        String[]
+  location      String
+  status        PropertyStatus   @default(AVAILABLE)
+  targetReturn  Float
+  minInvestment Float
+  investors     Int              @default(0)
+  totalPrice    Float
+  totalSize     String
+  category      PropertyCategory
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}

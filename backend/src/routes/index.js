@@ -9,8 +9,13 @@ const { validate } = require("../middlewares/validate.middleware");
 const { adminCreateUserSchema, adminUpdateUserSchema } = require("../modules/auth/auth.validation");
 const authController = require("../modules/auth/auth.controller");
 
+const propertyRoutes = require("../modules/property/property.routes");
+
 // Mount auth routes
 router.use("/auth", authRoutes);
+
+// Mount property routes — all protected as admin-only
+router.use("/admin/property", verifyAuth, requireRole("admin"), propertyRoutes);
 
 // Protected admin routes
 router.get("/admin/users", verifyAuth, requireRole("admin"), authController.getAllUsers);

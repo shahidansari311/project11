@@ -4,7 +4,7 @@ const { signToken, generateRefreshToken } = require("../../utils/jwt.util");
 const { ADMIN_PHONE, JWT_SECRET } = require("../../config/env");
 const jwt = require("jsonwebtoken");
 
-const OTP_EXPIRY_MS = 2 * 60 * 1000; // 5 minutes
+const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute
 
 async function sendOtpUser(phone) {
@@ -501,6 +501,39 @@ async function deleteUserByAdmin(userId) {
   await prisma.user.delete({ where: { id: userId } });
 
   return { success: true, message: "User deleted successfully" };
+async function resendOtpUser(phone) {
+  // Must have an existing OTP session — can't resend what was never sent
+  const existingOtp = await prisma.otpVerification.findUnique({ where: { phone } });
+  if (!existingOtp) {
+    throw new Error("No active OTP session found. Please request an OTP first.");
+  }
+
+  // Enforce 60-second resend cooldown
+  const timeSinceLastOtp = Date.now() - new Date(existingOtp.updatedAt).getTime();
+  if (timeSinceLastOtp < OTP_RESEND_COOLDOWN_MS) {
+    const remainingSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - timeSinceLastOtp) / 1000);
+    throw new Error(`Please wait ${remainingSeconds} second(s) before resending OTP.`);
+  }
+
+  // Generate a fresh OTP and overwrite the old one
+  const otp = generateOtp();
+  const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MS);
+
+  await prisma.otpVerification.update({
+    where: { phone },
+    data: { otp, otp_expiry: otpExpiry }
+  });
+
+  console.log(`🔄 [USER RESEND OTP] Mobile: ${phone} | New OTP: ${otp} (Valid for 5 mins)`);
+
+  return { success: true, message: "OTP resent successfully" };
+}
+
+async function cancelOtpUser(phone) {
+  // Idempotent — delete OTP record if it exists, no error if it doesn't
+  // Called when the user taps "Edit" so re-entering the same phone has no cooldown
+  await prisma.otpVerification.delete({ where: { phone } }).catch(() => {});
+  return { success: true };
 }
 
 module.exports = {
@@ -515,6 +548,8 @@ module.exports = {
   updateUserProfile,
   registerUser,
   logoutUser,
+  resendOtpUser,
+  cancelOtpUser,
   sendOtpAdmin,
   resendOtpAdmin,
   verifyOtpAdmin,

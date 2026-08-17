@@ -35,6 +35,33 @@ async function createProperty({
   return property;
 }
 
+async function updateProperty(id, data) {
+  const existingProperty = await prisma.property.findUnique({ where: { id } });
+  if (!existingProperty) {
+    throw new Error("Property not found with the provided ID");
+  }
+
+  const updatedProperty = await prisma.property.update({
+    where: { id },
+    data,
+  });
+
+  return updatedProperty;
+}
+
+async function deleteProperty(id) {
+  const existingProperty = await prisma.property.findUnique({ where: { id } });
+  if (!existingProperty) {
+    throw new Error("Property not found with the provided ID");
+  }
+
+  await prisma.property.delete({ where: { id } });
+
+  return { success: true, message: "Property deleted successfully" };
+}
+
 module.exports = {
   createProperty,
+  updateProperty,
+  deleteProperty,
 };

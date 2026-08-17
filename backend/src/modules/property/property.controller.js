@@ -1,4 +1,4 @@
-const propertyService = require("./property.service");
+ const propertyService = require("./property.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 
 /**
@@ -39,6 +39,34 @@ async function createProperty(req, res, next) {
   }
 }
 
+async function updateProperty(req, res, next) {
+  try {
+    const { id } = req.params;
+    const property = await propertyService.updateProperty(id, req.body);
+    return successResponse(res, 200, property, "Property updated successfully");
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
+async function deleteProperty(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = await propertyService.deleteProperty(id);
+    return successResponse(res, 200, null, result.message);
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   createProperty,
+  updateProperty,
+  deleteProperty,
 };

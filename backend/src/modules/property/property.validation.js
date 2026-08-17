@@ -101,7 +101,22 @@ const updatePropertySchema = z.object({
   params: z.object({ id: z.string().optional() }).passthrough().optional(),
 });
 
+const queryPropertySchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    status: z.enum(VALID_STATUSES, {
+      errorMap: () => ({ message: `Status must be one of: ${VALID_STATUSES.join(", ")}` }),
+    }).optional(),
+    category: z.enum(VALID_CATEGORIES, {
+      errorMap: () => ({ message: `Category must be one of: ${VALID_CATEGORIES.join(", ")}` }),
+    }).optional(),
+    search: z.string().optional(),
+  }).passthrough(),
+});
+
 module.exports = {
   createPropertySchema,
   updatePropertySchema,
+  queryPropertySchema,
 };

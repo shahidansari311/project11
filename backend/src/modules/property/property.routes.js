@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require("multer");
 const propertyController = require("./property.controller");
 const { validate } = require("../../middlewares/validate.middleware");
-const { createPropertySchema, updatePropertySchema } = require("./property.validation");
+const { createPropertySchema, updatePropertySchema, queryPropertySchema } = require("./property.validation");
 const { uploadPropertyImages } = require("../../middlewares/upload.middleware");
 
 // Configure Multer to intercept multipart/form-data in memory
@@ -13,8 +13,8 @@ const upload = multer({
 });
 
 // GET /admin/property or /admin/property/list — get list of all properties (supports ?status= & ?category= & ?search=)
-router.get("/", propertyController.getAllProperties);
-router.get("/list", propertyController.getAllProperties);
+router.get("/", validate(queryPropertySchema), propertyController.getAllProperties);
+router.get("/list", validate(queryPropertySchema), propertyController.getAllProperties);
 
 // GET /admin/property/:id — get single property by ID
 router.get("/:id", propertyController.getPropertyById);

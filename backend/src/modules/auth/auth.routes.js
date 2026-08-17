@@ -20,6 +20,7 @@ router.post("/user/logout",       verifyAuth, requireRole("user"), authControlle
 // Admin routes
 router.post("/admin/send-otp", loginLimiter, validate(sendOtpSchema), authController.adminSendOtp);
 router.post("/admin/resend-otp", loginLimiter, validate(sendOtpSchema), authController.adminResendOtp);
+router.post("/admin/cancel-otp", loginLimiter, validate(sendOtpSchema), authController.adminCancelOtp);
 router.post("/admin/verify-otp", loginLimiter, validate(verifyOtpSchema), authController.adminVerifyOtp);
 router.post("/admin/refresh-token", loginLimiter, validate(refreshTokenSchema), authController.refreshAdminToken);
 

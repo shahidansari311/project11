@@ -565,6 +565,21 @@ async function cancelOtpUser(phone) {
   return { success: true };
 }
 
+async function cancelOtpAdmin(phone) {
+  const fixedAdminPhone = ADMIN_PHONE || "9876543210";
+  if (phone !== fixedAdminPhone) {
+    throw new Error("Access denied: Not an authorized Admin mobile number");
+  }
+
+  // Idempotent — clear OTP and expiry for Admin if it exists
+  await prisma.admin.update({
+    where: { phone },
+    data: { otp: null, otp_expiry: null }
+  }).catch(() => {});
+
+  return { success: true };
+}
+
 module.exports = {
   sendOtpUser,
   verifyOtpUser,
@@ -581,6 +596,7 @@ module.exports = {
   cancelOtpUser,
   sendOtpAdmin,
   resendOtpAdmin,
+  cancelOtpAdmin,
   verifyOtpAdmin,
   refreshAdminToken
 };

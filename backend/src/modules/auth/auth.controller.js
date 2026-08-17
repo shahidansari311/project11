@@ -205,6 +205,18 @@ async function updateProfile(req, res, next) {
   }
 }
 
+async function adminCancelOtp(req, res, next) {
+  try {
+    const { phone } = req.body;
+    if (!phone) return errorResponse(res, 400, "Phone number is required");
+
+    await authService.cancelOtpAdmin(phone);
+    return successResponse(res, 200, null, "OTP session cleared");
+  } catch (err) {
+    return errorResponse(res, 400, err.message);
+  }
+}
+
 module.exports = {
   userSendOtp,
   userVerifyOtp,
@@ -216,6 +228,7 @@ module.exports = {
   updateProfile,
   adminSendOtp,
   adminResendOtp,
+  adminCancelOtp,
   adminVerifyOtp,
   refreshAdminToken,
   getAllUsers,

@@ -4,6 +4,13 @@ const propertyController = require("./property.controller");
 const { validate } = require("../../middlewares/validate.middleware");
 const { createPropertySchema, updatePropertySchema } = require("./property.validation");
 
+// GET /admin/property or /admin/property/list — get list of all properties (supports ?status= & ?category= & ?search=)
+router.get("/", propertyController.getAllProperties);
+router.get("/list", propertyController.getAllProperties);
+
+// GET /admin/property/:id — get single property by ID
+router.get("/:id", propertyController.getPropertyById);
+
 // POST /admin/property/add — create a new property listing
 router.post("/add", validate(createPropertySchema), propertyController.createProperty);
 

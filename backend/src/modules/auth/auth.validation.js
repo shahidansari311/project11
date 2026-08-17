@@ -39,6 +39,7 @@ const profileSchema = z.object({
   body: z.object({
     fullName: z.string().min(2, "Full name must be at least 2 characters").max(100),
     email: z.string().email("Invalid email address").optional().or(z.literal("")),
+    profileImage: z.string().url("Invalid image URL").optional().or(z.literal("")),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({}).passthrough().optional()
@@ -50,9 +51,34 @@ const registerSchema = z.object({
     registrationToken: z.string().min(1, "Registration token is required"),
     fullName: z.string().min(2, "Full name must be at least 2 characters").max(100),
     email: z.string().email("Invalid email address").optional().or(z.literal("")),
+    profileImage: z.string().url("Invalid image URL").optional().or(z.literal("")),
+    createdBy: z.string().optional(),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({}).passthrough().optional()
+});
+
+const adminCreateUserSchema = z.object({
+  body: z.object({
+    fullName: z.string().min(2, "Full name must be at least 2 characters").max(100),
+    phone: phoneSchema,
+    email: z.string().email("Invalid email address").optional().or(z.literal("")),
+    profileImage: z.string().url("Invalid image URL").optional().or(z.literal("")),
+  }),
+  query: z.object({}).passthrough().optional(),
+  params: z.object({}).passthrough().optional()
+});
+
+const adminUpdateUserSchema = z.object({
+  body: z.object({
+    fullName: z.string().min(2, "Full name must be at least 2 characters").max(100).optional(),
+    phone: phoneSchema.optional(),
+    email: z.string().email("Invalid email address").optional().or(z.literal("")),
+    profileImage: z.string().url("Invalid image URL").optional().or(z.literal("")),
+    hasPurchasedProperty: z.boolean().optional(),
+  }),
+  query: z.object({}).passthrough().optional(),
+  params: z.object({ id: z.string().optional() }).passthrough().optional()
 });
 
 module.exports = {
@@ -60,5 +86,7 @@ module.exports = {
   verifyOtpSchema,
   refreshTokenSchema,
   profileSchema,
-  registerSchema
+  registerSchema,
+  adminCreateUserSchema,
+  adminUpdateUserSchema
 };

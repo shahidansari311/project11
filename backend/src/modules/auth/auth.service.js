@@ -1,3 +1,4 @@
+const AppError = require("../../utils/AppError");
 const prisma = require("../../config/db");
 const { generateOtp } = require("../../utils/generateOtp");
 const { signToken, generateRefreshToken } = require("../../utils/jwt.util");
@@ -14,7 +15,7 @@ async function sendOtpUser(phone) {
     const timeSinceLastOtp = Date.now() - new Date(existingOtp.updatedAt).getTime();
     if (timeSinceLastOtp < OTP_RESEND_COOLDOWN_MS) {
       const remainingSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - timeSinceLastOtp) / 1000);
-      throw new Error(`Please wait ${remainingSeconds} second(s) before requesting a new OTP.`);
+      throw new AppError(`Please wait ${remainingSeconds} second(s) before requesting a new OTP.`, 429);
     }
   }
 
@@ -37,16 +38,16 @@ async function sendOtpUser(phone) {
 
 async function verifyOtpUser(phone, otp, deviceFingerprint) {
   const otpRecord = await prisma.otpVerification.findUnique({ where: { phone } });
-  if (!otpRecord) throw new Error("No OTP request found for this number. Please request OTP first.");
+  if (!otpRecord) throw new AppError("No OTP request found for this number. Please request OTP first.", 400);
   
   if (otpRecord.otp !== otp) {
-    throw new Error("Invalid OTP");
+    throw new AppError("Invalid OTP.", 401);
   }
   
   if (otpRecord.otp_expiry < new Date()) {
     // Delete expired OTP
     await prisma.otpVerification.delete({ where: { phone } }).catch(() => {});
-    throw new Error("OTP has expired. Please request a new OTP.");
+    throw new AppError("OTP has expired. Please request a new OTP.", 400);
   }
 
   // OTP verified, remove it so it cannot be used again
@@ -82,11 +83,11 @@ async function registerUser(registrationToken, { fullName, email, profileUrl, cr
   try {
     decoded = jwt.verify(registrationToken, JWT_SECRET);
   } catch (err) {
-    throw new Error("Invalid or expired registration token");
+    throw new AppError("Invalid or expired registration token.", 401);
   }
 
   if (!decoded.isRegistration || !decoded.phone) {
-    throw new Error("Invalid registration token format");
+    throw new AppError("Invalid registration token format", 400);
   }
 
   const { phone } = decoded;
@@ -94,12 +95,12 @@ async function registerUser(registrationToken, { fullName, email, profileUrl, cr
   // Check if user already exists
   let user = await prisma.user.findUnique({ where: { phone } });
   if (user) {
-    throw new Error("User already registered. Please login.");
+    throw new AppError("User already registered. Please login.", 400);
   }
 
   const emailToSave = email ? email : null;
   const imageToSave = profileUrl ? profileUrl : null;
-  const createdByToSave = createdBy ? createdBy : "false";
+  const createdByToSave = createdBy === true || createdBy === "true";
 
   user = await prisma.user.create({
     data: {
@@ -134,16 +135,16 @@ async function refreshUserToken(oldRefreshToken, deviceFingerprint) {
   });
 
   if (!session || !session.userId) {
-    throw new Error("Invalid refresh token");
+    throw new AppError("Invalid refresh token.", 401);
   }
 
   if (session.deviceFingerprint !== deviceFingerprint) {
-    throw new Error("Device mismatch. Please login again.");
+    throw new AppError("Device mismatch. Please login again.", 401);
   }
 
   if (session.expiresAt < new Date()) {
     await prisma.session.delete({ where: { id: session.id } });
-    throw new Error("Refresh token expired. Please login again.");
+    throw new AppError("Refresh token expired. Please login again.", 401);
   }
 
   // Delete old session (rotation)
@@ -169,7 +170,7 @@ async function sendOtpAdmin(phone) {
   // Check if phone matches the fixed Admin phone number
   const fixedAdminPhone = ADMIN_PHONE || "9876543210";
   if (phone !== fixedAdminPhone) {
-    throw new Error("Access denied: Not an authorized Admin mobile number");
+    throw new AppError("Access denied: Not an authorized Admin mobile number.", 403);
   }
 
   let admin = await prisma.admin.findUnique({ where: { phone } });
@@ -181,7 +182,7 @@ async function sendOtpAdmin(phone) {
     const timeSinceLastOtp = Date.now() - new Date(admin.updatedAt).getTime();
     if (timeSinceLastOtp < OTP_RESEND_COOLDOWN_MS) {
       const remainingSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - timeSinceLastOtp) / 1000);
-      throw new Error(`Please wait ${remainingSeconds} second(s) before requesting a new OTP.`);
+      throw new AppError(`Please wait ${remainingSeconds} second(s) before requesting a new OTP.`, 429);
     }
   }
 
@@ -205,14 +206,14 @@ async function sendOtpAdmin(phone) {
 async function verifyOtpAdmin(phone, otp, deviceFingerprint) {
   const fixedAdminPhone = ADMIN_PHONE || "9876543210";
   if (phone !== fixedAdminPhone) {
-    throw new Error("Access denied: Not an authorized Admin mobile number");
+    throw new AppError("Access denied: Not an authorized Admin mobile number.", 403);
   }
 
   const admin = await prisma.admin.findUnique({ where: { phone } });
-  if (!admin) throw new Error("Admin not found. Please request OTP first.");
+  if (!admin) throw new AppError("Admin not found. Please request OTP first.", 400);
 
   if (!admin.otp || admin.otp !== otp) {
-    throw new Error("Invalid OTP");
+    throw new AppError("Invalid OTP.", 401);
   }
   
   if (admin.otp_expiry && admin.otp_expiry < new Date()) {
@@ -221,7 +222,7 @@ async function verifyOtpAdmin(phone, otp, deviceFingerprint) {
       where: { id: admin.id },
       data: { otp: null, otp_expiry: null }
     });
-    throw new Error("OTP has expired. Please request a new OTP.");
+    throw new AppError("OTP has expired. Please request a new OTP.", 400);
   }
 
   // Clear OTP immediately after successful verification
@@ -253,16 +254,16 @@ async function refreshAdminToken(oldRefreshToken, deviceFingerprint) {
   });
 
   if (!session || !session.adminId) {
-    throw new Error("Invalid refresh token");
+    throw new AppError("Invalid refresh token.", 401);
   }
 
   if (session.deviceFingerprint !== deviceFingerprint) {
-    throw new Error("Device mismatch. Please login again.");
+    throw new AppError("Device mismatch. Please login again.", 401);
   }
 
   if (session.expiresAt < new Date()) {
     await prisma.session.delete({ where: { id: session.id } });
-    throw new Error("Refresh token expired. Please login again.");
+    throw new AppError("Refresh token expired. Please login again.", 401);
   }
 
   await prisma.session.delete({ where: { id: session.id } });
@@ -321,24 +322,24 @@ async function updateUserProfile(userId, { fullName, email, profileUrl }) {
 async function resendOtpAdmin(phone) {
   const fixedAdminPhone = ADMIN_PHONE || "9876543210";
   if (phone !== fixedAdminPhone) {
-    throw new Error("Access denied: Not an authorized Admin mobile number");
+    throw new AppError("Access denied: Not an authorized Admin mobile number.", 403);
   }
 
   const admin = await prisma.admin.findUnique({ where: { phone } });
   if (!admin) {
-    throw new Error("No OTP was requested. Please use send-otp first.");
+    throw new AppError("No OTP was requested. Please use send-otp first.", 400);
   }
 
   // Admin must have an active OTP to resend
   if (!admin.otp) {
-    throw new Error("No active OTP found. Please use send-otp first.");
+    throw new AppError("No active OTP found. Please use send-otp first.", 400);
   }
 
   // Strictly enforce 1 minute cooldown
   const timeSinceLastOtp = Date.now() - new Date(admin.updatedAt).getTime();
   if (timeSinceLastOtp < OTP_RESEND_COOLDOWN_MS) {
     const remainingSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - timeSinceLastOtp) / 1000);
-    throw new Error(`Please wait ${remainingSeconds} second(s) before resending OTP.`);
+    throw new AppError(`Please wait ${remainingSeconds} second(s) before resending OTP.`, 429);
   }
 
   // Delete old OTP and generate a fresh one
@@ -409,7 +410,7 @@ async function createUserByAdmin({ fullName, phone, email, profileUrl }) {
   // Check if user with phone already exists
   const existingUser = await prisma.user.findUnique({ where: { phone } });
   if (existingUser) {
-    throw new Error("User with this mobile number already exists");
+    throw new AppError("A user with this mobile number already exists.", 409);
   }
 
   // Check if email already exists (if provided)
@@ -417,7 +418,7 @@ async function createUserByAdmin({ fullName, phone, email, profileUrl }) {
   if (emailToSave) {
     const existingEmail = await prisma.user.findUnique({ where: { email: emailToSave } });
     if (existingEmail) {
-      throw new Error("User with this email address already exists");
+      throw new AppError("A user with this email address already exists.", 409);
     }
   }
 
@@ -429,7 +430,7 @@ async function createUserByAdmin({ fullName, phone, email, profileUrl }) {
       fullName,
       email: emailToSave,
       profileUrl: imageToSave,
-      createdby_admin: "true"
+      createdby_admin: true
     }
   });
 
@@ -463,7 +464,7 @@ async function getUserById(userId) {
   });
 
   if (!user) {
-    throw new Error("User not found with the provided ID");
+    throw new AppError("User not found.", 404);
   }
 
   return user;
@@ -472,14 +473,14 @@ async function getUserById(userId) {
 async function updateUserByAdmin(userId, { fullName, phone, email, profileUrl, hasPurchasedProperty }) {
   const existingUser = await prisma.user.findUnique({ where: { id: userId } });
   if (!existingUser) {
-    throw new Error("User not found with the provided ID");
+    throw new AppError("User not found.", 404);
   }
 
   // Check unique phone if updating phone
   if (phone && phone !== existingUser.phone) {
     const phoneExists = await prisma.user.findUnique({ where: { phone } });
     if (phoneExists) {
-      throw new Error("Another user already has this mobile number");
+      throw new AppError("Another user already has this mobile number.", 409);
     }
   }
 
@@ -488,7 +489,7 @@ async function updateUserByAdmin(userId, { fullName, phone, email, profileUrl, h
   if (emailToSave && emailToSave !== existingUser.email) {
     const emailExists = await prisma.user.findUnique({ where: { email: emailToSave } });
     if (emailExists) {
-      throw new Error("Another user already has this email address");
+      throw new AppError("Another user already has this email address.", 409);
     }
   }
 
@@ -522,7 +523,7 @@ async function updateUserByAdmin(userId, { fullName, phone, email, profileUrl, h
 async function deleteUserByAdmin(userId) {
   const existingUser = await prisma.user.findUnique({ where: { id: userId } });
   if (!existingUser) {
-    throw new Error("User not found with the provided ID");
+    throw new AppError("User not found.", 404);
   }
 
   await prisma.user.delete({ where: { id: userId } });
@@ -534,14 +535,14 @@ async function resendOtpUser(phone) {
   // Must have an existing OTP session — can't resend what was never sent
   const existingOtp = await prisma.otpVerification.findUnique({ where: { phone } });
   if (!existingOtp) {
-    throw new Error("No active OTP session found. Please request an OTP first.");
+    throw new AppError("No active OTP session found. Please request an OTP first.", 400);
   }
 
   // Enforce 60-second resend cooldown
   const timeSinceLastOtp = Date.now() - new Date(existingOtp.updatedAt).getTime();
   if (timeSinceLastOtp < OTP_RESEND_COOLDOWN_MS) {
     const remainingSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - timeSinceLastOtp) / 1000);
-    throw new Error(`Please wait ${remainingSeconds} second(s) before resending OTP.`);
+    throw new AppError(`Please wait ${remainingSeconds} second(s) before resending OTP.`, 429);
   }
 
   // Generate a fresh OTP and overwrite the old one
@@ -568,7 +569,7 @@ async function cancelOtpUser(phone) {
 async function cancelOtpAdmin(phone) {
   const fixedAdminPhone = ADMIN_PHONE || "9876543210";
   if (phone !== fixedAdminPhone) {
-    throw new Error("Access denied: Not an authorized Admin mobile number");
+    throw new AppError("Access denied: Not an authorized Admin mobile number.", 403);
   }
 
   // Idempotent — clear OTP and expiry for Admin if it exists

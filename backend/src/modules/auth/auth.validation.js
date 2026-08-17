@@ -1,8 +1,19 @@
 const { z } = require("zod");
 
-const phoneSchema = z.string().trim().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian mobile number");
-const otpSchema = z.string().trim().regex(/^\d{6}$/, "OTP must be exactly 6 digits");
-const deviceIdSchema = z.string().min(1, "Device ID is required").default("unknown-device");
+const phoneSchema = z.string({ 
+  required_error: "Please enter a mobile number.",
+  invalid_type_error: "Mobile number must be text."
+}).trim().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian mobile number");
+
+const otpSchema = z.string({
+  required_error: "Please enter the OTP.",
+  invalid_type_error: "OTP must be text."
+}).trim().regex(/^\d{6}$/, "OTP must be exactly 6 digits");
+
+const deviceIdSchema = z.string({
+  required_error: "Device ID is required.",
+  invalid_type_error: "Device ID must be text."
+}).min(1, "Device ID is required").default("unknown-device");
 
 const headersSchema = z.object({
   "x-device-id": deviceIdSchema
@@ -29,7 +40,10 @@ const verifyOtpSchema = z.object({
 const refreshTokenSchema = z.object({
   headers: headersSchema,
   body: z.object({
-    refreshToken: z.string().min(1, "Refresh token is required")
+    refreshToken: z.string({
+      required_error: "Refresh token is missing.",
+      invalid_type_error: "Refresh token must be text."
+    }).min(1, "Refresh token is required")
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({}).passthrough().optional()
@@ -37,9 +51,16 @@ const refreshTokenSchema = z.object({
 
 const profileSchema = z.object({
   body: z.object({
-    fullName: z.string().min(2, "Full name must be at least 2 characters").max(100),
-    email: z.string().email("Invalid email address").optional().or(z.literal("")),
-    profileImage: z.string().url("Invalid image URL").optional().or(z.literal("")),
+    fullName: z.string({
+      required_error: "Please provide a full name.",
+      invalid_type_error: "Full name must be text."
+    }).min(2, "Full name must be at least 2 characters").max(100),
+    email: z.string({
+      invalid_type_error: "Email must be text."
+    }).email("Invalid email address").optional().or(z.literal("")),
+    profileImage: z.string({
+      invalid_type_error: "Profile image must be text."
+    }).url("Invalid image URL").optional().or(z.literal("")),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({}).passthrough().optional()
@@ -48,10 +69,20 @@ const profileSchema = z.object({
 const registerSchema = z.object({
   headers: headersSchema,
   body: z.object({
-    registrationToken: z.string().min(1, "Registration token is required"),
-    fullName: z.string().min(2, "Full name must be at least 2 characters").max(100),
-    email: z.string().email("Invalid email address").optional().or(z.literal("")),
-    profileImage: z.string().url("Invalid image URL").optional().or(z.literal("")),
+    registrationToken: z.string({
+      required_error: "Registration token is missing.",
+      invalid_type_error: "Registration token must be text."
+    }).min(1, "Registration token is required"),
+    fullName: z.string({
+      required_error: "Please provide a full name.",
+      invalid_type_error: "Full name must be text."
+    }).min(2, "Full name must be at least 2 characters").max(100),
+    email: z.string({
+      invalid_type_error: "Email must be text."
+    }).email("Invalid email address").optional().or(z.literal("")),
+    profileImage: z.string({
+      invalid_type_error: "Profile image must be text."
+    }).url("Invalid image URL").optional().or(z.literal("")),
     createdBy: z.string().optional(),
   }),
   query: z.object({}).passthrough().optional(),
@@ -60,10 +91,17 @@ const registerSchema = z.object({
 
 const adminCreateUserSchema = z.object({
   body: z.object({
-    fullName: z.string().min(2, "Full name must be at least 2 characters").max(100),
+    fullName: z.string({
+      required_error: "Please provide the user's full name.",
+      invalid_type_error: "Full name must be text."
+    }).min(2, "Full name must be at least 2 characters").max(100),
     phone: phoneSchema,
-    email: z.string().email("Invalid email address").optional().or(z.literal("")),
-    profileImage: z.string().url("Invalid image URL").optional().or(z.literal("")),
+    email: z.string({
+      invalid_type_error: "Email must be text."
+    }).email("Invalid email address").optional().or(z.literal("")),
+    profileImage: z.string({
+      invalid_type_error: "Profile image must be text."
+    }).url("Invalid image URL").optional().or(z.literal("")),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({}).passthrough().optional()
@@ -71,11 +109,19 @@ const adminCreateUserSchema = z.object({
 
 const adminUpdateUserSchema = z.object({
   body: z.object({
-    fullName: z.string().min(2, "Full name must be at least 2 characters").max(100).optional(),
+    fullName: z.string({
+      invalid_type_error: "Full name must be text."
+    }).min(2, "Full name must be at least 2 characters").max(100).optional(),
     phone: phoneSchema.optional(),
-    email: z.string().email("Invalid email address").optional().or(z.literal("")),
-    profileImage: z.string().url("Invalid image URL").optional().or(z.literal("")),
-    hasPurchasedProperty: z.boolean().optional(),
+    email: z.string({
+      invalid_type_error: "Email must be text."
+    }).email("Invalid email address").optional().or(z.literal("")),
+    profileImage: z.string({
+      invalid_type_error: "Profile image must be text."
+    }).url("Invalid image URL").optional().or(z.literal("")),
+    hasPurchasedProperty: z.boolean({
+      invalid_type_error: "Has purchased property must be true or false."
+    }).optional(),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({ id: z.string().optional() }).passthrough().optional()

@@ -15,6 +15,8 @@ const upload = multer({
 // GET /admin/property or /admin/property/list — get list of all properties (supports ?status= & ?category= & ?search=)
 router.get("/", validate(queryPropertySchema), propertyController.getAllProperties);
 router.get("/list", validate(queryPropertySchema), propertyController.getAllProperties);
+// GET /admin/property — get list of all properties (supports ?status= & ?category= & ?search=)
+router.get("/", propertyController.getAllProperties);
 
 // GET /admin/property/:id — get single property by ID
 router.get("/:id", propertyController.getPropertyById);

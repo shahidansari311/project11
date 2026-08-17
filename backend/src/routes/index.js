@@ -38,6 +38,16 @@ router.put("/admin/users/:id", verifyAuth, requireRole("admin"), upload.single("
 router.patch("/admin/users/:id", verifyAuth, requireRole("admin"), upload.single("profileImage"), uploadProfileImage, validate(adminUpdateUserSchema), authController.updateUserByAdmin);
 router.delete("/admin/users/:id", verifyAuth, requireRole("admin"), authController.deleteUserByAdmin);
 
+const propertyController = require("../modules/property/property.controller");
+
+// Public property routes (No authentication required)
+router.get("/public/property", propertyController.getAllProperties);
+router.get("/public/property/:id", propertyController.getPropertyById);
+
+// User property routes (protected for registered users)
+router.get("/user/property", verifyAuth, requireRole("user"), propertyController.getAllProperties);
+router.get("/user/property/:id", verifyAuth, requireRole("user"), propertyController.getPropertyById);
+
 router.get("/user/profile", verifyAuth, requireRole("user"), (req, res) => {
   return successResponse(res, 200, { id: req.user.id }, "User profile data");
 });

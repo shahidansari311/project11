@@ -6,10 +6,47 @@ import {
   TouchableOpacity,
   Animated,
   StyleSheet,
-  ActivityIndicator,
+  Keyboard,
   type NativeSyntheticEvent,
   type TextInputKeyPressEventData,
 } from "react-native";
+
+// ── Staggered bouncing dots — 3 circles that wave up/down with 150ms stagger
+function BouncingDots({ label }: { label: string }) {
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const makeBounce = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: -7, duration: 280, easing: (t) => t * t * (3 - 2 * t), useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0,  duration: 280, easing: (t) => t * t * (3 - 2 * t), useNativeDriver: true }),
+          Animated.delay(Math.max(0, 900 - delay - 560)),
+        ])
+      );
+
+    const a1 = makeBounce(dot1, 0);
+    const a2 = makeBounce(dot2, 150);
+    const a3 = makeBounce(dot3, 300);
+    a1.start(); a2.start(); a3.start();
+
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
+  }, [dot1, dot2, dot3]);
+
+  return (
+    <View style={styles.loadingRow}>
+      <Text style={styles.primaryButtonText}>{label}</Text>
+      <View style={styles.dotsRow}>
+        {[dot1, dot2, dot3].map((dot, i) => (
+          <Animated.View key={i} style={[styles.bounceDot, { transform: [{ translateY: dot }] }]} />
+        ))}
+      </View>
+    </View>
+  );
+}
 import { useRouter } from "expo-router";
 import { z } from "zod";
 import * as SecureStore from "expo-secure-store";
@@ -99,6 +136,7 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
       return;
     }
     if (cleaned.length > 1) {
+      // Paste flow
       const pastedOtp = cleaned.slice(0, OTP_LENGTH).split("");
       setOtp(prev => {
         const n = [...prev];
@@ -108,11 +146,19 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
       if (otpError) setOtpError("");
       const nextIndex = Math.min(index + pastedOtp.length, OTP_LENGTH - 1);
       otpRefs.current[nextIndex]?.focus();
+      // Dismiss keyboard if paste fills all 6 slots
+      if (index + pastedOtp.length >= OTP_LENGTH) Keyboard.dismiss();
       return;
     }
+    // Single digit flow
     setOtp(prev => { const n = [...prev]; n[index] = cleaned; return n; });
     if (otpError) setOtpError("");
-    if (index < OTP_LENGTH - 1) otpRefs.current[index + 1]?.focus();
+    if (index < OTP_LENGTH - 1) {
+      otpRefs.current[index + 1]?.focus();
+    } else {
+      // Last box filled — dismiss keyboard
+      Keyboard.dismiss();
+    }
   }, [otpError]);
 
   const handleOtpKeyPress = useCallback((e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number) => {
@@ -152,17 +198,36 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
 
   const handleResendOtp = useCallback(async () => {
     if (resendTimer > 0) return;
-    
+
     try {
-      await api.post("/auth/user/send-otp", { phone });
+      await api.post("/auth/user/resend-otp", { phone });
       setResendTimer(60);
       setShowResendSuccess(true);
-      setTimeout(() => setShowResendSuccess(false), 2000);
+      setTimeout(() => setShowResendSuccess(false), 2500);
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "Failed to resend OTP.";
-      setOtpError(errorMsg);
+      const msg: string = err.response?.data?.message || "Failed to resend OTP.";
+
+      // If backend says "Please wait N second(s)...", parse N and restart the timer
+      const cooldownMatch = msg.match(/(\d+)\s*second/);
+      if (cooldownMatch) {
+        const remaining = parseInt(cooldownMatch[1], 10);
+        setResendTimer(remaining); // restarts the countdown from the correct value
+      } else {
+        setOtpError(msg);
+      }
     }
   }, [resendTimer, phone]);
+
+  // Called by the Edit button — silently clears the DB OTP record so
+  // re-entering the same phone number has no cooldown.
+  const handleCancelAndEdit = useCallback(async () => {
+    // Fire-and-forget: don't block the UI on this
+    api.post("/auth/user/cancel-otp", { phone }).catch(() => {});
+    setStep("phone");
+    setOtp(["", "", "", "", "", ""]);
+    setOtpError("");
+    setResendTimer(0);
+  }, [phone]);
 
   return (
     <AuthLayout>
@@ -193,13 +258,13 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
             </View>
 
             <TouchableOpacity
-              style={[styles.primaryButton, { opacity: phone.length === 10 ? 1 : 0.5 }]}
+              style={[styles.primaryButton, { opacity: loading ? 0.75 : phone.length === 10 ? 1 : 0.5 }]}
               onPress={handleSendOtp}
               disabled={phone.length !== 10 || loading}
               activeOpacity={0.9}
             >
               {loading ? (
-                <ActivityIndicator color={Colors.onPrimary} />
+                <BouncingDots label="Sending OTP" />
               ) : (
                 <Text style={styles.primaryButtonText}>Send OTP</Text>
               )}
@@ -219,11 +284,7 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
                 <Text style={styles.otpSentLabel}>OTP sent to</Text>
                 <Text style={styles.otpSentValue}>+91 {phone}</Text>
               </View>
-              <TouchableOpacity onPress={() => {
-                  setStep("phone");
-                  setOtp(["", "", "", "", "", ""]);
-                  setOtpError("");
-              }}>
+              <TouchableOpacity onPress={handleCancelAndEdit}>
                 <Text style={styles.editButtonText}>Edit</Text>
               </TouchableOpacity>
             </View>
@@ -252,13 +313,13 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
             </Animated.View>
 
             <TouchableOpacity
-              style={[styles.primaryButton, { opacity: otp.join('').length === 6 ? 1 : 0.5 }]}
+              style={[styles.primaryButton, { opacity: loading ? 0.75 : otp.join('').length === 6 ? 1 : 0.5 }]}
               onPress={handleVerifyOtp}
               disabled={otp.join('').length !== 6 || loading}
               activeOpacity={0.9}
             >
               {loading ? (
-                <ActivityIndicator color={Colors.onPrimary} />
+                <BouncingDots label="Verifying" />
               ) : (
                 <Text style={styles.primaryButtonText}>Verify OTP</Text>
               )}
@@ -308,6 +369,11 @@ const styles = StyleSheet.create({
   
   primaryButton: { width: "100%", height: 52, backgroundColor: Colors.primaryContainer, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 8 },
   primaryButtonText: { fontSize: 14, fontWeight: "600", color: Colors.onPrimary },
+
+  // ── Bouncing dots loader ──
+  loadingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dotsRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
+  bounceDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.onPrimary },
   
   footerContainer: { marginTop: 40, alignItems: "center" },
   footerText: { fontSize: 11, fontWeight: "600", color: Colors.onSurfaceVariant },

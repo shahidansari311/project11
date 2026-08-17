@@ -18,15 +18,19 @@
  *   </View>
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   StatusBar,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 
 import BrowseHeader from "./components/BrowseHeader";
@@ -36,9 +40,17 @@ import BottomTabBar from "./components/BottomTabBar";
 import { PROPERTIES, CategoryFilter as CategoryFilterType } from "./data";
 
 export default function BrowsePropertiesPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] =
     useState<CategoryFilterType>("All Assets");
+
+  // DEV ONLY — clears stored tokens and returns to auth screen
+  const handleLogout = useCallback(async () => {
+    await SecureStore.deleteItemAsync("access_token");
+    await SecureStore.deleteItemAsync("refresh_token");
+    router.replace("/");
+  }, [router]);
 
   /**
    * Derived list: filter PROPERTIES by category and search query.
@@ -85,6 +97,12 @@ export default function BrowsePropertiesPage() {
             {filteredProperties.length} listings
           </Text>
         </View>
+
+        {/* DEV: Logout button — remove before production */}
+        <TouchableOpacity style={styles.devLogoutButton} onPress={handleLogout} activeOpacity={0.8}>
+          <Ionicons name="log-out-outline" size={16} color="#c0392b" />
+          <Text style={styles.devLogoutText}>DEV: Logout</Text>
+        </TouchableOpacity>
 
         {/* Property Cards */}
         {filteredProperties.length > 0 ? (
@@ -152,5 +170,25 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: Colors.onSurfaceVariant,
+  },
+  // ── DEV Logout ──
+  devLogoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-end",
+    gap: 6,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#c0392b",
+    backgroundColor: "#fff5f5",
+  },
+  devLogoutText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#c0392b",
   },
 });

@@ -115,6 +115,30 @@ async function userLogout(req, res, next) {
   }
 }
 
+async function userResendOtp(req, res, next) {
+  try {
+    const { phone } = req.body;
+    if (!phone) return errorResponse(res, 400, "Phone number is required");
+
+    const result = await authService.resendOtpUser(phone);
+    return successResponse(res, 200, null, result.message);
+  } catch (err) {
+    return errorResponse(res, 400, err.message);
+  }
+}
+
+async function userCancelOtp(req, res, next) {
+  try {
+    const { phone } = req.body;
+    if (!phone) return errorResponse(res, 400, "Phone number is required");
+
+    await authService.cancelOtpUser(phone);
+    return successResponse(res, 200, null, "OTP session cleared");
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function updateProfile(req, res, next) {
   try {
     const { fullName, email } = req.body;
@@ -133,6 +157,8 @@ module.exports = {
   userRegister,
   refreshUserToken,
   userLogout,
+  userResendOtp,
+  userCancelOtp,
   updateProfile,
   adminSendOtp,
   adminResendOtp,

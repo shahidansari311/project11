@@ -78,4 +78,29 @@ const createPropertySchema = z.object({
   params: z.object({}).passthrough().optional(),
 });
 
-module.exports = { createPropertySchema };
+const updatePropertySchema = z.object({
+  body: z.object({
+    title: z.string().trim().min(3, "Title must be at least 3 characters").optional(),
+    description: z.string().trim().min(10, "Description must be at least 10 characters").optional(),
+    images: z.array(z.string().url("Each image must be a valid URL")).min(1, "At least one image URL is required").optional(),
+    location: z.string().trim().min(2, "Location must be at least 2 characters").optional(),
+    status: z.enum(VALID_STATUSES, {
+      errorMap: () => ({ message: `Status must be one of: ${VALID_STATUSES.join(", ")}` }),
+    }).optional(),
+    targetReturn: z.number().positive("Target return must be a positive number").optional(),
+    minInvestment: z.number().positive("Minimum investment must be a positive number").optional(),
+    totalPrice: z.number().positive("Total price must be a positive number").optional(),
+    totalSize: z.string().trim().min(1, "Total size is required").optional(),
+    category: z.enum(VALID_CATEGORIES, {
+      errorMap: () => ({ message: `Category must be one of: ${VALID_CATEGORIES.join(", ")}` }),
+    }).optional(),
+    investors: z.number().int().min(0).optional(),
+  }),
+  query: z.object({}).passthrough().optional(),
+  params: z.object({ id: z.string().optional() }).passthrough().optional(),
+});
+
+module.exports = {
+  createPropertySchema,
+  updatePropertySchema,
+};

@@ -29,14 +29,14 @@ async function userVerifyOtp(req, res, next) {
 
 async function userRegister(req, res, next) {
   try {
-    const { registrationToken, fullName, email, profileUrl, createdBy } = req.body;
+    const { registrationToken, fullName, email, profileImage, createdBy } = req.body;
     const deviceFingerprint = req.headers["x-device-id"] || "unknown-device";
 
     if (!registrationToken || !fullName) {
       return errorResponse(res, 400, "Registration token and full name are required");
     }
 
-    const result = await authService.registerUser(registrationToken, { fullName, email, profileUrl, createdBy }, deviceFingerprint);
+    const result = await authService.registerUser(registrationToken, { fullName, email, profileUrl: profileImage, createdBy }, deviceFingerprint);
     return successResponse(res, 201, result, "Registration successful");
   } catch (err) {
     next(err);
@@ -131,8 +131,8 @@ async function getAllUsers(req, res, next) {
 
 async function createUserByAdmin(req, res, next) {
   try {
-    const { fullName, phone, email, profileUrl } = req.body;
-    const newUser = await authService.createUserByAdmin({ fullName, phone, email, profileUrl });
+    const { fullName, phone, email, profileImage } = req.body;
+    const newUser = await authService.createUserByAdmin({ fullName, phone, email, profileUrl: profileImage });
     return successResponse(res, 201, newUser, "User created successfully by Admin");
   } catch (error) {
     next(error);
@@ -152,6 +152,13 @@ async function getUserById(req, res, next) {
 async function updateUserByAdmin(req, res, next) {
   try {
     const { id } = req.params;
+    
+    // Map profileImage to profileUrl for the service
+    if (req.body.profileImage !== undefined) {
+      req.body.profileUrl = req.body.profileImage;
+      delete req.body.profileImage;
+    }
+
     const updatedUser = await authService.updateUserByAdmin(id, req.body);
     return successResponse(res, 200, updatedUser, "User updated successfully");
   } catch (error) {
@@ -195,9 +202,9 @@ async function userCancelOtp(req, res, next) {
 
 async function updateProfile(req, res, next) {
   try {
-    const { fullName, email, profileUrl } = req.body;
+    const { fullName, email, profileImage } = req.body;
     // req.user is set by the verifyAuth middleware
-    const updatedUser = await authService.updateUserProfile(req.user.id, { fullName, email, profileUrl });
+    const updatedUser = await authService.updateUserProfile(req.user.id, { fullName, email, profileUrl: profileImage });
 
     return successResponse(res, 200, { user: updatedUser }, "Profile updated successfully");
   } catch (error) {

@@ -12,9 +12,8 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit per image
 });
 
-// GET /admin/property or /admin/property/list — get list of all properties (supports ?status= & ?category= & ?search=)
+// GET /admin/property — get list of all properties (supports ?status= & ?category= & ?search=)
 router.get("/", propertyController.getAllProperties);
-router.get("/list", propertyController.getAllProperties);
 
 // GET /admin/property/:id — get single property by ID
 router.get("/:id", propertyController.getPropertyById);

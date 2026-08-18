@@ -186,7 +186,7 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
         // Save tokens securely for existing user
         await SecureStore.setItemAsync("access_token", token);
         await SecureStore.setItemAsync("refresh_token", refreshToken);
-        router.replace("/home");
+        router.replace("/(tabs)/home" as any);
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Invalid OTP";

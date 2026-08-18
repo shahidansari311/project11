@@ -48,9 +48,7 @@ router.get("/public/property/:id", propertyController.getPropertyById);
 router.get("/user/property", verifyAuth, requireRole("user"), propertyController.getAllProperties);
 router.get("/user/property/:id", verifyAuth, requireRole("user"), propertyController.getPropertyById);
 
-router.get("/user/profile", verifyAuth, requireRole("user"), (req, res) => {
-  return successResponse(res, 200, { id: req.user.id }, "User profile data");
-});
+router.get("/user/profile", verifyAuth, requireRole("user"), authController.getProfile);
 
 router.get("/admin/dashboard", verifyAuth, requireRole("admin"), (req, res) => {
   return successResponse(res, 200, { id: req.user.id }, "Admin dashboard data");

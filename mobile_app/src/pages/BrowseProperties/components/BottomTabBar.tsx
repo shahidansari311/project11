@@ -7,18 +7,20 @@
  *       Real navigation will be wired via expo-router tabs in a future task.
  */
 
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import React from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 
-type TabKey = "portfolio" | "explore" | "insights" | "profile";
+export type TabKey = "portfolio" | "explore" | "insights" | "profile";
 
 interface TabItem {
   key: TabKey;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
+  route?: string;
 }
 
 const TABS: TabItem[] = [
@@ -33,6 +35,7 @@ const TABS: TabItem[] = [
     label: "Explore",
     icon: "search-outline",
     activeIcon: "search",
+    route: "/(tabs)/home",
   },
   {
     key: "insights",
@@ -45,11 +48,26 @@ const TABS: TabItem[] = [
     label: "Profile",
     icon: "person-outline",
     activeIcon: "person",
+    route: "/profile",
   },
 ];
 
-export default function BottomTabBar() {
-  const [activeTab, setActiveTab] = useState<TabKey>("explore");
+interface BottomTabBarProps {
+  activeTab: TabKey;
+}
+
+export default function BottomTabBar({ activeTab }: BottomTabBarProps) {
+  const router = useRouter();
+
+  const handleTabPress = (tab: TabItem) => {
+    if (tab.key === activeTab) return;
+    
+    if (tab.route) {
+      router.replace(tab.route as any);
+    } else {
+      Alert.alert("Coming Soon", `The ${tab.label} feature is coming soon!`);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -59,7 +77,7 @@ export default function BottomTabBar() {
           <TouchableOpacity
             key={tab.key}
             style={[styles.tabItem, isActive && styles.tabItemActive]}
-            onPress={() => setActiveTab(tab.key)}
+            onPress={() => handleTabPress(tab)}
             activeOpacity={0.75}
           >
             <Ionicons

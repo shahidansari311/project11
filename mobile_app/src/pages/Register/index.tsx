@@ -70,7 +70,7 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
       await SecureStore.setItemAsync("access_token", token);
       await SecureStore.setItemAsync("refresh_token", refreshToken);
 
-      router.replace("/home");
+      router.replace("/(tabs)/home" as any);
     } catch (error: any) {
       setTermsError(error.response?.data?.message || "Failed to register. Please try again.");
     } finally {

@@ -186,7 +186,7 @@ export default function RegisterScreen() {
       await SecureStore.setItemAsync("access_token", token);
       await SecureStore.setItemAsync("refresh_token", refreshToken);
       
-      router.replace("/home");
+      router.replace("/(tabs)/home" as any);
     } catch (err: any) {
       setOtpError(err.response?.data?.message || "Invalid OTP");
     }

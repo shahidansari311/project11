@@ -1,44 +1,28 @@
 /**
- * BrowseProperties Page — Composer
- * ──────────────────────────────────
- * Thin composer that assembles the browse screen from isolated
- * sub-components. All business logic (filtering, search) lives here;
- * each sub-component handles its own rendering.
- *
- * Component tree:
- *   <View> (root)
- *     <StatusBar>
- *     <BrowseHeader>         ← sticky top bar + search
- *     <ScrollView>           ← main scrollable content
- *       <CategoryFilter>     ← horizontal filter chips
- *       <SectionHeading>     ← "Available Opportunities" + count
- *       <PropertyCard> × N   ← one card per listing
- *     </ScrollView>
- *     <BottomTabBar>         ← fixed bottom navigation
- *   </View>
+ * BrowseProperties Page — Pure content, no shell chrome.
+ * ─────────────────────────────────────────────────────────
+ * The AppHeader and AppTabBar live in (tabs)/_layout.tsx.
+ * This component renders only its own content:
+ *   Search bar (sticky) → Category filters → Property cards
  */
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   StyleSheet,
-  StatusBar,
-  TouchableOpacity,
   RefreshControl,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import { Ionicons } from "@expo/vector-icons";
+import * as SecureStore from "expo-secure-store";
+import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 
-import BrowseHeader from "./components/BrowseHeader";
 import CategoryFilter from "./components/CategoryFilter";
 import PropertyCard from "./components/PropertyCard";
 import PropertySkeleton from "./components/PropertySkeleton";
-import BottomTabBar from "./components/BottomTabBar";
 import LoginPromptModal from "../../components/LoginPromptModal";
 import { CategoryFilter as CategoryFilterType, Property } from "./data";
 import { propertyService } from "../../services/property.service";
@@ -47,57 +31,43 @@ export default function BrowsePropertiesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<CategoryFilterType>("ALL ASSETS");
-  
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
   const [isGuest, setIsGuest] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     try {
       const res = await propertyService.getProperties();
-      if (res && res.data && res.data.properties) {
+      if (res?.data?.properties) {
         setProperties(res.data.properties);
       }
     } catch (error) {
       console.error("Failed to fetch properties:", error);
     }
-  };
+  }, []);
 
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = useCallback(async () => {
     try {
       const token = await SecureStore.getItemAsync("refresh_token");
       setIsGuest(!token);
-    } catch (e) {
+    } catch {
       setIsGuest(true);
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkAuthStatus();
     fetchProperties().finally(() => setIsLoading(false));
-  }, []);
+  }, [checkAuthStatus, fetchProperties]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchProperties();
-    await checkAuthStatus();
+    await Promise.all([fetchProperties(), checkAuthStatus()]);
     setRefreshing(false);
-  }, []);
+  }, [fetchProperties, checkAuthStatus]);
 
-  // DEV ONLY — clears stored tokens and returns to auth screen
-  const handleLogout = useCallback(async () => {
-    await SecureStore.deleteItemAsync("access_token");
-    await SecureStore.deleteItemAsync("refresh_token");
-    router.replace("/");
-  }, [router]);
-
-  /**
-   * Derived list: filter properties by category and search query.
-   * Runs only when search, category, or properties change.
-   */
   const filteredProperties = useMemo(() => {
     return properties.filter((p) => {
       const matchesCategory =
@@ -111,47 +81,51 @@ export default function BrowsePropertiesPage() {
   }, [searchQuery, activeCategory, properties]);
 
   return (
-    <SafeAreaView style={styles.root} edges={["top"]}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+    <View style={styles.root}>
+      {/* ── Sticky Search Bar ── */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchContainer}>
+          <Ionicons
+            name="search"
+            size={18}
+            color={Colors.outline}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search properties..."
+            placeholderTextColor={Colors.outline}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
+        </View>
+      </View>
 
-      {/* ── Sticky Header ── */}
-      <BrowseHeader
-        searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
-        isGuest={isGuest}
-        onLoginPress={() => router.push("/")}
-      />
-
-      {/* ── Scrollable Body ── */}
+      {/* ── Scrollable Content ── */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.primary]}
+          />
         }
       >
-        {/* Category Filter Chips */}
-        <CategoryFilter
-          active={activeCategory}
-          onChange={setActiveCategory}
-        />
+        <CategoryFilter active={activeCategory} onChange={setActiveCategory} />
 
         {/* Section heading */}
         <View style={styles.sectionHeadingRow}>
           <Text style={styles.sectionTitle}>Available Opportunities</Text>
           <Text style={styles.sectionCount}>
-            {!isLoading ? `${filteredProperties.length} listings` : 'Loading...'}
+            {!isLoading ? `${filteredProperties.length} listings` : "Loading..."}
           </Text>
         </View>
 
-        {/* DEV: Logout button — remove before production */}
-        <TouchableOpacity style={styles.devLogoutButton} onPress={handleLogout} activeOpacity={0.8}>
-          <Ionicons name="log-out-outline" size={16} color="#c0392b" />
-          <Text style={styles.devLogoutText}>DEV: Logout</Text>
-        </TouchableOpacity>
-
-        {/* Property Cards */}
+        {/* Property cards */}
         {isLoading ? (
           <>
             <PropertySkeleton />
@@ -161,8 +135,8 @@ export default function BrowsePropertiesPage() {
         ) : filteredProperties.length > 0 ? (
           filteredProperties.map((property) => (
             <View key={property.id} style={styles.cardWrapper}>
-              <PropertyCard 
-                property={property} 
+              <PropertyCard
+                property={property}
                 isGuest={isGuest}
                 onRequireLogin={() => setShowLoginPrompt(true)}
               />
@@ -175,9 +149,6 @@ export default function BrowsePropertiesPage() {
         )}
       </ScrollView>
 
-      {/* ── Fixed Bottom Tab Bar ── */}
-      <BottomTabBar />
-
       {/* ── Login Prompt Modal ── */}
       <LoginPromptModal
         visible={showLoginPrompt}
@@ -187,7 +158,7 @@ export default function BrowsePropertiesPage() {
           router.push("/");
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -196,6 +167,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.surface,
   },
+  // ── Search bar ──
+  searchSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.surfaceContainerHigh,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+    borderRadius: 12,
+    height: 46,
+    paddingHorizontal: 12,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.onSurface,
+    fontWeight: "400",
+    padding: 0,
+  },
+  // ── Scroll ──
   scrollView: {
     flex: 1,
   },
@@ -237,25 +237,5 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: Colors.onSurfaceVariant,
-  },
-  // ── DEV Logout ──
-  devLogoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-end",
-    gap: 6,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#c0392b",
-    backgroundColor: "#fff5f5",
-  },
-  devLogoutText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#c0392b",
   },
 });

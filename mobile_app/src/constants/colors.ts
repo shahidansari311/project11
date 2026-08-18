@@ -13,7 +13,7 @@ export const Colors = {
   primary: "#003946",
   primaryContainer: "#005163",
   onPrimary: "#ffffff",
-  onPrimaryContainer: "#86c2d7",
+  onPrimaryContainer: "#fdffffff",
 
   // ─── Secondary ────────────────────────────────────
   secondary: "#526164",

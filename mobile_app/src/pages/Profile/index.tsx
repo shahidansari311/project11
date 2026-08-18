@@ -13,12 +13,14 @@ import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
 import { authService, UserProfile } from "../../services/auth.service";
+import { useFavorites } from "../../contexts/FavoritesContext";
 
 export default function ProfilePage() {
   const router = useRouter();
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const { clearFavorites } = useFavorites();
 
   const checkAuthAndFetchProfile = useCallback(async () => {
     setIsLoading(true);
@@ -50,8 +52,9 @@ export default function ProfilePage() {
   const handleLogout = useCallback(async () => {
     await SecureStore.deleteItemAsync("access_token");
     await SecureStore.deleteItemAsync("refresh_token");
+    clearFavorites();
     router.replace("/");
-  }, [router]);
+  }, [router, clearFavorites]);
 
   if (isLoading) {
     return (

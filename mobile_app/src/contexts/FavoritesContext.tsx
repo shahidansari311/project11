@@ -7,6 +7,7 @@ interface FavoritesContextType {
   toggleFavorite: (propertyId: string) => Promise<void>;
   isFavorite: (propertyId: string) => boolean;
   refreshFavorites: () => Promise<void>;
+  clearFavorites: () => void;
   isLoading: boolean;
 }
 
@@ -41,21 +42,9 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   }, [refreshFavorites]);
 
   const toggleFavorite = async (propertyId: string) => {
-    // Optimistic update
-    const wasFavorite = favoriteIds.has(propertyId);
-    setFavoriteIds((prev) => {
-      const newSet = new Set(prev);
-      if (wasFavorite) {
-        newSet.delete(propertyId);
-      } else {
-        newSet.add(propertyId);
-      }
-      return newSet;
-    });
-
     try {
       const response = await favoriteService.toggleFavorite(propertyId);
-      // Sync exactly with backend state just in case
+      // Only update state after backend confirms
       if (response && response.data) {
         setFavoriteIds((prev) => {
           const newSet = new Set(prev);
@@ -69,16 +58,6 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Failed to toggle favorite:", error);
-      // Revert on failure
-      setFavoriteIds((prev) => {
-        const newSet = new Set(prev);
-        if (wasFavorite) {
-          newSet.add(propertyId);
-        } else {
-          newSet.delete(propertyId);
-        }
-        return newSet;
-      });
     }
   };
 
@@ -87,9 +66,13 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     [favoriteIds]
   );
 
+  const clearFavorites = useCallback(() => {
+    setFavoriteIds(new Set());
+  }, []);
+
   return (
     <FavoritesContext.Provider
-      value={{ favoriteIds, toggleFavorite, isFavorite, refreshFavorites, isLoading }}
+      value={{ favoriteIds, toggleFavorite, isFavorite, refreshFavorites, clearFavorites, isLoading }}
     >
       {children}
     </FavoritesContext.Provider>

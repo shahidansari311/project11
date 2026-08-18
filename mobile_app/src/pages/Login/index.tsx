@@ -56,6 +56,7 @@ import AuthLayout from "@/components/AuthLayout";
 import OtpBoxes from "@/components/OtpBoxes";
 import { Ionicons } from "@expo/vector-icons";
 import api from "@/utils/api";
+import { useFavorites } from "@/contexts/FavoritesContext";
 
 const OTP_LENGTH = 6;
 const loginPhoneSchema = z.string().trim().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian mobile number.");
@@ -70,6 +71,7 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
   const [showResendSuccess, setShowResendSuccess] = useState(false);
+  const { refreshFavorites } = useFavorites();
 
   // Phone Step State
   const [phone, setPhone] = useState("");
@@ -186,6 +188,10 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
         // Save tokens securely for existing user
         await SecureStore.setItemAsync("access_token", token);
         await SecureStore.setItemAsync("refresh_token", refreshToken);
+        
+        // Refresh global favorites context with new token
+        refreshFavorites();
+        
         router.replace("/(tabs)/home" as any);
       }
     } catch (err: any) {
@@ -194,7 +200,7 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [otp, phone, router, onRegisterRequired]);
+  }, [otp, phone, router, onRegisterRequired, refreshFavorites]);
 
   const handleResendOtp = useCallback(async () => {
     if (resendTimer > 0) return;

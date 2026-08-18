@@ -62,8 +62,61 @@ async function getFavoriteProperties(userId) {
   return properties;
 }
 
+async function getAdminFavoriteStats() {
+  const properties = await prisma.property.findMany({
+    select: { id: true, title: true, location: true }
+  });
+
+  const stats = await Promise.all(properties.map(async (prop) => {
+    const count = await prisma.user.count({
+      where: { favoriteProperties: { has: prop.id } }
+    });
+    return { propertyId: prop.id, title: prop.title, location: prop.location, favoritesCount: count };
+  }));
+
+  // Filter out 0s if wanted, and sort by highest
+  return stats.filter(s => s.favoritesCount > 0).sort((a, b) => b.favoritesCount - a.favoritesCount);
+}
+
+async function getAdminPropertyFavorites(propertyId) {
+  const users = await prisma.user.findMany({
+    where: { favoriteProperties: { has: propertyId } },
+    select: {
+      id: true,
+      fullName: true,
+      phone: true,
+      email: true,
+      profileUrl: true,
+      hasPurchasedProperty: true,
+      createdAt: true
+    }
+  });
+  return users;
+}
+
+async function getAdminUserFavorites(userId) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { favoriteProperties: true }
+  });
+
+  const favoriteIds = user?.favoriteProperties || [];
+  if (favoriteIds.length === 0) return [];
+
+  const properties = await prisma.property.findMany({
+    where: {
+      id: { in: favoriteIds }
+    }
+  });
+  
+  return properties;
+}
+
 module.exports = {
   toggleFavorite,
   getFavoriteIds,
-  getFavoriteProperties
+  getFavoriteProperties,
+  getAdminFavoriteStats,
+  getAdminPropertyFavorites,
+  getAdminUserFavorites
 };

@@ -60,4 +60,10 @@ router.get("/admin/dashboard", verifyAuth, requireRole("admin"), (req, res) => {
   return successResponse(res, 200, { id: req.user.id }, "Admin dashboard data");
 });
 
+const favoriteController = require("../modules/favorite/favorite.controller");
+router.get("/admin/favorites/stats", verifyAuth, requireRole("admin"), favoriteController.getAdminFavoriteStats);
+router.get("/admin/favorites/property/:propertyId", verifyAuth, requireRole("admin"), favoriteController.getAdminPropertyFavorites);
+router.get("/admin/favorites/user/:userId", verifyAuth, requireRole("admin"), favoriteController.getAdminUserFavorites);
+router.post("/admin/favorites/user/:userId/property/:propertyId", verifyAuth, requireRole("admin"), favoriteController.toggleFavoriteByAdmin);
+
 module.exports = router;

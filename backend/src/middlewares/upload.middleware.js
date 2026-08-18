@@ -73,36 +73,41 @@ async function uploadProfileImage(req, res, next) {
 }
 
 /**
- * Middleware that intercepts a single document file (req.file), uploads it to Supabase,
- * and attaches the resulting URL to req.body.documentUrl so validation and service can proceed.
+ * Middleware that intercepts document file(s) (frontImage, backImage, or file),
+ * uploads them to Supabase, and attaches the resulting URLs to req.body.
  */
 async function uploadDocumentFile(req, res, next) {
   try {
-    // If no file uploaded and no documentUrl provided in body, return error
-    if (!req.file && (!req.body || !req.body.documentUrl)) {
-      return res.status(400).json({
-        success: false,
-        message: "Document file is required. Please upload a PDF or Image file (max 2MB).",
-      });
+    const frontFile = (req.files && (req.files.frontImage?.[0] || req.files.front?.[0] || req.files.file?.[0])) || req.file;
+    const backFile = req.files && (req.files.backImage?.[0] || req.files.back?.[0]);
+
+    // Upload front image if present
+    if (frontFile) {
+      console.log(`📄 [DOCUMENT UPLOAD] Uploading front image: ${frontFile.originalname} (${(frontFile.size / 1024).toFixed(1)} KB)`);
+      const frontImageUrl = await storageService.uploadFile(
+        frontFile.buffer,
+        frontFile.originalname,
+        frontFile.mimetype,
+        "documents"
+      );
+      req.body.frontImageUrl = frontImageUrl;
+      req.body.documentUrl = frontImageUrl;
+      console.log(`✅ [DOCUMENT UPLOAD] Front Image Success: ${frontImageUrl}`);
     }
 
-    // If no file but documentUrl already exists in body (JSON upload case), skip
-    if (!req.file) {
-      return next();
+    // Upload back image if present
+    if (backFile) {
+      console.log(`📄 [DOCUMENT UPLOAD] Uploading back image: ${backFile.originalname} (${(backFile.size / 1024).toFixed(1)} KB)`);
+      const backImageUrl = await storageService.uploadFile(
+        backFile.buffer,
+        backFile.originalname,
+        backFile.mimetype,
+        "documents"
+      );
+      req.body.backImageUrl = backImageUrl;
+      console.log(`✅ [DOCUMENT UPLOAD] Back Image Success: ${backImageUrl}`);
     }
 
-    console.log(`📄 [DOCUMENT UPLOAD] Uploading file: ${req.file.originalname} (${(req.file.size / 1024).toFixed(1)} KB)`);
-
-    const documentUrl = await storageService.uploadFile(
-      req.file.buffer,
-      req.file.originalname,
-      req.file.mimetype,
-      "documents"
-    );
-
-    console.log(`✅ [DOCUMENT UPLOAD] Success: ${documentUrl}`);
-
-    req.body.documentUrl = documentUrl;
     next();
   } catch (error) {
     console.error(`❌ [DOCUMENT UPLOAD] Failed:`, error.message);

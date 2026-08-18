@@ -3,7 +3,11 @@ const router = express.Router();
 const multer = require("multer");
 const documentController = require("./document.controller");
 const { validate } = require("../../middlewares/validate.middleware");
-const { uploadDocumentSchema, adminUpdateDocumentStatusSchema } = require("./document.validation");
+const {
+  uploadDocumentSchema,
+  adminUploadDocumentSchema,
+  adminVerifyDocumentSchema,
+} = require("./document.validation");
 const { uploadDocumentFile } = require("../../middlewares/upload.middleware");
 const { verifyAuth } = require("../../middlewares/auth.middleware");
 const { requireRole } = require("../../middlewares/role.middleware");
@@ -41,9 +45,17 @@ const upload = multer({
   },
 });
 
+const documentUploadFields = upload.fields([
+  { name: "frontImage", maxCount: 1 },
+  { name: "backImage", maxCount: 1 },
+  { name: "front", maxCount: 1 },
+  { name: "back", maxCount: 1 },
+  { name: "file", maxCount: 1 },
+]);
+
 // Middleware wrapper to return clean 400 JSON errors for file size or format violations
 const handleMulterError = (req, res, next) => {
-  upload.single("file")(req, res, (err) => {
+  documentUploadFields(req, res, (err) => {
     if (err) {
       if (err.code === "LIMIT_FILE_SIZE") {
         return res.status(400).json({
@@ -78,6 +90,39 @@ router.get(
   verifyAuth,
   requireRole("user", "admin"),
   documentController.getDocumentStatus
+);
+
+// Admin document management routes (protected for admin only)
+router.get(
+  "/admin/documents",
+  verifyAuth,
+  requireRole("admin"),
+  documentController.adminGetAllUsersDocumentsOverview
+);
+
+router.get(
+  "/admin/users/:userId/documents",
+  verifyAuth,
+  requireRole("admin"),
+  documentController.adminGetUserDocumentsById
+);
+
+router.post(
+  "/admin/document/:id/verify",
+  verifyAuth,
+  requireRole("admin"),
+  validate(adminVerifyDocumentSchema),
+  documentController.adminVerifyDocument
+);
+
+router.post(
+  "/admin/users/:userId/document",
+  verifyAuth,
+  requireRole("admin"),
+  handleMulterError,
+  uploadDocumentFile,
+  validate(adminUploadDocumentSchema),
+  documentController.adminUploadUserDocument
 );
 
 module.exports = router;

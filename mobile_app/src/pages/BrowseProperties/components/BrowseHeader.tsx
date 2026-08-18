@@ -24,6 +24,8 @@ interface BrowseHeaderProps {
   onSearchChange: (text: string) => void;
   onMenuPress?: () => void;
   onProfilePress?: () => void;
+  isGuest?: boolean;
+  onLoginPress?: () => void;
 }
 
 export default function BrowseHeader({
@@ -31,10 +33,12 @@ export default function BrowseHeader({
   onSearchChange,
   onMenuPress,
   onProfilePress,
+  isGuest = false,
+  onLoginPress,
 }: BrowseHeaderProps) {
   return (
     <View style={styles.container}>
-      {/* ── Top row: menu · title · profile ── */}
+      {/* ── Top row: menu · title · profile/login ── */}
       <View style={styles.topRow}>
         <TouchableOpacity
           style={styles.iconButton}
@@ -46,17 +50,27 @@ export default function BrowseHeader({
 
         <Text style={styles.brandTitle}>Silverreal Estate</Text>
 
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={onProfilePress}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="person-circle-outline"
-            size={26}
-            color={Colors.onSurfaceVariant}
-          />
-        </TouchableOpacity>
+        {isGuest ? (
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={onLoginPress}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.loginButtonText}>Login</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={onProfilePress}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="person-circle-outline"
+              size={26}
+              color={Colors.onSurfaceVariant}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ── Search bar ── */}
@@ -110,6 +124,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: Colors.primary,
     letterSpacing: -0.4,
+  },
+  loginButton: {
+    backgroundColor: Colors.primaryContainer,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  loginButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.onPrimaryContainer,
   },
   searchRow: {
     paddingHorizontal: 16,

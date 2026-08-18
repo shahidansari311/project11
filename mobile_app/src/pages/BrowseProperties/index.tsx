@@ -18,7 +18,7 @@
  *   </View>
  */
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import {
   StyleSheet,
   StatusBar,
   TouchableOpacity,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -36,14 +37,55 @@ import { Colors } from "@/constants/colors";
 import BrowseHeader from "./components/BrowseHeader";
 import CategoryFilter from "./components/CategoryFilter";
 import PropertyCard from "./components/PropertyCard";
+import PropertySkeleton from "./components/PropertySkeleton";
 import BottomTabBar from "./components/BottomTabBar";
-import { PROPERTIES, CategoryFilter as CategoryFilterType } from "./data";
+import LoginPromptModal from "../../components/LoginPromptModal";
+import { CategoryFilter as CategoryFilterType, Property } from "./data";
+import { propertyService } from "../../services/property.service";
 
 export default function BrowsePropertiesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] =
-    useState<CategoryFilterType>("All Assets");
+  const [activeCategory, setActiveCategory] = useState<CategoryFilterType>("ALL ASSETS");
+  
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const [isGuest, setIsGuest] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+  const fetchProperties = async () => {
+    try {
+      const res = await propertyService.getProperties();
+      if (res && res.data && res.data.properties) {
+        setProperties(res.data.properties);
+      }
+    } catch (error) {
+      console.error("Failed to fetch properties:", error);
+    }
+  };
+
+  const checkAuthStatus = async () => {
+    try {
+      const token = await SecureStore.getItemAsync("refresh_token");
+      setIsGuest(!token);
+    } catch (e) {
+      setIsGuest(true);
+    }
+  };
+
+  useEffect(() => {
+    checkAuthStatus();
+    fetchProperties().finally(() => setIsLoading(false));
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchProperties();
+    await checkAuthStatus();
+    setRefreshing(false);
+  }, []);
 
   // DEV ONLY — clears stored tokens and returns to auth screen
   const handleLogout = useCallback(async () => {
@@ -53,20 +95,20 @@ export default function BrowsePropertiesPage() {
   }, [router]);
 
   /**
-   * Derived list: filter PROPERTIES by category and search query.
-   * Runs only when search or category changes.
+   * Derived list: filter properties by category and search query.
+   * Runs only when search, category, or properties change.
    */
   const filteredProperties = useMemo(() => {
-    return PROPERTIES.filter((p) => {
+    return properties.filter((p) => {
       const matchesCategory =
-        activeCategory === "All Assets" || p.category === activeCategory;
+        activeCategory === "ALL ASSETS" || p.category === activeCategory;
       const matchesSearch =
         searchQuery.trim() === "" ||
         p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.location.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [searchQuery, activeCategory]);
+  }, [searchQuery, activeCategory, properties]);
 
   return (
     <SafeAreaView style={styles.root} edges={["top"]}>
@@ -76,6 +118,8 @@ export default function BrowsePropertiesPage() {
       <BrowseHeader
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
+        isGuest={isGuest}
+        onLoginPress={() => router.push("/")}
       />
 
       {/* ── Scrollable Body ── */}
@@ -83,6 +127,9 @@ export default function BrowsePropertiesPage() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />
+        }
       >
         {/* Category Filter Chips */}
         <CategoryFilter
@@ -94,7 +141,7 @@ export default function BrowsePropertiesPage() {
         <View style={styles.sectionHeadingRow}>
           <Text style={styles.sectionTitle}>Available Opportunities</Text>
           <Text style={styles.sectionCount}>
-            {filteredProperties.length} listings
+            {!isLoading ? `${filteredProperties.length} listings` : 'Loading...'}
           </Text>
         </View>
 
@@ -105,10 +152,20 @@ export default function BrowsePropertiesPage() {
         </TouchableOpacity>
 
         {/* Property Cards */}
-        {filteredProperties.length > 0 ? (
+        {isLoading ? (
+          <>
+            <PropertySkeleton />
+            <PropertySkeleton />
+            <PropertySkeleton />
+          </>
+        ) : filteredProperties.length > 0 ? (
           filteredProperties.map((property) => (
             <View key={property.id} style={styles.cardWrapper}>
-              <PropertyCard property={property} />
+              <PropertyCard 
+                property={property} 
+                isGuest={isGuest}
+                onRequireLogin={() => setShowLoginPrompt(true)}
+              />
             </View>
           ))
         ) : (
@@ -120,6 +177,16 @@ export default function BrowsePropertiesPage() {
 
       {/* ── Fixed Bottom Tab Bar ── */}
       <BottomTabBar />
+
+      {/* ── Login Prompt Modal ── */}
+      <LoginPromptModal
+        visible={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        onLogin={() => {
+          setShowLoginPrompt(false);
+          router.push("/");
+        }}
+      />
     </SafeAreaView>
   );
 }

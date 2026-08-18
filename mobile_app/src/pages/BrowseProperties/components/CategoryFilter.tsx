@@ -26,6 +26,10 @@ export default function CategoryFilter({
   active,
   onChange,
 }: CategoryFilterProps) {
+  const formatCategory = (cat: string) => {
+    return cat.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+  };
+
   return (
     <View style={styles.wrapper}>
       <ScrollView
@@ -48,7 +52,7 @@ export default function CategoryFilter({
                   isActive ? styles.chipLabelActive : styles.chipLabelInactive,
                 ]}
               >
-                {cat}
+                {formatCategory(cat)}
               </Text>
             </TouchableOpacity>
           );

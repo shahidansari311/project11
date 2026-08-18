@@ -25,44 +25,73 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
-import { Property } from "../data";
+import { Property, PLACEHOLDER_IMAGE } from "../data";
 
 interface PropertyCardProps {
   property: Property;
+  isGuest?: boolean;
+  onRequireLogin?: () => void;
 }
 
 const CARD_WIDTH = Dimensions.get("window").width - 32; // 16px gutter each side
 
-export default function PropertyCard({ property }: PropertyCardProps) {
+const getStatusColor = (status: string) => {
+  switch(status) {
+    case 'AVAILABLE': return '#10b981'; // Green
+    case 'COMING_SOON': return '#3b82f6'; // Blue
+    case 'UNDER_REVIEW': return '#f59e0b'; // Orange
+    case 'SOLD': return '#ef4444'; // Red
+    default: return '#9ca3af'; // Gray
+  }
+};
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+};
+
+export default function PropertyCard({ property, isGuest = false, onRequireLogin }: PropertyCardProps) {
+  const router = useRouter();
   const [isFavourite, setIsFavourite] = useState(false);
+  
+  const imageUrl = property.images && property.images.length > 0 ? property.images[0] : PLACEHOLDER_IMAGE;
+
+  const handleFavouritePress = () => {
+    if (isGuest && onRequireLogin) {
+      onRequireLogin();
+      return;
+    }
+    setIsFavourite((prev) => !prev);
+  };
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity 
+      style={styles.card} 
+      activeOpacity={0.9} 
+      onPress={() => router.push(`/property/${property.id}`)}
+    >
       {/* ── Hero Image Section ── */}
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: property.imageUrl }}
+          source={{ uri: imageUrl }}
           style={styles.heroImage}
           contentFit="cover"
           transition={300}
         />
 
-        {/* Gradient overlay (simulated with View) */}
-        <View style={styles.imageGradient} />
-
         {/* Status Badge — top left */}
         <View style={styles.statusBadge}>
           <View
-            style={[styles.statusDot, { backgroundColor: property.statusColor }]}
+            style={[styles.statusDot, { backgroundColor: getStatusColor(property.status) }]}
           />
-          <Text style={styles.statusLabel}>{property.status.toUpperCase()}</Text>
+          <Text style={styles.statusLabel}>{property.status.replace("_", " ")}</Text>
         </View>
 
         {/* Favourite Button — top right */}
         <TouchableOpacity
           style={styles.favouriteButton}
-          onPress={() => setIsFavourite((prev) => !prev)}
+          onPress={handleFavouritePress}
           activeOpacity={0.8}
         >
           <Ionicons
@@ -92,18 +121,18 @@ export default function PropertyCard({ property }: PropertyCardProps) {
         <View style={styles.statsTopRow}>
           <View>
             <Text style={styles.statLabel}>Target IRR</Text>
-            <Text style={styles.statValuePrimary}>{property.targetIRR}</Text>
+            <Text style={styles.statValuePrimary}>{property.targetReturn}%</Text>
           </View>
           <View style={styles.statRight}>
             <Text style={styles.statLabel}>Min Investment</Text>
-            <Text style={styles.statValueDark}>{property.minInvestment}</Text>
+            <Text style={styles.statValueDark}>{formatCurrency(property.minInvestment)}</Text>
           </View>
         </View>
 
         {/* Divider */}
         <View style={styles.divider} />
 
-        {/* Investors + Price per sqft */}
+        {/* Investors + Size */}
         <View style={styles.statsBottomRow}>
           <View style={styles.metaItem}>
             <Ionicons name="people-outline" size={16} color={Colors.onSurfaceVariant} />
@@ -111,11 +140,11 @@ export default function PropertyCard({ property }: PropertyCardProps) {
           </View>
           <View style={styles.metaItem}>
             <Ionicons name="resize-outline" size={16} color={Colors.onSurfaceVariant} />
-            <Text style={styles.metaText}>{property.pricePerSqFt}</Text>
+            <Text style={styles.metaText}>{property.totalSize}</Text>
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -141,13 +170,6 @@ const styles = StyleSheet.create({
   heroImage: {
     width: "100%",
     height: "100%",
-  },
-  imageGradient: {
-    ...StyleSheet.absoluteFill,
-    // Semi-transparent overlay on the bottom half of the image
-    top: "50%" as any,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.45)",
   },
 
   // ── Status Badge ──
@@ -188,18 +210,18 @@ const styles = StyleSheet.create({
   // ── Title + Location Overlay ──
   titleOverlay: {
     position: "absolute",
-    bottom: 12,
-    left: 12,
-    right: 12,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.6)", // Solid dark strip
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   propertyTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#ffffff",
     letterSpacing: -0.3,
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
   },
   locationRow: {
     flexDirection: "row",

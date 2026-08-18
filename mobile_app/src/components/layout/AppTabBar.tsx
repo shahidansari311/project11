@@ -1,89 +1,88 @@
 /**
- * BottomTabBar — Fixed 4-tab navigation bar
- * ──────────────────────────────────────────
- * Tabs: Portfolio · Explore (active) · Insights · Profile
- *
- * NOTE: This is currently a static visual component.
- *       Real navigation will be wired via expo-router tabs in a future task.
+ * AppTabBar — Universal persistent bottom tab bar
+ * ─────────────────────────────────────────────────
+ * Rendered once in the Tabs shell. Never re-mounts on tab switch.
+ * Renders 4 visual tabs; "Portfolio" and "Insights" show a Coming Soon alert.
+ * "Explore" maps to the "home" screen; "Profile" maps to the "profile" screen.
  */
 
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 
-export type TabKey = "portfolio" | "explore" | "insights" | "profile";
-
-interface TabItem {
-  key: TabKey;
+interface VisualTab {
+  id: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
-  route?: string;
+  /** The expo-router screen name this tab navigates to. null = Coming Soon. */
+  routeName: string | null;
 }
 
-const TABS: TabItem[] = [
+const VISUAL_TABS: VisualTab[] = [
   {
-    key: "portfolio",
+    id: "portfolio",
     label: "Portfolio",
     icon: "business-outline",
     activeIcon: "business",
+    routeName: null,
   },
   {
-    key: "explore",
+    id: "explore",
     label: "Explore",
     icon: "search-outline",
     activeIcon: "search",
-    route: "/(tabs)/home",
+    routeName: "home",
   },
   {
-    key: "insights",
+    id: "insights",
     label: "Insights",
     icon: "bar-chart-outline",
     activeIcon: "bar-chart",
+    routeName: null,
   },
   {
-    key: "profile",
+    id: "profile",
     label: "Profile",
     icon: "person-outline",
     activeIcon: "person",
-    route: "/profile",
+    routeName: "profile",
   },
 ];
 
-interface BottomTabBarProps {
-  activeTab: TabKey;
+interface AppTabBarProps {
+  /** Current active route name from the Tabs navigator (e.g. "home" or "profile"). */
+  activeRouteName: string;
+  onTabPress: (routeName: string) => void;
 }
 
-export default function BottomTabBar({ activeTab }: BottomTabBarProps) {
-  const router = useRouter();
-
-  const handleTabPress = (tab: TabItem) => {
-    if (tab.key === activeTab) return;
-    
-    if (tab.route) {
-      router.replace(tab.route as any);
-    } else {
+export default function AppTabBar({ activeRouteName, onTabPress }: AppTabBarProps) {
+  const handlePress = (tab: VisualTab) => {
+    if (!tab.routeName) {
       Alert.alert("Coming Soon", `The ${tab.label} feature is coming soon!`);
+      return;
     }
+    onTabPress(tab.routeName);
   };
 
   return (
     <View style={styles.container}>
-      {TABS.map((tab) => {
-        const isActive = tab.key === activeTab;
+      {VISUAL_TABS.map((tab) => {
+        const isActive = tab.routeName === activeRouteName;
         return (
           <TouchableOpacity
-            key={tab.key}
+            key={tab.id}
             style={[styles.tabItem, isActive && styles.tabItemActive]}
-            onPress={() => handleTabPress(tab)}
+            onPress={() => handlePress(tab)}
             activeOpacity={0.75}
           >
             <Ionicons
               name={isActive ? tab.activeIcon : tab.icon}
               size={22}
-              color={isActive ? Colors.onPrimaryContainer : Colors.onSecondaryContainer}
+              color={
+                isActive ? Colors.onPrimaryContainer : Colors.onSecondaryContainer
+              }
             />
             <Text
               style={[
@@ -108,8 +107,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceContainerLowest,
     paddingHorizontal: 8,
     paddingTop: 12,
-    paddingBottom: 24, // extra bottom padding for home-bar devices
-    // Top shadow
+    paddingBottom: 28,
     shadowColor: "#0f1e22",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.05,

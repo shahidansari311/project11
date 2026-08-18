@@ -63,7 +63,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
         {/* Skip Login Button */}
         <TouchableOpacity 
           style={styles.skipButton} 
-          onPress={() => router.replace("/home")}
+          onPress={() => router.replace("/(tabs)/home" as any)}
           activeOpacity={0.8}
         >
           <Text style={styles.skipButtonText}>Skip</Text>

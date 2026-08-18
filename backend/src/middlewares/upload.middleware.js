@@ -72,4 +72,45 @@ async function uploadProfileImage(req, res, next) {
   }
 }
 
-module.exports = { uploadPropertyImages, uploadProfileImage };
+/**
+ * Middleware that intercepts a single document file (req.file), uploads it to Supabase,
+ * and attaches the resulting URL to req.body.documentUrl so validation and service can proceed.
+ */
+async function uploadDocumentFile(req, res, next) {
+  try {
+    // If no file uploaded and no documentUrl provided in body, return error
+    if (!req.file && (!req.body || !req.body.documentUrl)) {
+      return res.status(400).json({
+        success: false,
+        message: "Document file is required. Please upload a PDF or Image file (max 2MB).",
+      });
+    }
+
+    // If no file but documentUrl already exists in body (JSON upload case), skip
+    if (!req.file) {
+      return next();
+    }
+
+    console.log(`📄 [DOCUMENT UPLOAD] Uploading file: ${req.file.originalname} (${(req.file.size / 1024).toFixed(1)} KB)`);
+
+    const documentUrl = await storageService.uploadFile(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      "documents"
+    );
+
+    console.log(`✅ [DOCUMENT UPLOAD] Success: ${documentUrl}`);
+
+    req.body.documentUrl = documentUrl;
+    next();
+  } catch (error) {
+    console.error(`❌ [DOCUMENT UPLOAD] Failed:`, error.message);
+    return res.status(500).json({
+      success: false,
+      message: `Document upload failed: ${error.message}`,
+    });
+  }
+}
+
+module.exports = { uploadPropertyImages, uploadProfileImage, uploadDocumentFile };

@@ -9,6 +9,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { Colors } from "@/constants/colors";
 
 interface VisualTab {
@@ -54,10 +55,11 @@ const VISUAL_TABS: VisualTab[] = [
 interface AppTabBarProps {
   /** Current active route name from the Tabs navigator (e.g. "home" or "profile"). */
   activeRouteName: string;
+  userProfileUrl?: string | null;
   onTabPress: (routeName: string) => void;
 }
 
-export default function AppTabBar({ activeRouteName, onTabPress }: AppTabBarProps) {
+export default function AppTabBar({ activeRouteName, userProfileUrl, onTabPress }: AppTabBarProps) {
   const handlePress = (tab: VisualTab) => {
     if (!tab.routeName) {
       Alert.alert("Coming Soon", `The ${tab.label} feature is coming soon!`);
@@ -77,13 +79,23 @@ export default function AppTabBar({ activeRouteName, onTabPress }: AppTabBarProp
             onPress={() => handlePress(tab)}
             activeOpacity={0.75}
           >
-            <Ionicons
-              name={isActive ? tab.activeIcon : tab.icon}
-              size={22}
-              color={
-                isActive ? Colors.onPrimaryContainer : Colors.onSecondaryContainer
-              }
-            />
+            {tab.id === "profile" && userProfileUrl ? (
+              <View style={[styles.tabAvatarContainer, isActive && styles.tabAvatarContainerActive]}>
+                <Image
+                  source={{ uri: userProfileUrl }}
+                  style={styles.tabAvatar}
+                  contentFit="cover"
+                />
+              </View>
+            ) : (
+              <Ionicons
+                name={isActive ? tab.activeIcon : tab.icon}
+                size={22}
+                color={
+                  isActive ? Colors.onPrimaryContainer : Colors.onSecondaryContainer
+                }
+              />
+            )}
             <Text
               style={[
                 styles.tabLabel,
@@ -127,6 +139,21 @@ const styles = StyleSheet.create({
   },
   tabItemActive: {
     backgroundColor: Colors.primaryContainer,
+  },
+  tabAvatarContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "transparent",
+    overflow: "hidden",
+  },
+  tabAvatarContainerActive: {
+    borderColor: Colors.onPrimaryContainer,
+  },
+  tabAvatar: {
+    width: "100%",
+    height: "100%",
   },
   tabLabel: {
     fontSize: 11,

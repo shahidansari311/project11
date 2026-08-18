@@ -8,16 +8,19 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { Colors } from "@/constants/colors";
 
 interface AppHeaderProps {
   isGuest?: boolean;
+  userProfileUrl?: string | null;
   onLoginPress?: () => void;
   onProfilePress?: () => void;
 }
 
 export default function AppHeader({
   isGuest = false,
+  userProfileUrl,
   onLoginPress,
   onProfilePress,
 }: AppHeaderProps) {
@@ -43,11 +46,19 @@ export default function AppHeader({
           onPress={onProfilePress}
           activeOpacity={0.7}
         >
-          <Ionicons
-            name="person-circle-outline"
-            size={26}
-            color={Colors.onSurfaceVariant}
-          />
+          {userProfileUrl ? (
+            <Image
+              source={{ uri: userProfileUrl }}
+              style={styles.headerAvatar}
+              contentFit="cover"
+            />
+          ) : (
+            <Ionicons
+              name="person-circle-outline"
+              size={26}
+              color={Colors.onSurfaceVariant}
+            />
+          )}
         </TouchableOpacity>
       )}
     </View>
@@ -72,6 +83,13 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 8,
     borderRadius: 99,
+  },
+  headerAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
   },
   brandTitle: {
     fontSize: 20,

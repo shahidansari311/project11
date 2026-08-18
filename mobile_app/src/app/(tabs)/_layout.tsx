@@ -18,6 +18,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
+import { authService } from "../../services/auth.service";
 
 import AppHeader from "@/components/layout/AppHeader";
 import AppTabBar from "@/components/layout/AppTabBar";
@@ -26,6 +27,7 @@ export default function TabsLayout() {
   const router = useRouter();
   const segments = useSegments();
   const [isGuest, setIsGuest] = useState(true);
+  const [userProfileUrl, setUserProfileUrl] = useState<string | null>(null);
 
   // Determine which tab is currently active from the URL segments.
   // segments looks like: ["(tabs)", "home"] or ["(tabs)", "profile"]
@@ -34,8 +36,19 @@ export default function TabsLayout() {
   const checkAuthStatus = useCallback(async () => {
     try {
       const token = await SecureStore.getItemAsync("refresh_token");
-      setIsGuest(!token);
+      if (!token) {
+        setIsGuest(true);
+        return;
+      }
+      setIsGuest(false);
+
+      // Fetch profile to get image for header/tabbar
+      const res = await authService.getProfile();
+      if (res && res.data && res.data.profileUrl) {
+        setUserProfileUrl(res.data.profileUrl);
+      }
     } catch {
+      // If fetching fails, fallback to generic icons
       setIsGuest(true);
     }
   }, []);
@@ -67,6 +80,7 @@ export default function TabsLayout() {
       {/* ── Persistent Header — never unmounts ── */}
       <AppHeader
         isGuest={isGuest}
+        userProfileUrl={userProfileUrl}
         onLoginPress={handleLoginPress}
         onProfilePress={handleProfilePress}
       />
@@ -82,6 +96,7 @@ export default function TabsLayout() {
       {/* ── Persistent Tab Bar — never unmounts ── */}
       <AppTabBar
         activeRouteName={activeRouteName}
+        userProfileUrl={userProfileUrl}
         onTabPress={handleTabPress}
       />
     </SafeAreaView>

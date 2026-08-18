@@ -224,6 +224,15 @@ async function adminCancelOtp(req, res, next) {
   }
 }
 
+async function getProfile(req, res, next) {
+  try {
+    const user = await authService.getUserById(req.user.id);
+    return successResponse(res, 200, user, "User profile retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   userSendOtp,
   userVerifyOtp,
@@ -233,6 +242,7 @@ module.exports = {
   userResendOtp,
   userCancelOtp,
   updateProfile,
+  getProfile,
   adminSendOtp,
   adminResendOtp,
   adminCancelOtp,

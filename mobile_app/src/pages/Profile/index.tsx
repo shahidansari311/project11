@@ -1,33 +1,82 @@
-/**
- * ProfilePage — Pure content, no shell chrome.
- * ──────────────────────────────────────────────
- * The AppHeader and AppTabBar live in (tabs)/_layout.tsx.
- * This component renders only its own content:
- *   Avatar hero → Portfolio Management → Account & Documents → Logout
- */
-
-import React, { useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
+import { authService, UserProfile } from "../../services/auth.service";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const [isGuest, setIsGuest] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  const checkAuthAndFetchProfile = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const token = await SecureStore.getItemAsync("refresh_token");
+      if (!token) {
+        setIsGuest(true);
+        setIsLoading(false);
+        return;
+      }
+      setIsGuest(false);
+      
+      const res = await authService.getProfile();
+      if (res && res.data) {
+        setUserProfile(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
+      setIsGuest(true); // If fetch fails, fallback to guest/login prompt to be safe
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkAuthAndFetchProfile();
+  }, [checkAuthAndFetchProfile]);
 
   const handleLogout = useCallback(async () => {
     await SecureStore.deleteItemAsync("access_token");
     await SecureStore.deleteItemAsync("refresh_token");
     router.replace("/");
   }, [router]);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.root, styles.centerContent]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (isGuest) {
+    return (
+      <View style={[styles.root, styles.centerContent]}>
+        <Ionicons name="person-circle-outline" size={80} color={Colors.outlineVariant} />
+        <Text style={styles.guestTitle}>Login Required</Text>
+        <Text style={styles.guestSubtitle}>Please login to view your profile and manage your portfolio.</Text>
+        <TouchableOpacity
+          style={styles.loginButton}
+          onPress={() => router.replace("/")}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.loginButtonText}>Login to Continue</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -37,7 +86,7 @@ export default function ProfilePage() {
           <View style={styles.avatarContainer}>
             <Image
               source={{
-                uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuADQgZS9cNK4SW8KA8XFvmIEmkTIzZRiNUT_CJx7UCxtC0YtE9NS4FNSPlDdjmZALH8QbGpjWs8ZRInQ2erAYUb2qKg40SSk2RtV6KWoAmq5NxNumVCPybaW-J-L83nyDORyveTh_InJCpDJzn3K00mAdAD0RiNye9uDpg0DLkuyKnwEu3SADOl_JEGJy-sBd3L9m-GVJQ-QR9G8sahCPdwdGkbKoJ3LyH8sKbVqpa-i67yRWSHxKJL",
+                uri: userProfile?.profileUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuADQgZS9cNK4SW8KA8XFvmIEmkTIzZRiNUT_CJx7UCxtC0YtE9NS4FNSPlDdjmZALH8QbGpjWs8ZRInQ2erAYUb2qKg40SSk2RtV6KWoAmq5NxNumVCPybaW-J-L83nyDORyveTh_InJCpDJzn3K00mAdAD0RiNye9uDpg0DLkuyKnwEu3SADOl_JEGJy-sBd3L9m-GVJQ-QR9G8sahCPdwdGkbKoJ3LyH8sKbVqpa-i67yRWSHxKJL",
               }}
               style={styles.avatar}
               contentFit="cover"
@@ -46,7 +95,7 @@ export default function ProfilePage() {
               <Ionicons name="pencil" size={12} color={Colors.onPrimaryContainer} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.userName}>Jane Doe</Text>
+          <Text style={styles.userName}>{userProfile?.fullName || "Guest"}</Text>
           <Text style={styles.userRole}>Accredited Investor</Text>
         </View>
 
@@ -147,6 +196,38 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.surface,
+  },
+  centerContent: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  guestTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: Colors.onSurface,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  guestSubtitle: {
+    fontSize: 14,
+    color: Colors.onSurfaceVariant,
+    textAlign: "center",
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  loginButton: {
+    backgroundColor: Colors.primaryContainer,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+  },
+  loginButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.onPrimaryContainer,
   },
   heroSection: {
     alignItems: "center",

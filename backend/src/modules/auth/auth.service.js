@@ -75,7 +75,7 @@ async function verifyOtpUser(phone, otp, deviceFingerprint) {
     }
   });
 
-  return { token, refreshToken, isNewUser: false, user: { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email, profileUrl: user.profileUrl, createdby_admin: user.createdby_admin } };
+  return { token, refreshToken, isNewUser: false };
 }
 
 async function registerUser(registrationToken, { fullName, email, profileUrl, createdBy }, deviceFingerprint) {
@@ -125,7 +125,7 @@ async function registerUser(registrationToken, { fullName, email, profileUrl, cr
     }
   });
 
-  return { token, refreshToken, user: { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email, profileUrl: user.profileUrl, createdby_admin: user.createdby_admin } };
+  return { token, refreshToken };
 }
 
 async function refreshUserToken(oldRefreshToken, deviceFingerprint) {
@@ -163,7 +163,7 @@ async function refreshUserToken(oldRefreshToken, deviceFingerprint) {
     }
   });
 
-  return { token, refreshToken: newRefreshToken, user: { id: session.user.id, phone: session.user.phone } };
+  return { token, refreshToken: newRefreshToken };
 }
 
 async function sendOtpAdmin(phone) {

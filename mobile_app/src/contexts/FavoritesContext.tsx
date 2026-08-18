@@ -42,9 +42,21 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   }, [refreshFavorites]);
 
   const toggleFavorite = async (propertyId: string) => {
+    // Optimistic update
+    const wasFavorite = favoriteIds.has(propertyId);
+    setFavoriteIds((prev) => {
+      const newSet = new Set(prev);
+      if (wasFavorite) {
+        newSet.delete(propertyId);
+      } else {
+        newSet.add(propertyId);
+      }
+      return newSet;
+    });
+
     try {
       const response = await favoriteService.toggleFavorite(propertyId);
-      // Only update state after backend confirms
+      // Sync exactly with backend state just in case
       if (response && response.data) {
         setFavoriteIds((prev) => {
           const newSet = new Set(prev);
@@ -58,6 +70,16 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Failed to toggle favorite:", error);
+      // Revert on failure
+      setFavoriteIds((prev) => {
+        const newSet = new Set(prev);
+        if (wasFavorite) {
+          newSet.add(propertyId);
+        } else {
+          newSet.delete(propertyId);
+        }
+        return newSet;
+      });
     }
   };
 

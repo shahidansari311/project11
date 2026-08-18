@@ -33,8 +33,64 @@ async function getFavoriteProperties(req, res, next) {
   }
 }
 
+async function getAdminFavoriteStats(req, res, next) {
+  try {
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = (req.query.search || "").trim();
+
+    const stats = await favoriteService.getAdminFavoriteStats({ page, limit, search });
+    return successResponse(res, 200, stats, "Favorite stats fetched successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getAdminPropertyFavorites(req, res, next) {
+  try {
+    const { propertyId } = req.params;
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = (req.query.search || "").trim();
+
+    const users = await favoriteService.getAdminPropertyFavorites(propertyId, { page, limit, search });
+    return successResponse(res, 200, users, "Users who favorited this property fetched successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getAdminUserFavorites(req, res, next) {
+  try {
+    const { userId } = req.params;
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = (req.query.search || "").trim();
+
+    const properties = await favoriteService.getAdminUserFavorites(userId, { page, limit, search });
+    return successResponse(res, 200, properties, "User's favorite properties fetched successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function toggleFavoriteByAdmin(req, res, next) {
+  try {
+    const { userId, propertyId } = req.params;
+    const result = await favoriteService.toggleFavorite(userId, propertyId);
+    const message = result.favorited ? "Property added to user's favorites by Admin" : "Property removed from user's favorites by Admin";
+    return successResponse(res, 200, result, message);
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   toggleFavorite,
   getFavoriteIds,
-  getFavoriteProperties
+  getFavoriteProperties,
+  getAdminFavoriteStats,
+  getAdminPropertyFavorites,
+  getAdminUserFavorites,
+  toggleFavoriteByAdmin
 };

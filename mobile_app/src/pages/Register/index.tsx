@@ -14,6 +14,7 @@ import { Colors } from "@/constants/colors";
 import AuthLayout from "@/components/AuthLayout";
 import CustomInput from "@/components/CustomInput";
 import api from "@/utils/api";
+import { useFavorites } from "@/contexts/FavoritesContext";
 
 const registerStep1Schema = z.object({
   fullName: z.string().trim().min(2, "Name is too short. Please enter your full name.").regex(/^[a-zA-Z\s]+$/, "Full name can only contain letters and spaces"),
@@ -28,6 +29,7 @@ interface RegisterPageProps {
 export default function RegisterPage({ registrationToken, onGoBackToLogin }: RegisterPageProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { refreshFavorites } = useFavorites();
 
   // Register Step State
   const [fullName, setFullName] = useState("");
@@ -70,13 +72,16 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
       await SecureStore.setItemAsync("access_token", token);
       await SecureStore.setItemAsync("refresh_token", refreshToken);
 
+      // Refresh global favorites context with new token
+      refreshFavorites();
+
       router.replace("/(tabs)/home" as any);
     } catch (error: any) {
       setTermsError(error.response?.data?.message || "Failed to register. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [fullName, email, termsAccepted, registrationToken, router]);
+  }, [fullName, email, termsAccepted, registrationToken, router, refreshFavorites]);
 
   return (
     <AuthLayout>

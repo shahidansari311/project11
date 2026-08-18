@@ -11,12 +11,16 @@ const authController = require("../modules/auth/auth.controller");
 
 const propertyRoutes = require("../modules/property/property.routes");
 const uploadRoutes = require("../modules/upload/upload.routes");
+const documentRoutes = require("../modules/document/document.routes");
 
 // Mount auth routes
 router.use("/auth", authRoutes);
 
 // Mount upload routes
 router.use("/upload", uploadRoutes);
+
+// Mount document routes
+router.use("/", documentRoutes);
 
 // Mount property routes — all protected as admin-only
 router.use("/admin/property", verifyAuth, requireRole("admin"), propertyRoutes);

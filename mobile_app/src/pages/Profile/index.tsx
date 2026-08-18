@@ -84,13 +84,17 @@ export default function ProfilePage() {
         {/* ── Hero / Avatar Section ── */}
         <View style={styles.heroSection}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={{
-                uri: userProfile?.profileUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuADQgZS9cNK4SW8KA8XFvmIEmkTIzZRiNUT_CJx7UCxtC0YtE9NS4FNSPlDdjmZALH8QbGpjWs8ZRInQ2erAYUb2qKg40SSk2RtV6KWoAmq5NxNumVCPybaW-J-L83nyDORyveTh_InJCpDJzn3K00mAdAD0RiNye9uDpg0DLkuyKnwEu3SADOl_JEGJy-sBd3L9m-GVJQ-QR9G8sahCPdwdGkbKoJ3LyH8sKbVqpa-i67yRWSHxKJL",
-              }}
-              style={styles.avatar}
-              contentFit="cover"
-            />
+            {userProfile?.profileUrl ? (
+              <Image
+                source={{ uri: userProfile.profileUrl }}
+                style={styles.avatar}
+                contentFit="cover"
+              />
+            ) : (
+              <View style={[styles.avatar, { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surfaceContainerHighest }]}>
+                <Ionicons name="person" size={48} color={Colors.onSurfaceVariant} />
+              </View>
+            )}
             <TouchableOpacity style={styles.editButton} activeOpacity={0.8}>
               <Ionicons name="pencil" size={12} color={Colors.onPrimaryContainer} />
             </TouchableOpacity>

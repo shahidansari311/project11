@@ -11,6 +11,7 @@ const authController = require("../modules/auth/auth.controller");
 
 const propertyRoutes = require("../modules/property/property.routes");
 const uploadRoutes = require("../modules/upload/upload.routes");
+const favoriteRoutes = require("../modules/favorite/favorite.routes");
 
 // Mount auth routes
 router.use("/auth", authRoutes);
@@ -49,6 +50,7 @@ router.get("/user/property", verifyAuth, requireRole("user"), propertyController
 router.get("/user/property/:id", verifyAuth, requireRole("user"), propertyController.getPropertyById);
 
 router.get("/user/profile", verifyAuth, requireRole("user"), authController.getProfile);
+router.use("/user/favorites", verifyAuth, requireRole("user"), favoriteRoutes);
 
 router.get("/admin/dashboard", verifyAuth, requireRole("admin"), (req, res) => {
   return successResponse(res, 200, { id: req.user.id }, "Admin dashboard data");

@@ -88,7 +88,7 @@ export default function BrowsePropertiesPage() {
           <Ionicons
             name="search"
             size={18}
-            color={Colors.outline}
+            color={Colors.primary}
             style={styles.searchIcon}
           />
           <TextInput

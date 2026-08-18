@@ -16,7 +16,7 @@ import CustomInput from "@/components/CustomInput";
 import api from "@/utils/api";
 
 const registerStep1Schema = z.object({
-  fullName: z.string().trim().min(2, "Name is too short. Please enter your full name."),
+  fullName: z.string().trim().min(2, "Name is too short. Please enter your full name.").regex(/^[a-zA-Z\s]+$/, "Full name can only contain letters and spaces"),
   email: z.string().trim().email("This doesn't look like a valid email. Please check it.").optional().or(z.literal("")),
 });
 

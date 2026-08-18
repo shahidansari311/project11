@@ -89,16 +89,19 @@ export default function TabsLayout() {
       <View style={styles.content}>
         <Stack screenOptions={{ headerShown: false, animation: "none" }}>
           <Stack.Screen name="home" />
+          <Stack.Screen name="saved" />
           <Stack.Screen name="profile" />
         </Stack>
       </View>
 
       {/* ── Persistent Tab Bar — never unmounts ── */}
-      <AppTabBar
-        activeRouteName={activeRouteName}
-        userProfileUrl={userProfileUrl}
-        onTabPress={handleTabPress}
-      />
+      {!isGuest && (
+        <AppTabBar
+          activeRouteName={activeRouteName}
+          userProfileUrl={userProfileUrl}
+          onTabPress={handleTabPress}
+        />
+      )}
     </SafeAreaView>
   );
 }

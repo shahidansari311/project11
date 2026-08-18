@@ -12,14 +12,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
+import api from "@/utils/api";
 import { authService, UserProfile } from "../../services/auth.service";
 import { useFavorites } from "../../contexts/FavoritesContext";
+import { useFocusEffect } from "expo-router";
+import Skeleton from "@/components/ui/Skeleton";
 
 export default function ProfilePage() {
   const router = useRouter();
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [docStatus, setDocStatus] = useState<"PENDING" | "ACTION_REQUIRED" | "VERIFIED" | "INCOMPLETE">("INCOMPLETE");
   const { clearFavorites } = useFavorites();
 
   const checkAuthAndFetchProfile = useCallback(async () => {
@@ -33,9 +37,33 @@ export default function ProfilePage() {
       }
       setIsGuest(false);
       
-      const res = await authService.getProfile();
+      const [res, docRes] = await Promise.all([
+        authService.getProfile(),
+        api.get("/user/document").catch(() => null)
+      ]);
+      
       if (res && res.data) {
         setUserProfile(res.data);
+      }
+      
+      if (docRes && docRes.data?.data) {
+        const docs = docRes.data.data;
+        const pan = docs.find((d: any) => d.documentType === "PAN");
+        const aadharFront = docs.find((d: any) => d.documentType === "AADHAAR_FRONT");
+        const aadharBack = docs.find((d: any) => d.documentType === "AADHAAR_BACK");
+        
+        if (!pan || !aadharFront || !aadharBack) {
+          setDocStatus("INCOMPLETE");
+        } else {
+          const statuses = [pan.status, aadharFront.status, aadharBack.status];
+          if (statuses.some(s => s === "REJECTED" || s === "REUPLOAD_REQUIRED")) {
+            setDocStatus("ACTION_REQUIRED");
+          } else if (statuses.every(s => s === "APPROVED")) {
+            setDocStatus("VERIFIED");
+          } else {
+            setDocStatus("PENDING");
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to fetch profile:", error);
@@ -45,9 +73,11 @@ export default function ProfilePage() {
     }
   }, []);
 
-  useEffect(() => {
-    checkAuthAndFetchProfile();
-  }, [checkAuthAndFetchProfile]);
+  useFocusEffect(
+    useCallback(() => {
+      checkAuthAndFetchProfile();
+    }, [checkAuthAndFetchProfile])
+  );
 
   const handleLogout = useCallback(async () => {
     await SecureStore.deleteItemAsync("access_token");
@@ -58,8 +88,43 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <View style={[styles.root, styles.centerContent]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={styles.root}>
+        <View style={styles.heroSection}>
+          <View style={styles.avatarContainer}>
+            <Skeleton width={96} height={96} borderRadius={48} />
+          </View>
+          <Skeleton width={150} height={24} style={{ marginTop: 16 }} />
+          <Skeleton width={100} height={16} style={{ marginTop: 8 }} />
+        </View>
+
+        <View style={styles.contentArea}>
+          <View style={styles.section}>
+            <Skeleton width={180} height={20} style={{ marginBottom: 12, marginLeft: 4 }} />
+            <View style={styles.card}>
+              <View style={[styles.listItem, styles.listItemBorder]}>
+                <Skeleton width={150} height={20} />
+              </View>
+              <View style={styles.listItem}>
+                <Skeleton width={150} height={20} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Skeleton width={180} height={20} style={{ marginBottom: 12, marginLeft: 4 }} />
+            <View style={styles.card}>
+              <View style={[styles.listItem, styles.listItemBorder]}>
+                <Skeleton width={150} height={20} />
+              </View>
+              <View style={[styles.listItem, styles.listItemBorder]}>
+                <Skeleton width={150} height={20} />
+              </View>
+              <View style={styles.listItem}>
+                <Skeleton width={150} height={20} />
+              </View>
+            </View>
+          </View>
+        </View>
       </View>
     );
   }
@@ -140,21 +205,22 @@ export default function ProfilePage() {
               <TouchableOpacity
                 style={[styles.listItem, styles.listItemBorder]}
                 activeOpacity={0.7}
+                onPress={() => router.push("/profile/document-upload" as any)}
               >
                 <View style={styles.listItemLeft}>
-                  <View style={styles.iconWithBadge}>
-                    <Ionicons
-                      name="document-text"
-                      size={22}
-                      color={Colors.primaryContainer}
-                    />
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>2</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.listItemText}>Pending Documents</Text>
+                  <Ionicons
+                    name="document-text"
+                    size={22}
+                    color={Colors.primaryContainer}
+                  />
+                  <Text style={styles.listItemText}>Upload Documents</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  {docStatus === "VERIFIED" && <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />}
+                  {docStatus === "ACTION_REQUIRED" && <Ionicons name="alert-circle" size={18} color={Colors.error} />}
+                  {docStatus === "PENDING" && <Ionicons name="time" size={18} color={Colors.outline} />}
+                  <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} style={{ marginLeft: 6 }} />
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity

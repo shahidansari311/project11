@@ -37,11 +37,11 @@ const VISUAL_TABS: VisualTab[] = [
     routeName: "home",
   },
   {
-    id: "insights",
-    label: "Insights",
-    icon: "bar-chart-outline",
-    activeIcon: "bar-chart",
-    routeName: null,
+    id: "saved",
+    label: "Saved",
+    icon: "heart-outline",
+    activeIcon: "heart",
+    routeName: "saved",
   },
   {
     id: "profile",

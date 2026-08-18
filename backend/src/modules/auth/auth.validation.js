@@ -54,7 +54,7 @@ const profileSchema = z.object({
     fullName: z.string({
       required_error: "Please provide a full name.",
       invalid_type_error: "Full name must be text."
-    }).min(2, "Full name must be at least 2 characters").max(100),
+    }).min(2, "Full name must be at least 2 characters").max(100).regex(/^[a-zA-Z\s]+$/, "Full name can only contain letters and spaces"),
     email: z.string({
       invalid_type_error: "Email must be text."
     }).email("Invalid email address").optional().or(z.literal("")),
@@ -76,7 +76,7 @@ const registerSchema = z.object({
     fullName: z.string({
       required_error: "Please provide a full name.",
       invalid_type_error: "Full name must be text."
-    }).min(2, "Full name must be at least 2 characters").max(100),
+    }).min(2, "Full name must be at least 2 characters").max(100).regex(/^[a-zA-Z\s]+$/, "Full name can only contain letters and spaces"),
     email: z.string({
       invalid_type_error: "Email must be text."
     }).email("Invalid email address").optional().or(z.literal("")),
@@ -94,7 +94,7 @@ const adminCreateUserSchema = z.object({
     fullName: z.string({
       required_error: "Please provide the user's full name.",
       invalid_type_error: "Full name must be text."
-    }).min(2, "Full name must be at least 2 characters").max(100),
+    }).min(2, "Full name must be at least 2 characters").max(100).regex(/^[a-zA-Z\s]+$/, "Full name can only contain letters and spaces"),
     phone: phoneSchema,
     email: z.string({
       invalid_type_error: "Email must be text."
@@ -111,7 +111,7 @@ const adminUpdateUserSchema = z.object({
   body: z.object({
     fullName: z.string({
       invalid_type_error: "Full name must be text."
-    }).min(2, "Full name must be at least 2 characters").max(100).optional(),
+    }).min(2, "Full name must be at least 2 characters").max(100).regex(/^[a-zA-Z\s]+$/, "Full name can only contain letters and spaces").optional(),
     phone: phoneSchema.optional(),
     email: z.string({
       invalid_type_error: "Email must be text."

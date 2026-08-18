@@ -26,9 +26,7 @@ export default function AppHeader({
 }: AppHeaderProps) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
-        <Ionicons name="menu" size={24} color={Colors.onSurfaceVariant} />
-      </TouchableOpacity>
+      <View style={{ width: 40 }} />{/* Placeholder for balance */}
 
       <Text style={styles.brandTitle}>Silverreal Estate</Text>
 

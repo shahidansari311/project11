@@ -29,6 +29,9 @@ import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 import { Property, PLACEHOLDER_IMAGE } from "../data";
 
+import ImageCarousel from "@/components/ui/ImageCarousel";
+import FavoriteButton from "@/components/ui/FavoriteButton";
+
 interface PropertyCardProps {
   property: Property;
   isGuest?: boolean;
@@ -53,31 +56,17 @@ const formatCurrency = (value: number) => {
 
 export default function PropertyCard({ property, isGuest = false, onRequireLogin }: PropertyCardProps) {
   const router = useRouter();
-  const [isFavourite, setIsFavourite] = useState(false);
-  
-  const imageUrl = property.images && property.images.length > 0 ? property.images[0] : PLACEHOLDER_IMAGE;
-
-  const handleFavouritePress = () => {
-    if (isGuest && onRequireLogin) {
-      onRequireLogin();
-      return;
-    }
-    setIsFavourite((prev) => !prev);
-  };
 
   return (
-    <TouchableOpacity 
-      style={styles.card} 
-      activeOpacity={0.9} 
-      onPress={() => router.push(`/property/${property.id}`)}
-    >
+    <View style={styles.card}>
       {/* ── Hero Image Section ── */}
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.heroImage}
-          contentFit="cover"
-          transition={300}
+        <ImageCarousel 
+          images={property.images} 
+          width={CARD_WIDTH} 
+          height={192} 
+          sharedTransitionTagBase={`property-image-${property.id}`}
+          onPress={() => router.push(`/property/${property.id}`)}
         />
 
         {/* Status Badge — top left */}
@@ -89,17 +78,13 @@ export default function PropertyCard({ property, isGuest = false, onRequireLogin
         </View>
 
         {/* Favourite Button — top right */}
-        <TouchableOpacity
-          style={styles.favouriteButton}
-          onPress={handleFavouritePress}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={isFavourite ? "heart" : "heart-outline"}
-            size={20}
-            color={isFavourite ? "#ef4444" : "#ffffff"}
-          />
-        </TouchableOpacity>
+        <FavoriteButton 
+          propertyId={property.id} 
+          style={styles.favouriteButton} 
+          size={20}
+          isGuest={isGuest}
+          onRequireLogin={onRequireLogin}
+        />
 
         {/* Title + Location — bottom left overlay */}
         <View style={styles.titleOverlay}>
@@ -115,8 +100,12 @@ export default function PropertyCard({ property, isGuest = false, onRequireLogin
         </View>
       </View>
 
-      {/* ── Stats Section ── */}
-      <View style={styles.statsContainer}>
+    {/* ── Stats Section ── */}
+      <TouchableOpacity 
+        style={styles.statsContainer}
+        activeOpacity={0.9} 
+        onPress={() => router.push(`/property/${property.id}`)}
+      >
         {/* IRR + Min Investment */}
         <View style={styles.statsTopRow}>
           <View>
@@ -143,8 +132,8 @@ export default function PropertyCard({ property, isGuest = false, onRequireLogin
             <Text style={styles.metaText}>{property.totalSize}</Text>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -203,7 +192,7 @@ const styles = StyleSheet.create({
     top: 12,
     right: 12,
     padding: 8,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgb(255, 255, 255)",
     borderRadius: 99,
   },
 

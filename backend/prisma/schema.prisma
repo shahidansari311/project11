@@ -19,6 +19,7 @@ model User {
   updatedAt            DateTime       @updatedAt
   sessions             Session[]
   documents            UserDocument[]
+  favoriteProperties   String[]  @default([])
 }
 
 model Admin {

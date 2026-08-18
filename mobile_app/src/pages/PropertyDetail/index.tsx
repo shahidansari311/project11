@@ -9,7 +9,7 @@ import {
   Platform,
   Animated,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -19,6 +19,9 @@ import { Colors } from "@/constants/colors";
 import { propertyService } from "../../services/property.service";
 import { Property, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
 import LoginPromptModal from "@/components/LoginPromptModal";
+import ImageCarousel from "@/components/ui/ImageCarousel";
+import ImageViewing from "react-native-image-viewing";
+import FavoriteButton from "@/components/ui/FavoriteButton";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -97,11 +100,14 @@ function PropertyDetailSkeleton({ onBack }: { onBack: () => void }) {
 
 export default function PropertyDetailPage({ id }: { id: string }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [isFavourite, setIsFavourite] = useState(false);
+  const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
+  const [imageViewerIndex, setImageViewerIndex] = useState(0);
 
   const checkAuthStatus = async () => {
     try {
@@ -139,14 +145,6 @@ export default function PropertyDetailPage({ id }: { id: string }) {
     }
   };
 
-  const handleFavouritePress = () => {
-    if (isGuest) {
-      setShowLoginPrompt(true);
-    } else {
-      setIsFavourite((prev) => !prev);
-    }
-  };
-
   if (isLoading) {
     return <PropertyDetailSkeleton onBack={() => router.back()} />;
   }
@@ -181,16 +179,16 @@ export default function PropertyDetailPage({ id }: { id: string }) {
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* ── Image Gallery ── */}
         <View style={styles.imageGalleryContainer}>
-          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-            {images.map((img, index) => (
-              <Image
-                key={index}
-                source={{ uri: img }}
-                style={styles.galleryImage}
-                contentFit="cover"
-              />
-            ))}
-          </ScrollView>
+          <ImageCarousel
+            images={images}
+            height={280}
+            showThumbnails={true}
+            sharedTransitionTagBase={`property-image-${property.id}`}
+            onPress={(index) => {
+              setImageViewerIndex(index);
+              setIsImageViewerVisible(true);
+            }}
+          />
           <View style={styles.statusBadge}>
             <View style={[styles.statusDot, { backgroundColor: getStatusColor(property.status) }]} />
             <Text style={styles.statusLabel}>{property.status.replace("_", " ")}</Text>
@@ -207,17 +205,15 @@ export default function PropertyDetailPage({ id }: { id: string }) {
                 <Text style={styles.locationText}>{property.location}</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.favouriteButton}
-              onPress={handleFavouritePress}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={isFavourite ? "heart" : "heart-outline"}
+            <View style={{ marginRight: 8 }}>
+              <FavoriteButton 
+                propertyId={property.id} 
                 size={26}
-                color={isFavourite ? "#ef4444" : Colors.onSurfaceVariant}
+                style={styles.favouriteButton}
+                isGuest={isGuest}
+                onRequireLogin={() => setShowLoginPrompt(true)}
               />
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -292,6 +288,25 @@ export default function PropertyDetailPage({ id }: { id: string }) {
           router.push("/");
         }}
       />
+
+      {/* ── Image Viewer Modal ── */}
+      <ImageViewing
+        images={images.map((img) => ({ uri: img }))}
+        imageIndex={imageViewerIndex}
+        visible={isImageViewerVisible}
+        onRequestClose={() => setIsImageViewerVisible(false)}
+        HeaderComponent={({ imageIndex }) => (
+          <View style={{ paddingTop: Math.max(insets.top, 20), flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16 }}>
+            <TouchableOpacity onPress={() => setIsImageViewerVisible(false)} style={{ padding: 8 }}>
+              <Ionicons name="close" size={28} color="#fff" style={{ textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} />
+            </TouchableOpacity>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', alignSelf: 'center', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
+              {imageIndex + 1} / {images.length}
+            </Text>
+            <View style={{ width: 44 }} />
+          </View>
+        )}
+      />
     </SafeAreaView>
   );
 }
@@ -365,7 +380,6 @@ const styles = StyleSheet.create({
   },
   // Gallery
   imageGalleryContainer: {
-    height: 280,
     width: "100%",
     backgroundColor: Colors.surfaceContainerHigh,
     position: "relative",

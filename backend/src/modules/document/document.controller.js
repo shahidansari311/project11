@@ -13,16 +13,13 @@ async function uploadDocument(req, res, next) {
     }
 
     const userId = req.user.id;
-    const { documentType, documentUrl, documentNo } = req.body;
-
-    if (!documentUrl) {
-      return errorResponse(res, 400, "Document file or URL is required");
-    }
+    const { documentType, frontImageUrl, backImageUrl, documentUrl } = req.body;
 
     const result = await documentService.uploadOrReuploadDocument(userId, {
       documentType,
+      frontImageUrl,
+      backImageUrl,
       documentUrl,
-      documentNo,
     });
 
     return successResponse(res, 200, result.document, result.message);
@@ -56,7 +53,108 @@ async function getDocumentStatus(req, res, next) {
   }
 }
 
+/**
+ * GET /admin/documents
+ * Admin: Get all users with document upload overview (uploaded vs pending/not uploaded).
+ */
+async function adminGetAllUsersDocumentsOverview(req, res, next) {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = req.query.search || "";
+    const status = req.query.status;
+    const documentType = req.query.documentType;
+    const verificationStatus = req.query.verificationStatus;
+
+    const result = await documentService.adminGetAllUsersDocumentsOverview({
+      page,
+      limit,
+      search,
+      status,
+      documentType,
+      verificationStatus,
+    });
+
+    return successResponse(res, 200, result, "Users document overview retrieved successfully");
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /admin/users/:userId/documents
+ * Admin: Get specific user's documents and status by User ID.
+ */
+async function adminGetUserDocumentsById(req, res, next) {
+  try {
+    const { userId } = req.params;
+    const result = await documentService.adminGetUserDocumentsById(userId);
+
+    return successResponse(res, 200, result, "User documents retrieved successfully");
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
+/**
+ * POST /admin/document/:id/verify
+ * Admin: Verify document (APPROVE or REJECT) with optional remark.
+ */
+async function adminVerifyDocument(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { status, remark } = req.body;
+
+    const updatedDoc = await documentService.adminVerifyDocument(id, { status, remark });
+
+    return successResponse(
+      res,
+      200,
+      updatedDoc,
+      `Document has been ${status.toLowerCase()} successfully`
+    );
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
+/**
+ * POST /admin/users/:userId/document
+ * Admin: Upload document for a specific user (automatically verified, isUploadedByAdmin = true).
+ */
+async function adminUploadUserDocument(req, res, next) {
+  try {
+    const { userId } = req.params;
+    const { documentType, frontImageUrl, backImageUrl, documentUrl, remark } = req.body;
+
+    const result = await documentService.adminUploadUserDocument(userId, {
+      documentType,
+      frontImageUrl,
+      backImageUrl,
+      documentUrl,
+      remark,
+    });
+
+    return successResponse(res, 200, result.document, result.message);
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   uploadDocument,
   getDocumentStatus,
+  adminGetAllUsersDocumentsOverview,
+  adminGetUserDocumentsById,
+  adminVerifyDocument,
+  adminUploadUserDocument,
 };

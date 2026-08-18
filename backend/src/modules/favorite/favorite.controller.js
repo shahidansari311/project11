@@ -35,7 +35,11 @@ async function getFavoriteProperties(req, res, next) {
 
 async function getAdminFavoriteStats(req, res, next) {
   try {
-    const stats = await favoriteService.getAdminFavoriteStats();
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = (req.query.search || "").trim();
+
+    const stats = await favoriteService.getAdminFavoriteStats({ page, limit, search });
     return successResponse(res, 200, stats, "Favorite stats fetched successfully");
   } catch (error) {
     next(error);
@@ -45,7 +49,11 @@ async function getAdminFavoriteStats(req, res, next) {
 async function getAdminPropertyFavorites(req, res, next) {
   try {
     const { propertyId } = req.params;
-    const users = await favoriteService.getAdminPropertyFavorites(propertyId);
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = (req.query.search || "").trim();
+
+    const users = await favoriteService.getAdminPropertyFavorites(propertyId, { page, limit, search });
     return successResponse(res, 200, users, "Users who favorited this property fetched successfully");
   } catch (error) {
     next(error);
@@ -55,7 +63,11 @@ async function getAdminPropertyFavorites(req, res, next) {
 async function getAdminUserFavorites(req, res, next) {
   try {
     const { userId } = req.params;
-    const properties = await favoriteService.getAdminUserFavorites(userId);
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = (req.query.search || "").trim();
+
+    const properties = await favoriteService.getAdminUserFavorites(userId, { page, limit, search });
     return successResponse(res, 200, properties, "User's favorite properties fetched successfully");
   } catch (error) {
     next(error);

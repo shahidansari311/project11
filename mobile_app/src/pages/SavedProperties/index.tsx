@@ -18,6 +18,7 @@ import { Property } from "../BrowseProperties/data";
 import PropertyCard from "../BrowseProperties/components/PropertyCard";
 import PropertySkeleton from "../BrowseProperties/components/PropertySkeleton";
 import LoginPromptModal from "@/components/LoginPromptModal";
+import { useFavorites } from "../../contexts/FavoritesContext";
 
 export default function SavedPropertiesPage() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function SavedPropertiesPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const { refreshFavorites } = useFavorites();
 
   const fetchSavedProperties = useCallback(async () => {
     try {
@@ -54,9 +56,10 @@ export default function SavedPropertiesPage() {
     fetchSavedProperties();
   }, [fetchSavedProperties]);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setIsRefreshing(true);
-    fetchSavedProperties();
+    await Promise.all([fetchSavedProperties(), refreshFavorites()]);
+    setIsRefreshing(false);
   };
 
   if (isLoading) {

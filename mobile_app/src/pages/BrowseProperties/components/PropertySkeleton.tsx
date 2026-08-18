@@ -1,42 +1,19 @@
-import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Animated } from "react-native";
+import React from "react";
+import { View, StyleSheet } from "react-native";
 import { Colors } from "@/constants/colors";
+import Skeleton from "@/components/ui/Skeleton";
 
 export default function PropertySkeleton() {
-  const animatedValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(animatedValue, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(animatedValue, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, []);
-
-  const opacity = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
-  });
-
   return (
     <View style={styles.card}>
-      <Animated.View style={[styles.imageSkeleton, { opacity }]} />
+      <Skeleton height={192} width="100%" borderRadius={0} />
       <View style={styles.content}>
-        <Animated.View style={[styles.textSkeleton, { width: '60%', height: 24, opacity }]} />
-        <Animated.View style={[styles.textSkeleton, { width: '40%', height: 16, marginTop: 8, opacity }]} />
+        <Skeleton width="60%" height={24} borderRadius={4} />
+        <Skeleton width="40%" height={16} borderRadius={4} style={{ marginTop: 8 }} />
         <View style={styles.divider} />
         <View style={styles.statsRow}>
-          <Animated.View style={[styles.textSkeleton, { width: '30%', height: 40, opacity }]} />
-          <Animated.View style={[styles.textSkeleton, { width: '40%', height: 40, opacity }]} />
+          <Skeleton width="30%" height={40} borderRadius={4} />
+          <Skeleton width="40%" height={40} borderRadius={4} />
         </View>
       </View>
     </View>
@@ -56,17 +33,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginHorizontal: 16,
   },
-  imageSkeleton: {
-    height: 192,
-    width: "100%",
-    backgroundColor: Colors.surfaceContainerHighest,
-  },
   content: {
     padding: 16,
-  },
-  textSkeleton: {
-    backgroundColor: Colors.surfaceContainerHighest,
-    borderRadius: 4,
   },
   divider: {
     height: 1,

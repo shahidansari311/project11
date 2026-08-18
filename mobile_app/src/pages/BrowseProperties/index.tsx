@@ -26,6 +26,7 @@ import PropertySkeleton from "./components/PropertySkeleton";
 import LoginPromptModal from "../../components/LoginPromptModal";
 import { CategoryFilter as CategoryFilterType, Property } from "./data";
 import { propertyService } from "../../services/property.service";
+import { useFavorites } from "../../contexts/FavoritesContext";
 
 export default function BrowsePropertiesPage() {
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function BrowsePropertiesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const { refreshFavorites } = useFavorites();
 
   const fetchProperties = useCallback(async () => {
     try {
@@ -64,9 +66,9 @@ export default function BrowsePropertiesPage() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchProperties(), checkAuthStatus()]);
+    await Promise.all([fetchProperties(), checkAuthStatus(), refreshFavorites()]);
     setRefreshing(false);
-  }, [fetchProperties, checkAuthStatus]);
+  }, [fetchProperties, checkAuthStatus, refreshFavorites]);
 
   const filteredProperties = useMemo(() => {
     return properties.filter((p) => {
@@ -120,9 +122,9 @@ export default function BrowsePropertiesPage() {
         {/* Section heading */}
         <View style={styles.sectionHeadingRow}>
           <Text style={styles.sectionTitle}>Available Opportunities</Text>
-          <Text style={styles.sectionCount}>
+          {/* <Text style={styles.sectionCount}>
             {!isLoading ? `${filteredProperties.length} listings` : "Loading..."}
-          </Text>
+          </Text> */}
         </View>
 
         {/* Property cards */}

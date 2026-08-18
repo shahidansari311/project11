@@ -25,6 +25,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 import { Property, PLACEHOLDER_IMAGE } from "../data";
 
@@ -51,6 +52,7 @@ const formatCurrency = (value: number) => {
 };
 
 export default function PropertyCard({ property, isGuest = false, onRequireLogin }: PropertyCardProps) {
+  const router = useRouter();
   const [isFavourite, setIsFavourite] = useState(false);
   
   const imageUrl = property.images && property.images.length > 0 ? property.images[0] : PLACEHOLDER_IMAGE;
@@ -64,7 +66,11 @@ export default function PropertyCard({ property, isGuest = false, onRequireLogin
   };
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity 
+      style={styles.card} 
+      activeOpacity={0.9} 
+      onPress={() => router.push(`/property/${property.id}`)}
+    >
       {/* ── Hero Image Section ── */}
       <View style={styles.imageContainer}>
         <Image
@@ -138,7 +144,7 @@ export default function PropertyCard({ property, isGuest = false, onRequireLogin
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

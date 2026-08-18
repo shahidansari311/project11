@@ -20,6 +20,13 @@ export default function RootLayout() {
           gestureEnabled: false,
         }}
       />
+      <Stack.Screen
+        name="property/[id]"
+        options={{
+          animation: "slide_from_bottom",
+          gestureEnabled: true,
+        }}
+      />
     </Stack>
   );
 }

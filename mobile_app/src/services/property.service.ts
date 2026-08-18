@@ -22,5 +22,10 @@ export const propertyService = {
     // Switch to /public/property so it doesn't require authentication tokens
     const response = await api.get("/public/property", { params });
     return response.data;
+  },
+
+  async getPropertyById(id: string): Promise<{ data: Property; message: string }> {
+    const response = await api.get(`/public/property/${id}`);
+    return response.data;
   }
 };

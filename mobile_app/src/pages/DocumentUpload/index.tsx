@@ -23,24 +23,23 @@ export default function DocumentUploadPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [documentType, setDocumentType] = useState<DocumentType>("AADHAAR");
-  
+
   // Independent States for new uploads
   const [aadharFrontImage, setAadharFrontImage] = useState<DocumentFile | null>(null);
   const [aadharBackImage, setAadharBackImage] = useState<DocumentFile | null>(null);
   const [panFrontImage, setPanFrontImage] = useState<DocumentFile | null>(null);
-  
+
   const [frontError, setFrontError] = useState<string | null>(null);
   const [backError, setBackError] = useState<string | null>(null);
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Existing Documents State
   const [panDoc, setPanDoc] = useState<any>(null);
-  const [aadharFrontDoc, setAadharFrontDoc] = useState<any>(null);
-  const [aadharBackDoc, setAadharBackDoc] = useState<any>(null);
+  const [aadharDoc, setAadharDoc] = useState<any>(null);
 
   // Image Viewer State
   const [isViewerVisible, setIsViewerVisible] = useState(false);
@@ -68,13 +67,13 @@ export default function DocumentUploadPage() {
       const docResponse = await api.get("/user/document");
       if (docResponse.data?.data) {
         const docs = docResponse.data.data;
+        
+        // Find documents in the array returned by backend
         const pan = docs.find((d: any) => d.documentType === "PAN");
-        const aadharFront = docs.find((d: any) => d.documentType === "AADHAAR_FRONT");
-        const aadharBack = docs.find((d: any) => d.documentType === "AADHAAR_BACK");
+        const aadhar = docs.find((d: any) => d.documentType === "AADHAAR");
         
         setPanDoc(pan || null);
-        setAadharFrontDoc(aadharFront || null);
-        setAadharBackDoc(aadharBack || null);
+        setAadharDoc(aadhar || null);
       }
     } catch (error) {
       console.log("Failed to fetch initial data", error);
@@ -107,8 +106,10 @@ export default function DocumentUploadPage() {
       }
     } else if (docType === "AADHAAR") {
       const images = [];
-      if (aadharFrontDoc?.documentUrl) images.push({ uri: aadharFrontDoc.documentUrl });
-      if (aadharBackDoc?.documentUrl) images.push({ uri: aadharBackDoc.documentUrl });
+      if (aadharDoc?.frontImageUrl) images.push({ uri: aadharDoc.frontImageUrl });
+      if (aadharDoc?.backImageUrl) images.push({ uri: aadharDoc.backImageUrl });
+      if (images.length === 0 && aadharDoc?.documentUrl) images.push({ uri: aadharDoc.documentUrl });
+
       if (images.length > 0) {
         setViewerImages(images);
         setIsViewerVisible(true);
@@ -137,7 +138,7 @@ export default function DocumentUploadPage() {
     if (!isValid) return;
 
     setIsSubmitting(true);
-    
+
     try {
       if (documentType === "PAN") {
         const formData = new FormData();
@@ -153,35 +154,32 @@ export default function DocumentUploadPage() {
         });
         setPanFrontImage(null);
       } else {
-        const frontData = new FormData();
-        frontData.append("documentType", "AADHAAR_FRONT");
-        frontData.append("file", {
+        const formData = new FormData();
+        formData.append("documentType", "AADHAAR");
+        formData.append("frontImage", {
           uri: frontImage!.uri,
           name: frontImage!.name,
           type: frontImage!.mimeType,
         } as any);
-
-        const backData = new FormData();
-        backData.append("documentType", "AADHAAR_BACK");
-        backData.append("file", {
+        formData.append("backImage", {
           uri: backImage!.uri,
           name: backImage!.name,
           type: backImage!.mimeType,
         } as any);
 
-        await Promise.all([
-          api.post("/user/document", frontData, { headers: { "Content-Type": "multipart/form-data" } }),
-          api.post("/user/document", backData, { headers: { "Content-Type": "multipart/form-data" } })
-        ]);
+        await api.post("/user/document", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
         setAadharFrontImage(null);
         setAadharBackImage(null);
       }
-
-      showToast("Your documents have been submitted for review.");
       
+      showToast("Your documents have been submitted for review.");
+
       // Auto-toggle to the other document type
       handleDocumentTypeChange(documentType === "PAN" ? "AADHAAR" : "PAN");
-      
+
       // Refresh status
       await fetchData();
     } catch (error: any) {
@@ -193,42 +191,20 @@ export default function DocumentUploadPage() {
   };
 
   const getAadharStatus = () => {
-    if (!aadharFrontDoc && !aadharBackDoc) return null;
-    
-    const frontStatus = aadharFrontDoc?.status;
-    const backStatus = aadharBackDoc?.status;
-
-    if (frontStatus === "REJECTED" || frontStatus === "REUPLOAD_REQUIRED" || 
-        backStatus === "REJECTED" || backStatus === "REUPLOAD_REQUIRED") {
-      return "REJECTED";
-    }
-    
-    if (frontStatus === "PENDING" || backStatus === "PENDING") {
-      return "PENDING";
-    }
-    
-    if (frontStatus === "APPROVED" && backStatus === "APPROVED") {
-      return "APPROVED";
-    }
-
-    return "PENDING";
+    return aadharDoc?.status || "PENDING";
   };
 
   const getAadharRemark = () => {
-    const frontStatus = aadharFrontDoc?.status;
-    if (frontStatus === "REJECTED" || frontStatus === "REUPLOAD_REQUIRED") {
-      return aadharFrontDoc?.remark;
-    }
-    return aadharBackDoc?.remark;
+    return aadharDoc?.remark || null;
   };
 
-  const aadharStatus = getAadharStatus();
-  const aadharRemark = getAadharRemark();
+  const aadharStatus = aadharDoc ? getAadharStatus() : null;
+  const aadharRemark = aadharDoc ? getAadharRemark() : null;
 
   const panStatus = panDoc?.status || null;
   const panRemark = panDoc?.remark || null;
 
-  const isFormValid = documentType === "AADHAAR" 
+  const isFormValid = documentType === "AADHAAR"
     ? (aadharFrontImage !== null && aadharBackImage !== null)
     : (panFrontImage !== null);
 
@@ -244,15 +220,15 @@ export default function DocumentUploadPage() {
             <Skeleton width={120} height={24} />
             <View style={{ width: 32 }} />
           </View>
-          
+
           <Skeleton width="100%" height={100} borderRadius={16} style={{ marginBottom: 24 }} />
 
           <View style={styles.formSection}>
             <Skeleton width="100%" height={48} borderRadius={24} style={{ marginBottom: 24 }} />
-            
+
             <Skeleton width={150} height={16} style={{ marginBottom: 12 }} />
             <Skeleton width="100%" height={160} borderRadius={16} style={{ marginBottom: 24 }} />
-            
+
             <Skeleton width={150} height={16} style={{ marginBottom: 12 }} />
             <Skeleton width="100%" height={160} borderRadius={16} />
           </View>
@@ -285,25 +261,25 @@ export default function DocumentUploadPage() {
                 {(aadharStatus === "REJECTED" || aadharStatus === "REUPLOAD_REQUIRED") && (
                   <DocumentStatusTracker status="REJECTED" remark={aadharRemark} documentName="Aadhar Card" onView={() => handleViewExisting("AADHAAR")} />
                 )}
-                <ImageUploadBox 
+                <ImageUploadBox
                   label="Front of Aadhar Card"
-                  file={aadharFrontImage} 
+                  file={aadharFrontImage}
                   onSelect={(file) => {
                     setAadharFrontImage(file);
                     setFrontError(null);
                     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  }} 
+                  }}
                   error={frontError}
                   onView={() => aadharFrontImage && openImageViewer(aadharFrontImage)}
                 />
-                <ImageUploadBox 
-                  label="Back of Aadhar Card" 
-                  file={aadharBackImage} 
+                <ImageUploadBox
+                  label="Back of Aadhar Card"
+                  file={aadharBackImage}
                   onSelect={(file) => {
                     setAadharBackImage(file);
                     setBackError(null);
                     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  }} 
+                  }}
                   error={backError}
                   onView={() => aadharBackImage && openImageViewer(aadharBackImage)}
                 />
@@ -319,14 +295,14 @@ export default function DocumentUploadPage() {
                 {(panStatus === "REJECTED" || panStatus === "REUPLOAD_REQUIRED") && (
                   <DocumentStatusTracker status="REJECTED" remark={panRemark} documentName="PAN Card" onView={() => handleViewExisting("PAN")} />
                 )}
-                <ImageUploadBox 
+                <ImageUploadBox
                   label="Front of PAN Card"
-                  file={panFrontImage} 
+                  file={panFrontImage}
                   onSelect={(file) => {
                     setPanFrontImage(file);
                     setFrontError(null);
                     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  }} 
+                  }}
                   error={frontError}
                   onView={() => panFrontImage && openImageViewer(panFrontImage)}
                 />
@@ -338,8 +314,8 @@ export default function DocumentUploadPage() {
 
       {/* Only show submit button if we are not in a hidden upload state */}
       {((documentType === "AADHAAR" && !isAadharUploadHidden) || (documentType === "PAN" && !isPanUploadHidden)) && (
-        <TouchableOpacity 
-          style={[styles.submitButton, (!isFormValid || isSubmitting) && styles.submitButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.submitButton, (!isFormValid || isSubmitting) && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={!isFormValid || isSubmitting}
         >

@@ -15,7 +15,7 @@
  *  └──────────────────────────────────┘
  */
 
-import React, { useState } from "react";
+import React, { memo } from "react";
 import {
   View,
   Text,
@@ -54,7 +54,7 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 };
 
-export default function PropertyCard({ property, isGuest = false, onRequireLogin }: PropertyCardProps) {
+export default memo(function PropertyCard({ property, isGuest = false, onRequireLogin }: PropertyCardProps) {
   const router = useRouter();
 
   return (
@@ -135,7 +135,7 @@ export default function PropertyCard({ property, isGuest = false, onRequireLogin
       </TouchableOpacity>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

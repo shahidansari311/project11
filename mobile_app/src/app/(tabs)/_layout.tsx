@@ -12,13 +12,12 @@
  *   </SafeAreaView>
  */
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback } from "react";
 import { View, StyleSheet, StatusBar } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
-import { authService } from "../../services/auth.service";
+import { useAuth } from "../../contexts/AuthContext";
 
 import AppHeader from "@/components/layout/AppHeader";
 import AppTabBar from "@/components/layout/AppTabBar";
@@ -26,36 +25,12 @@ import AppTabBar from "@/components/layout/AppTabBar";
 export default function TabsLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const [isGuest, setIsGuest] = useState(true);
-  const [userProfileUrl, setUserProfileUrl] = useState<string | null>(null);
+  const { isGuest, userProfile } = useAuth();
+  const userProfileUrl = userProfile?.profileUrl || null;
 
   // Determine which tab is currently active from the URL segments.
   // segments looks like: ["(tabs)", "home"] or ["(tabs)", "profile"]
   const activeRouteName = segments[segments.length - 1] ?? "home";
-
-  const checkAuthStatus = useCallback(async () => {
-    try {
-      const token = await SecureStore.getItemAsync("refresh_token");
-      if (!token) {
-        setIsGuest(true);
-        return;
-      }
-      setIsGuest(false);
-
-      // Fetch profile to get image for header/tabbar
-      const res = await authService.getProfile();
-      if (res && res.data && res.data.profileUrl) {
-        setUserProfileUrl(res.data.profileUrl);
-      }
-    } catch {
-      // If fetching fails, fallback to generic icons
-      setIsGuest(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkAuthStatus();
-  }, [checkAuthStatus]);
 
   const handleTabPress = useCallback(
     (routeName: string) => {

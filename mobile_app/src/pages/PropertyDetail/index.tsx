@@ -141,7 +141,6 @@ export default function PropertyDetailPage({ id }: { id: string }) {
       setShowLoginPrompt(true);
     } else {
       // Dummy action for logged in users
-      console.log("Invest flow started for:", property?.id);
     }
   };
 

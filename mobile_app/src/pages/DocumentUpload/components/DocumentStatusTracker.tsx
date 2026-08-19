@@ -58,6 +58,7 @@ export default function DocumentStatusTracker({ status, remark, documentName, on
           <View style={styles.stepsContainer}>
             {/* Step 1: Uploaded */}
             <View style={styles.step}>
+              <View style={[styles.line, styles.lineActive]} />
               <View style={[styles.node, styles.nodeActive]}>
                 <Ionicons name="checkmark" size={16} color={Colors.surfaceContainerLowest} />
               </View>
@@ -67,10 +68,9 @@ export default function DocumentStatusTracker({ status, remark, documentName, on
               </View>
             </View>
 
-            <View style={[styles.line, styles.lineActive]} />
-
             {/* Step 2: Verification */}
             <View style={styles.step}>
+              <View style={[styles.line, isApproved ? styles.lineActive : styles.lineInactive]} />
               <View style={[styles.node, (isPending || isApproved) ? styles.nodeActive : styles.nodeInactive]}>
                 {(isPending || isApproved) && <Ionicons name="checkmark" size={16} color={Colors.surfaceContainerLowest} />}
               </View>
@@ -84,14 +84,12 @@ export default function DocumentStatusTracker({ status, remark, documentName, on
               </View>
             </View>
 
-            <View style={[styles.line, isApproved ? styles.lineActive : styles.lineInactive]} />
-
             {/* Step 3: Verified */}
             <View style={styles.step}>
               <View style={[styles.node, isApproved ? styles.nodeActive : styles.nodeInactive]}>
                 {isApproved && <Ionicons name="checkmark" size={16} color={Colors.surfaceContainerLowest} />}
               </View>
-              <View style={styles.stepTextContainer}>
+              <View style={[styles.stepTextContainer, { paddingBottom: 0 }]}>
                 <Text style={[styles.stepTitle, !isApproved && styles.textInactive]}>Verified</Text>
                 <Text style={[styles.stepSubtitle, !isApproved && styles.textInactive]}>
                   Your document is approved
@@ -185,9 +183,9 @@ const styles = StyleSheet.create({
   line: {
     position: "absolute",
     left: 11,
-    top: 24,
+    top: 26,
+    bottom: -2,
     width: 2,
-    height: 40,
     zIndex: 1,
   },
   lineActive: {

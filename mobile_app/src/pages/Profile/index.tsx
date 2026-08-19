@@ -49,13 +49,12 @@ export default function ProfilePage() {
       if (docRes && docRes.data?.data) {
         const docs = docRes.data.data;
         const pan = docs.find((d: any) => d.documentType === "PAN");
-        const aadharFront = docs.find((d: any) => d.documentType === "AADHAAR_FRONT");
-        const aadharBack = docs.find((d: any) => d.documentType === "AADHAAR_BACK");
+        const aadhar = docs.find((d: any) => d.documentType === "AADHAAR");
         
-        if (!pan || !aadharFront || !aadharBack) {
+        if (!pan || !aadhar) {
           setDocStatus("INCOMPLETE");
         } else {
-          const statuses = [pan.status, aadharFront.status, aadharBack.status];
+          const statuses = [pan.status, aadhar.status];
           if (statuses.some(s => s === "REJECTED" || s === "REUPLOAD_REQUIRED")) {
             setDocStatus("ACTION_REQUIRED");
           } else if (statuses.every(s => s === "APPROVED")) {

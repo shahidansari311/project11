@@ -37,7 +37,6 @@ export default function ImageUploadBox({ label, file, onSelect, error, onView }:
         });
       }
     } catch (err) {
-      console.log("DocumentPicker Error:", err);
     }
   };
 

@@ -76,7 +76,6 @@ export default function DocumentUploadPage() {
         setAadharDoc(aadhar || null);
       }
     } catch (error) {
-      console.log("Failed to fetch initial data", error);
     } finally {
       setIsLoading(false);
     }

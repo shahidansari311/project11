@@ -14,68 +14,50 @@ import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
 import api from "@/utils/api";
 import { authService, UserProfile } from "../../services/auth.service";
+import { useAuth } from "../../contexts/AuthContext";
 import { useFavorites } from "../../contexts/FavoritesContext";
 import { useFocusEffect } from "expo-router";
 import Skeleton from "@/components/ui/Skeleton";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [isGuest, setIsGuest] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const { isGuest, userProfile, isLoading, refreshAuth } = useAuth();
   const [docStatus, setDocStatus] = useState<"PENDING" | "ACTION_REQUIRED" | "VERIFIED" | "INCOMPLETE">("INCOMPLETE");
   const { clearFavorites } = useFavorites();
 
-  const checkAuthAndFetchProfile = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const token = await SecureStore.getItemAsync("refresh_token");
-      if (!token) {
-        setIsGuest(true);
-        setIsLoading(false);
-        return;
-      }
-      setIsGuest(false);
-      
-      const [res, docRes] = await Promise.all([
-        authService.getProfile(),
-        api.get("/user/document").catch(() => null)
-      ]);
-      
-      if (res && res.data) {
-        setUserProfile(res.data);
-      }
-      
-      if (docRes && docRes.data?.data) {
-        const docs = docRes.data.data;
-        const pan = docs.find((d: any) => d.documentType === "PAN");
-        const aadhar = docs.find((d: any) => d.documentType === "AADHAAR");
-        
-        if (!pan || !aadhar) {
-          setDocStatus("INCOMPLETE");
-        } else {
-          const statuses = [pan.status, aadhar.status];
-          if (statuses.some(s => s === "REJECTED" || s === "REUPLOAD_REQUIRED")) {
-            setDocStatus("ACTION_REQUIRED");
-          } else if (statuses.every(s => s === "APPROVED")) {
-            setDocStatus("VERIFIED");
-          } else {
-            setDocStatus("PENDING");
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch profile:", error);
-      setIsGuest(true); // If fetch fails, fallback to guest/login prompt to be safe
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
-      checkAuthAndFetchProfile();
-    }, [checkAuthAndFetchProfile])
+      // We only need to fetch documents here now, profile is global
+      const fetchDocs = async () => {
+        try {
+          const docRes = await api.get("/user/document").catch(() => null);
+          if (docRes && docRes.data?.data) {
+            const docs = docRes.data.data;
+            const pan = docs.find((d: any) => d.documentType === "PAN");
+            const aadhar = docs.find((d: any) => d.documentType === "AADHAAR");
+            
+            if (!pan || !aadhar) {
+              setDocStatus("INCOMPLETE");
+            } else {
+              const statuses = [pan.status, aadhar.status];
+              if (statuses.some(s => s === "REJECTED" || s === "REUPLOAD_REQUIRED")) {
+                setDocStatus("ACTION_REQUIRED");
+              } else if (statuses.every(s => s === "APPROVED")) {
+                setDocStatus("VERIFIED");
+              } else {
+                setDocStatus("PENDING");
+              }
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      
+      if (!isGuest) {
+        fetchDocs();
+      }
+    }, [isGuest])
   );
 
   const handleLogout = useCallback(async () => {

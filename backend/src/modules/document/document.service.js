@@ -202,6 +202,17 @@ async function adminGetAllUsersDocumentsOverview({
   ) {
     andConditions.push({ documents: { some: { documentType: "AADHAAR", status: "APPROVED" } } });
     andConditions.push({ documents: { some: { documentType: "PAN", status: "APPROVED" } } });
+  } else if (normVerifStatus === "PENDING_VERIFICATION") {
+    andConditions.push({
+      documents: {
+        some: { status: "PENDING" },
+      },
+    });
+    andConditions.push({
+      documents: {
+        none: { status: "REJECTED" },
+      },
+    });
   } else if (
     normVerifStatus === "UNVERIFIED" ||
     normVerifStatus === "NOT_VERIFIED" ||

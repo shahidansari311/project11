@@ -11,12 +11,11 @@ import {
   View,
   Text,
   TextInput,
-  ScrollView,
   StyleSheet,
   RefreshControl,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 
@@ -27,17 +26,18 @@ import LoginPromptModal from "../../components/LoginPromptModal";
 import { CategoryFilter as CategoryFilterType, Property } from "./data";
 import { propertyService } from "../../services/property.service";
 import { useFavorites } from "../../contexts/FavoritesContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function BrowsePropertiesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<CategoryFilterType>("ALL ASSETS");
   const [properties, setProperties] = useState<Property[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingProperties, setIsFetchingProperties] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [isGuest, setIsGuest] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const { refreshFavorites } = useFavorites();
+  const { isGuest, refreshAuth, isLoading: authLoading } = useAuth();
 
   const fetchProperties = useCallback(async () => {
     try {
@@ -50,25 +50,15 @@ export default function BrowsePropertiesPage() {
     }
   }, []);
 
-  const checkAuthStatus = useCallback(async () => {
-    try {
-      const token = await SecureStore.getItemAsync("refresh_token");
-      setIsGuest(!token);
-    } catch {
-      setIsGuest(true);
-    }
-  }, []);
-
   useEffect(() => {
-    checkAuthStatus();
-    fetchProperties().finally(() => setIsLoading(false));
-  }, [checkAuthStatus, fetchProperties]);
+    fetchProperties().finally(() => setIsFetchingProperties(false));
+  }, [fetchProperties]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchProperties(), checkAuthStatus(), refreshFavorites()]);
+    await Promise.all([fetchProperties(), refreshAuth(), refreshFavorites()]);
     setRefreshing(false);
-  }, [fetchProperties, checkAuthStatus, refreshFavorites]);
+  }, [fetchProperties, refreshAuth, refreshFavorites]);
 
   const filteredProperties = useMemo(() => {
     return properties.filter((p) => {
@@ -81,6 +71,23 @@ export default function BrowsePropertiesPage() {
       return matchesCategory && matchesSearch;
     });
   }, [searchQuery, activeCategory, properties]);
+
+  const renderHeader = () => (
+    <View>
+      <CategoryFilter active={activeCategory} onChange={setActiveCategory} />
+      <View style={styles.sectionHeadingRow}>
+        <Text style={styles.sectionTitle}>Available Opportunities</Text>
+      </View>
+    </View>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyText}>No properties found.</Text>
+    </View>
+  );
+
+  const isLoading = authLoading || isFetchingProperties;
 
   return (
     <View style={styles.root}>
@@ -104,52 +111,40 @@ export default function BrowsePropertiesPage() {
         </View>
       </View>
 
-      {/* ── Scrollable Content ── */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[Colors.primary]}
-          />
-        }
-      >
-        <CategoryFilter active={activeCategory} onChange={setActiveCategory} />
-
-        {/* Section heading */}
-        <View style={styles.sectionHeadingRow}>
-          <Text style={styles.sectionTitle}>Available Opportunities</Text>
-          {/* <Text style={styles.sectionCount}>
-            {!isLoading ? `${filteredProperties.length} listings` : "Loading..."}
-          </Text> */}
+      {/* ── Scrollable Content (Virtualized List) ── */}
+      {isLoading ? (
+        <View style={styles.scrollContent}>
+          {renderHeader()}
+          <PropertySkeleton />
+          <PropertySkeleton />
+          <PropertySkeleton />
         </View>
-
-        {/* Property cards */}
-        {isLoading ? (
-          <>
-            <PropertySkeleton />
-            <PropertySkeleton />
-            <PropertySkeleton />
-          </>
-        ) : filteredProperties.length > 0 ? (
-          filteredProperties.map((property) => (
-            <View key={property.id} style={styles.cardWrapper}>
+      ) : (
+        <FlatList
+          data={filteredProperties}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmptyState}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[Colors.primary]}
+            />
+          }
+          renderItem={({ item }) => (
+            <View style={styles.cardWrapper}>
               <PropertyCard
-                property={property}
+                property={item}
                 isGuest={isGuest}
                 onRequireLogin={() => setShowLoginPrompt(true)}
               />
             </View>
-          ))
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No properties found.</Text>
-          </View>
-        )}
-      </ScrollView>
+          )}
+        />
+      )}
 
       {/* ── Login Prompt Modal ── */}
       <LoginPromptModal

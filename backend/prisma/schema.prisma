@@ -89,7 +89,6 @@ enum DocumentStatus {
   PENDING
   APPROVED
   REJECTED
-  REUPLOAD_REQUIRED
 }
 
 model UserDocument {

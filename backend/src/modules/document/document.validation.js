@@ -129,9 +129,9 @@ const adminUploadDocumentSchema = z.object({
 
 const adminVerifyDocumentSchema = z.object({
   body: z.object({
-    status: z.enum(["APPROVED", "REJECTED", "REUPLOAD_REQUIRED"], {
-      required_error: "Status is required (APPROVED, REJECTED, or REUPLOAD_REQUIRED)",
-      errorMap: () => ({ message: "Status must be one of: APPROVED, REJECTED, REUPLOAD_REQUIRED" }),
+    status: z.enum(["APPROVED", "REJECTED"], {
+      required_error: "Status is required (APPROVED or REJECTED)",
+      errorMap: () => ({ message: "Status must be one of: APPROVED, REJECTED" }),
     }),
     remark: z.string().trim().optional(),
   }),

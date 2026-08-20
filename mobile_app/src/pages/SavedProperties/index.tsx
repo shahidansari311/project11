@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   loginButton: {
-    backgroundColor: Colors.primaryContainer,
+    backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 12,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: Colors.onPrimaryContainer,
+    color: Colors.onPrimary,
   },
   emptyContainer: {
     flex: 1,
@@ -232,11 +232,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 99,
     borderWidth: 1,
-    borderColor: Colors.primaryContainer,
+    borderColor: Colors.primary,
   },
   exploreButtonText: {
     fontSize: 15,
     fontWeight: "600",
-    color: Colors.primaryContainer,
+    color: Colors.primary,
   }
 });

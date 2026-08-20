@@ -1,8 +1,7 @@
 /**
  * AppHeader — Universal persistent top bar
  * ─────────────────────────────────────────
- * Rendered once in the Tabs shell. Never re-mounts on tab switch.
- * Shows: [Menu] | Brand Title | [Profile icon or Login button]
+ * Clean, borderless header with brand typography and sleek profile avatar badge.
  */
 
 import React from "react";
@@ -26,23 +25,31 @@ export default function AppHeader({
 }: AppHeaderProps) {
   return (
     <View style={styles.container}>
-      <View style={{ width: 40 }} />{/* Placeholder for balance */}
+      {/* Brand Title */}
+      <View style={styles.brandRow}>
+        <View style={styles.logoBadge}>
+          <Ionicons name="business" size={16} color={Colors.onPrimary} />
+        </View>
+        <Text style={styles.brandTitle}>
+          Silver<Text style={styles.brandSubtitle}>RealEstate</Text>
+        </Text>
+      </View>
 
-      <Text style={styles.brandTitle}>Silverreal Estate</Text>
-
+      {/* Action: Profile or Login */}
       {isGuest ? (
         <TouchableOpacity
           style={styles.loginButton}
           onPress={onLoginPress}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
-          <Text style={styles.loginButtonText}>Login</Text>
+          <Text style={styles.loginButtonText}>Sign In</Text>
+          <Ionicons name="arrow-forward" size={14} color={Colors.onPrimary} />
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onProfilePress}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
           {userProfileUrl ? (
             <Image
@@ -51,11 +58,13 @@ export default function AppHeader({
               contentFit="cover"
             />
           ) : (
-            <Ionicons
-              name="person-circle-outline"
-              size={26}
-              color={Colors.onSurfaceVariant}
-            />
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons
+                name="person"
+                size={16}
+                color={Colors.primary}
+              />
+            </View>
           )}
         </TouchableOpacity>
       )}
@@ -68,42 +77,74 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    height: 64,
+    paddingHorizontal: 20,
+    height: 56,
     backgroundColor: Colors.surface,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 3,
     zIndex: 10,
   },
-  iconButton: {
-    padding: 8,
-    borderRadius: 99,
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  headerAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.outlineVariant,
+  logoBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   brandTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "800",
     color: Colors.primary,
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
+  },
+  brandSubtitle: {
+    fontWeight: "400",
+    color: Colors.secondary,
+  },
+  iconButton: {
+    padding: 2,
+  },
+  headerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+  },
+  avatarPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.secondaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
   },
   loginButton: {
-    backgroundColor: Colors.primaryContainer,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 16,
+    borderRadius: 20,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
   loginButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.onPrimaryContainer,
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.onPrimary,
   },
 });

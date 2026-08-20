@@ -69,14 +69,14 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     marginRight: 16,
-    backgroundColor: Colors.primaryContainer,
+    backgroundColor: Colors.primary,
     justifyContent: "center",
     alignItems: "center",
   },
   placeholderText: {
     fontSize: 28,
     fontWeight: "bold",
-    color: Colors.primary,
+    color: "#ffffff",
   },
   infoContainer: {
     flex: 1,

@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import Animated from "react-native-reanimated";
 import { Colors } from "@/constants/colors";
 import { PLACEHOLDER_IMAGE } from "../../pages/BrowseProperties/data";
@@ -22,6 +23,7 @@ interface ImageCarouselProps {
   height?: number;
   onPress?: (index: number) => void;
   showThumbnails?: boolean;
+  showArrowControls?: boolean;
   sharedTransitionTagBase?: string;
 }
 
@@ -31,6 +33,7 @@ export default function ImageCarousel({
   height = 280,
   onPress,
   showThumbnails = false,
+  showArrowControls = true,
   sharedTransitionTagBase,
 }: ImageCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -46,13 +49,20 @@ export default function ImageCarousel({
     }
   };
 
+  const handleArrowPress = (targetIndex: number) => {
+    if (targetIndex >= 0 && targetIndex < displayImages.length) {
+      scrollViewRef.current?.scrollTo({ x: targetIndex * width, animated: true });
+      setActiveIndex(targetIndex);
+    }
+  };
+
   const handleThumbnailPress = (index: number) => {
     scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
     setActiveIndex(index);
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width, height }]}>
       <View style={[{ width, height }, styles.mainCarousel]}>
         <ScrollView
           ref={scrollViewRef}
@@ -60,7 +70,8 @@ export default function ImageCarousel({
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           onScroll={handleScroll}
-          scrollEventThrottle={16} // Update roughly 60 times a second
+          scrollEventThrottle={16}
+          nestedScrollEnabled={true}
         >
           {displayImages.map((img, index) => (
             <Pressable
@@ -84,9 +95,36 @@ export default function ImageCarousel({
           ))}
         </ScrollView>
 
-        {/* Pagination Dots */}
+        {/* ── Arrow Controls ── */}
+        {showArrowControls && displayImages.length > 1 && (
+          <>
+            {activeIndex > 0 && (
+              <TouchableOpacity
+                style={[styles.arrowButton, styles.leftArrow]}
+                onPress={() => handleArrowPress(activeIndex - 1)}
+                activeOpacity={0.8}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name="chevron-back" size={20} color={Colors.onSurface} />
+              </TouchableOpacity>
+            )}
+
+            {activeIndex < displayImages.length - 1 && (
+              <TouchableOpacity
+                style={[styles.arrowButton, styles.rightArrow]}
+                onPress={() => handleArrowPress(activeIndex + 1)}
+                activeOpacity={0.8}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name="chevron-forward" size={20} color={Colors.onSurface} />
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
+        {/* ── Pagination Dots Indicator ── */}
         {displayImages.length > 1 && (
-          <View style={styles.paginationContainer}>
+          <View style={styles.paginationContainer} pointerEvents="none">
             {displayImages.map((_, index) => (
               <View
                 key={index}
@@ -134,18 +172,44 @@ const styles = StyleSheet.create({
     position: "relative",
     backgroundColor: Colors.surfaceContainerHigh,
   },
+  arrowButton: {
+    position: "absolute",
+    top: "50%",
+    marginTop: -20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.6)",
+  },
+  leftArrow: {
+    left: 14,
+  },
+  rightArrow: {
+    right: 14,
+  },
   paginationContainer: {
     position: "absolute",
-    bottom: 12,
+    bottom: 42,
     flexDirection: "row",
     alignSelf: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    zIndex: 25,
   },
   dot: {
     height: 6,
@@ -157,7 +221,7 @@ const styles = StyleSheet.create({
   },
   inactiveDot: {
     width: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
   },
   thumbnailsContainer: {
     paddingHorizontal: 16,

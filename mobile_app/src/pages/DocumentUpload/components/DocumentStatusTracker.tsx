@@ -28,8 +28,8 @@ export default function DocumentStatusTracker({ status, remark, documentName, on
             </View>
             {onView && (
               <TouchableOpacity style={[styles.viewButton, { backgroundColor: Colors.errorContainer, borderWidth: 1, borderColor: Colors.error + "40" }]} onPress={onView} activeOpacity={0.7}>
-                <Ionicons name="eye-outline" size={18} color={Colors.onPrimaryContainer} />
-                <Text style={[styles.viewButtonText, { color: Colors.onPrimaryContainer }]}>View</Text>
+                <Ionicons name="eye-outline" size={18} color={Colors.error} />
+                <Text style={[styles.viewButtonText, { color: Colors.error }]}>View</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -49,7 +49,7 @@ export default function DocumentStatusTracker({ status, remark, documentName, on
             <Text style={styles.trackerTitle}>{documentName} Status</Text>
             {onView && (
               <TouchableOpacity style={styles.viewButton} onPress={onView} activeOpacity={0.7}>
-                <Ionicons name="eye-outline" size={18} color={Colors.onPrimaryContainer} />
+                <Ionicons name="eye-outline" size={18} color={Colors.onPrimary} />
                 <Text style={styles.viewButtonText}>View</Text>
               </TouchableOpacity>
             )}
@@ -131,12 +131,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: Colors.primaryContainer,
+    backgroundColor: Colors.primary,
   },
   viewButtonText: {
     fontSize: 13,
     fontWeight: "600",
-    color: Colors.onPrimaryContainer,
+    color: Colors.onPrimary,
     marginLeft: 4,
   },
   stepsContainer: {

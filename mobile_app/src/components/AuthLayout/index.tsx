@@ -15,7 +15,6 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
-import { ToastProvider } from "@/components/Toast";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const BRAND_NAME = "Silver Real Estate";
@@ -47,45 +46,43 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
   }, [arrowAnim]);
 
   return (
-    <ToastProvider>
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-        {/* Hero Image */}
-        <View style={styles.heroContainer}>
-        <Image source={require("@/assets/images/hero-building.png")} style={styles.heroImage} resizeMode="cover" />
-        <View style={styles.heroOverlay} />
-        <View style={styles.brandContainer}>
-          <View style={styles.brandLogo}><Text style={styles.brandLogoText}>◆</Text></View>
-          <Text style={styles.brandText}>{BRAND_NAME}</Text>
-        </View>
-        
-        {/* Skip Login Button */}
-        <TouchableOpacity 
-          style={styles.skipButton} 
-          onPress={() => router.replace("/(tabs)/home" as any)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.skipButtonText}>Skip</Text>
-          <Animated.View style={{ transform: [{ translateX: arrowAnim }] }}>
-            <Ionicons name="arrow-forward" size={14} color={Colors.onPrimary} style={{ marginLeft: 4 }} />
-          </Animated.View>
-        </TouchableOpacity>
+      {/* Hero Image */}
+      <View style={styles.heroContainer}>
+      <Image source={require("@/assets/images/hero-building.png")} style={styles.heroImage} resizeMode="cover" />
+      <View style={styles.heroOverlay} />
+      <View style={styles.brandContainer}>
+        <View style={styles.brandLogo}><Text style={styles.brandLogoText}>◆</Text></View>
+        <Text style={styles.brandText}>{BRAND_NAME}</Text>
       </View>
-
-      {/* Content Container */}
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex1}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      
+      {/* Skip Login Button */}
+      <TouchableOpacity 
+        style={styles.skipButton} 
+        onPress={() => router.replace("/(tabs)/home" as any)}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.skipButtonText}>Skip</Text>
+        <Animated.View style={{ transform: [{ translateX: arrowAnim }] }}>
+          <Ionicons name="arrow-forward" size={14} color={Colors.onPrimary} style={{ marginLeft: 4 }} />
+        </Animated.View>
+      </TouchableOpacity>
     </View>
-    </ToastProvider>
+
+    {/* Content Container */}
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex1}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {children}
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </View>
   );
 }
 
@@ -105,7 +102,7 @@ const styles = StyleSheet.create({
     top: Platform.OS === "ios" ? 56 : 44, 
     right: 20, 
     zIndex: 10, 
-    backgroundColor: Colors.primaryContainer, 
+    backgroundColor: Colors.primary, 
     paddingHorizontal: 14, 
     paddingVertical: 8, 
     borderRadius: 24,

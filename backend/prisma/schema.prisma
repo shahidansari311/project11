@@ -10,16 +10,16 @@ datasource db {
 model User {
   id                   String         @id @default(cuid())
   phone                String         @unique
-  fullName             String?
   email                String?        @unique
-  profileUrl           String?
-  hasPurchasedProperty Boolean        @default(false)
-  createdby_admin      Boolean        @default(false)
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
+  fullName             String?
+  hasPurchasedProperty Boolean        @default(false)
+  createdby_admin      Boolean        @default(false)
+  profileUrl           String?
+  favoriteProperties   String[]       @default([])
   sessions             Session[]
   documents            UserDocument[]
-  favoriteProperties   String[]  @default([])
 }
 
 model Admin {
@@ -40,9 +40,8 @@ model Session {
   deviceFingerprint String
   expiresAt         DateTime
   createdAt         DateTime @default(now())
-
-  user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  admin Admin? @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  admin             Admin?   @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  user              User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model OtpVerification {
@@ -52,20 +51,6 @@ model OtpVerification {
   otp_expiry DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-}
-
-enum PropertyStatus {
-  AVAILABLE
-  SOLD
-  UNDER_REVIEW
-  COMING_SOON
-}
-
-enum PropertyCategory {
-  RESIDENTIAL
-  COMMERCIAL
-  INDUSTRIAL
-  LAND
 }
 
 model Property {
@@ -85,27 +70,40 @@ model Property {
   updatedAt     DateTime         @updatedAt
 }
 
-enum DocumentStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
 model UserDocument {
   id                String         @id @default(cuid())
   userId            String
   documentType      String         @default("AADHAAR")
-  frontImageUrl     String?
-  backImageUrl      String?
   documentUrl       String?
   documentNo        String?
   status            DocumentStatus @default(PENDING)
   remark            String?
-  isUploadedByAdmin Boolean        @default(false)
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  backImageUrl      String?
+  frontImageUrl     String?
+  isUploadedByAdmin Boolean        @default(false)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  SOLD
+  UNDER_REVIEW
+  COMING_SOON
+}
+
+enum PropertyCategory {
+  RESIDENTIAL
+  COMMERCIAL
+  INDUSTRIAL
+  LAND
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

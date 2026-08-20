@@ -64,8 +64,9 @@ export default function ProfilePage() {
     await SecureStore.deleteItemAsync("access_token");
     await SecureStore.deleteItemAsync("refresh_token");
     clearFavorites();
+    await refreshAuth();
     router.replace("/");
-  }, [router, clearFavorites]);
+  }, [router, clearFavorites, refreshAuth]);
 
   if (isLoading) {
     return (
@@ -163,7 +164,7 @@ export default function ProfilePage() {
                 activeOpacity={0.7}
               >
                 <View style={styles.listItemLeft}>
-                  <Ionicons name="business" size={22} color={Colors.primaryContainer} />
+                  <Ionicons name="business" size={22} color={Colors.primary} />
                   <Text style={styles.listItemText}>My Properties</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
@@ -171,7 +172,7 @@ export default function ProfilePage() {
 
               <TouchableOpacity style={styles.listItem} activeOpacity={0.7}>
                 <View style={styles.listItemLeft}>
-                  <Ionicons name="stats-chart" size={22} color={Colors.primaryContainer} />
+                  <Ionicons name="stats-chart" size={22} color={Colors.primary} />
                   <Text style={styles.listItemText}>Performance History</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
@@ -192,7 +193,7 @@ export default function ProfilePage() {
                   <Ionicons
                     name="document-text"
                     size={22}
-                    color={Colors.primaryContainer}
+                    color={Colors.primary}
                   />
                   <Text style={styles.listItemText}>Upload Documents</Text>
                 </View>
@@ -209,7 +210,7 @@ export default function ProfilePage() {
                 activeOpacity={0.7}
               >
                 <View style={styles.listItemLeft}>
-                  <Ionicons name="hand-right" size={22} color={Colors.primaryContainer} />
+                  <Ionicons name="hand-right" size={22} color={Colors.primary} />
                   <Text style={styles.listItemText}>Agreements</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
@@ -220,7 +221,7 @@ export default function ProfilePage() {
                   <Ionicons
                     name="settings-sharp"
                     size={22}
-                    color={Colors.primaryContainer}
+                    color={Colors.primary}
                   />
                   <Text style={styles.listItemText}>Account Settings</Text>
                 </View>
@@ -235,7 +236,7 @@ export default function ProfilePage() {
             onPress={handleLogout}
             activeOpacity={0.8}
           >
-            <Ionicons name="log-out-outline" size={20} color={Colors.primaryContainer} />
+            <Ionicons name="log-out-outline" size={20} color={Colors.primary} />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   loginButton: {
-    backgroundColor: Colors.primaryContainer,
+    backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 12,
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: Colors.onPrimaryContainer,
+    color: Colors.onPrimary,
   },
   heroSection: {
     alignItems: "center",
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: Colors.primaryContainer,
+    backgroundColor: Colors.primary,
     padding: 6,
     borderRadius: 16,
     shadowColor: "#000",
@@ -333,7 +334,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: Colors.primaryContainer,
+    color: Colors.primary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -395,13 +396,13 @@ const styles = StyleSheet.create({
     gap: 8,
     height: 52,
     borderWidth: 1,
-    borderColor: Colors.primaryContainer,
+    borderColor: Colors.primary,
     borderRadius: 12,
     marginTop: 8,
   },
   logoutText: {
     fontSize: 15,
     fontWeight: "600",
-    color: Colors.primaryContainer,
+    color: Colors.primary,
   },
 });

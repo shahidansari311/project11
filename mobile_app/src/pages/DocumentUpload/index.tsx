@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager, TouchableOpacity, Text, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager, TouchableOpacity, Text, ActivityIndicator, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 import api from "@/utils/api";
@@ -182,8 +182,24 @@ export default function DocumentUploadPage() {
       // Refresh status
       await fetchData();
     } catch (error: any) {
-      console.error("Upload Error:", error.response?.data || error.message);
-      showToast(error.response?.data?.message || "Upload Failed. Something went wrong.");
+      const responseData = error.response?.data;
+      let errorMsg = "Upload Failed. Something went wrong.";
+
+      if (typeof responseData === "string") {
+        try {
+          const parsed = JSON.parse(responseData);
+          errorMsg = parsed.message || errorMsg;
+        } catch (e) {
+          errorMsg = responseData;
+        }
+      } else if (responseData?.message) {
+        errorMsg = responseData.message;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+
+      console.error("Upload Error:", errorMsg);
+      Alert.alert("Upload Error", errorMsg);
     } finally {
       setIsSubmitting(false);
     }

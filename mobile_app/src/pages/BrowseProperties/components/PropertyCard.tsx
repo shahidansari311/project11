@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   irrBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.primaryContainer,
+    backgroundColor: Colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -297,12 +297,12 @@ const styles = StyleSheet.create({
   irrLabel: {
     fontSize: 9,
     fontWeight: "600",
-    color: Colors.onPrimaryContainer,
+    color: Colors.onPrimary,
   },
   irrValue: {
     fontSize: 11,
     fontWeight: "800",
-    color: Colors.onPrimaryContainer,
+    color: Colors.onPrimary,
   },
   minInvestCol: {
     alignItems: "flex-end",

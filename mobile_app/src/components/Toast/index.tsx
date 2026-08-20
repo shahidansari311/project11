@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     alignSelf: 'center',
-    backgroundColor: Colors.primaryContainer,
+    backgroundColor: Colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 24,

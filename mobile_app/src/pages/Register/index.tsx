@@ -15,6 +15,7 @@ import AuthLayout from "@/components/AuthLayout";
 import CustomInput from "@/components/CustomInput";
 import api from "@/utils/api";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const registerStep1Schema = z.object({
   fullName: z.string().trim().min(2, "Name is too short. Please enter your full name.").regex(/^[a-zA-Z\s]+$/, "Full name can only contain letters and spaces"),
@@ -30,6 +31,7 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const { refreshFavorites } = useFavorites();
+  const { refreshAuth } = useAuth();
 
   // Register Step State
   const [fullName, setFullName] = useState("");
@@ -74,6 +76,7 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
 
       // Refresh global favorites context with new token
       refreshFavorites();
+      await refreshAuth();
 
       router.replace("/(tabs)/home" as any);
     } catch (error: any) {
@@ -135,7 +138,7 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
 
         {onGoBackToLogin && (
            <TouchableOpacity style={{ marginTop: 24, alignItems: "center" }} onPress={onGoBackToLogin}>
-             <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.primaryContainer }}>
+             <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.primary }}>
                Go back to Login
              </Text>
            </TouchableOpacity>
@@ -150,16 +153,16 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 24, fontWeight: "700", color: Colors.onSurface, marginBottom: 8, letterSpacing: -0.2 },
   headerSubtitle: { fontSize: 14, color: Colors.onSurfaceVariant, lineHeight: 20, textAlign: "center" },
   
-  primaryButton: { width: "100%", height: 52, backgroundColor: Colors.primaryContainer, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 8 },
+  primaryButton: { width: "100%", height: 52, backgroundColor: Colors.primary, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 8 },
   primaryButtonText: { fontSize: 14, fontWeight: "600", color: Colors.onPrimary },
   
   termsRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 8, marginTop: 16 },
   checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, alignItems: "center", justifyContent: "center", marginTop: 2 },
-  checkboxActive: { borderColor: Colors.primaryContainer, backgroundColor: Colors.primaryContainer },
+  checkboxActive: { borderColor: Colors.primary, backgroundColor: Colors.primary },
   checkboxDefault: { borderColor: Colors.border, backgroundColor: Colors.surfaceContainerLowest },
   checkboxError: { borderColor: Colors.error, backgroundColor: Colors.surfaceContainerLowest },
   checkboxCheck: { color: Colors.onPrimary, fontSize: 12, fontWeight: "700" },
   termsText: { flex: 1, marginLeft: 12, fontSize: 14, lineHeight: 20, color: Colors.onSurfaceVariant },
-  termsLink: { color: Colors.primaryContainer, fontWeight: "500" },
+  termsLink: { color: Colors.primary, fontWeight: "500" },
   termsErrorText: { fontSize: 12, color: Colors.error, marginLeft: 32, marginBottom: 8, lineHeight: 16 },
 });

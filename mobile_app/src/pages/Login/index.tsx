@@ -57,6 +57,7 @@ import OtpBoxes from "@/components/OtpBoxes";
 import { Ionicons } from "@expo/vector-icons";
 import api from "@/utils/api";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const OTP_LENGTH = 6;
 const loginPhoneSchema = z.string().trim().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian mobile number.");
@@ -72,6 +73,7 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
   const [resendTimer, setResendTimer] = useState(60);
   const [showResendSuccess, setShowResendSuccess] = useState(false);
   const { refreshFavorites } = useFavorites();
+  const { refreshAuth } = useAuth();
 
   // Phone Step State
   const [phone, setPhone] = useState("");
@@ -191,6 +193,7 @@ export default function LoginPage({ onRegisterRequired }: LoginPageProps) {
         
         // Refresh global favorites context with new token
         refreshFavorites();
+        await refreshAuth();
         
         router.replace("/(tabs)/home" as any);
       }
@@ -363,17 +366,17 @@ const styles = StyleSheet.create({
   otpSentContainer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, backgroundColor: Colors.surfaceContainerLow, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: Colors.border },
   otpSentLabel: { fontSize: 12, color: Colors.onSurfaceVariant, marginBottom: 4 },
   otpSentValue: { fontSize: 16, fontWeight: "600", color: Colors.onSurface },
-  editButtonText: { fontSize: 14, fontWeight: "600", color: Colors.primaryContainer },
+  editButtonText: { fontSize: 14, fontWeight: "600", color: Colors.primary },
   
   otpHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   otpLabel: { fontSize: 12, fontWeight: "500", color: Colors.onSurface, letterSpacing: 0.24 },
   resendContainer: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 24 },
   resendPromptText: { fontSize: 13, color: Colors.onSurfaceVariant },
-  resendText: { fontSize: 13, fontWeight: "600", color: Colors.primaryContainer },
+  resendText: { fontSize: 13, fontWeight: "600", color: Colors.primary },
   resendSuccessContainer: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 8, gap: 4 },
   resendSuccessText: { fontSize: 12, fontWeight: "500", color: "#2e7d32" },
   
-  primaryButton: { width: "100%", height: 52, backgroundColor: Colors.primaryContainer, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 8 },
+  primaryButton: { width: "100%", height: 52, backgroundColor: Colors.primary, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 8 },
   primaryButtonText: { fontSize: 14, fontWeight: "600", color: Colors.onPrimary },
 
   // ── Bouncing dots loader ──

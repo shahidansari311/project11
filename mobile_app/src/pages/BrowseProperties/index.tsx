@@ -177,8 +177,9 @@ export default function BrowsePropertiesPage() {
       {isLoading ? (
         <View style={styles.scrollContent}>
           {renderHeader()}
-          <PropertySkeleton />
-          <PropertySkeleton />
+          <View style={styles.cardWrapper}><PropertySkeleton /></View>
+          <View style={styles.cardWrapper}><PropertySkeleton /></View>
+          <View style={styles.cardWrapper}><PropertySkeleton /></View>
         </View>
       ) : (
         <FlatList

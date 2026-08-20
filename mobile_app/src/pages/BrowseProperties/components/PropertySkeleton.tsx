@@ -5,18 +5,23 @@ import Skeleton from "@/components/ui/Skeleton";
 
 export default function PropertySkeleton() {
   return (
-    <View style={styles.card}>
-      <Skeleton height={200} width="100%" borderRadius={20} />
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <Skeleton width="65%" height={22} borderRadius={6} />
-          <Skeleton width={32} height={32} borderRadius={16} />
+    <View style={styles.cardContainer}>
+      <View style={styles.imageWrapper}>
+        <Skeleton width={124} height={124} borderRadius={0} />
+      </View>
+
+      <View style={styles.detailsContainer}>
+        <View style={styles.topHeaderRow}>
+          <Skeleton width="75%" height={16} borderRadius={4} />
+          <Skeleton width={24} height={24} borderRadius={12} />
         </View>
-        <Skeleton width="45%" height={14} borderRadius={4} style={{ marginTop: 8 }} />
-        <View style={styles.divider} />
-        <View style={styles.statsRow}>
-          <Skeleton width="35%" height={36} borderRadius={8} />
-          <Skeleton width="45%" height={36} borderRadius={8} />
+
+        <Skeleton width="50%" height={12} borderRadius={4} style={{ marginTop: 8 }} />
+        <Skeleton width={60} height={14} borderRadius={4} style={{ marginTop: 8 }} />
+
+        <View style={styles.metricsRow}>
+          <Skeleton width={50} height={20} borderRadius={6} />
+          <Skeleton width={70} height={24} borderRadius={6} />
         </View>
       </View>
     </View>
@@ -24,35 +29,43 @@ export default function PropertySkeleton() {
 }
 
 const styles = StyleSheet.create({
-  card: {
+  cardContainer: {
+    flexDirection: "row",
+    height: 124,
     backgroundColor: Colors.surfaceContainerLowest,
-    borderRadius: 24,
+    borderRadius: 16,
     overflow: "hidden",
+
     shadowColor: "#0f1e22",
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 4,
-    marginBottom: 18,
-    marginHorizontal: 16,
+    shadowRadius: 10,
+    elevation: 3,
+
     borderWidth: 1,
-    borderColor: "rgba(225, 227, 228, 0.5)",
+    borderColor: "rgba(225, 227, 228, 0.6)",
   },
-  content: {
-    padding: 16,
+  imageWrapper: {
+    width: 124,
+    height: "100%",
   },
-  titleRow: {
+  detailsContainer: {
+    flex: 1,
+    padding: 10,
+    justifyContent: "space-between",
+  },
+  topHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  metricsRow: {
+    flexDirection: "row",
     alignItems: "center",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.surfaceContainerHigh,
-    marginVertical: 12,
-  },
-  statsRow: {
-    flexDirection: "row",
     justifyContent: "space-between",
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
+    marginTop: 8,
   },
 });

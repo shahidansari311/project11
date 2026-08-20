@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-start",
     gap: 5,
-    backgroundColor: Colors.primaryContainer,
+    backgroundColor: Colors.primary,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     fontSize: 11,
     fontWeight: "700",
-    color: Colors.onPrimaryContainer,
+    color: Colors.onPrimary,
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },

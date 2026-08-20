@@ -92,7 +92,7 @@ export default function AppTabBar({ activeRouteName, userProfileUrl, onTabPress 
                 name={isActive ? tab.activeIcon : tab.icon}
                 size={22}
                 color={
-                  isActive ? Colors.onPrimaryContainer : Colors.onSecondaryContainer
+                  isActive ? Colors.onPrimary : Colors.onSecondaryContainer
                 }
               />
             )}
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   tabItemActive: {
-    backgroundColor: Colors.primaryContainer,
+    backgroundColor: Colors.primary,
   },
   tabAvatarContainer: {
     width: 24,
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   tabAvatarContainerActive: {
-    borderColor: Colors.onPrimaryContainer,
+    borderColor: Colors.onPrimary,
   },
   tabAvatar: {
     width: "100%",
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   tabLabelActive: {
-    color: Colors.onPrimaryContainer,
+    color: Colors.onPrimary,
   },
   tabLabelInactive: {
     color: Colors.onSecondaryContainer,

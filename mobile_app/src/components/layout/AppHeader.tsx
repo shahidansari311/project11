@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 2,
-    borderColor: Colors.primaryContainer,
+    borderColor: Colors.primary,
   },
   avatarPlaceholder: {
     width: 36,

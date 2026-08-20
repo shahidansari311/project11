@@ -1,9 +1,7 @@
 /**
  * CategoryFilter — Horizontal scrollable filter chip row
  * ───────────────────────────────────────────────────────
- * Renders pill-shaped buttons for each category.
- * The active chip uses primary-container fill; inactive chips
- * use a transparent/white fill with an outline border.
+ * Renders pill-shaped buttons for each category with subtle soft fills.
  */
 
 import React from "react";
@@ -44,7 +42,7 @@ export default function CategoryFilter({
               key={cat}
               style={[styles.chip, isActive ? styles.chipActive : styles.chipInactive]}
               onPress={() => onChange(cat)}
-              activeOpacity={0.75}
+              activeOpacity={0.8}
             >
               <Text
                 style={[
@@ -64,24 +62,29 @@ export default function CategoryFilter({
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginBottom: 8,
+    marginBottom: 2,
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 2,
     gap: 8,
     flexDirection: "row",
     alignItems: "center",
   },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 99,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
     borderWidth: 1,
   },
   chipActive: {
-    backgroundColor: Colors.primaryContainer,
-    borderColor: Colors.primaryContainer,
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
   chipInactive: {
     backgroundColor: Colors.surfaceContainerLowest,
@@ -89,13 +92,13 @@ const styles = StyleSheet.create({
   },
   chipLabel: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "600",
     letterSpacing: 0.2,
   },
   chipLabelActive: {
-    color: Colors.onPrimaryContainer,
+    color: Colors.onPrimary,
   },
   chipLabelInactive: {
-    color: Colors.primary,
+    color: Colors.onSurfaceVariant,
   },
 });

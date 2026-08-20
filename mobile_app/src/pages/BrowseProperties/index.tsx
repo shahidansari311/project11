@@ -1,9 +1,7 @@
 /**
  * BrowseProperties Page — Pure content, no shell chrome.
  * ─────────────────────────────────────────────────────────
- * The AppHeader and AppTabBar live in (tabs)/_layout.tsx.
- * This component renders only its own content:
- *   Search bar (sticky) → Category filters → Property cards
+ * Search bar (sticky) → Category filters → Property cards
  */
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -14,6 +12,8 @@ import {
   StyleSheet,
   RefreshControl,
   FlatList,
+  ScrollView,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -28,10 +28,19 @@ import { propertyService } from "../../services/property.service";
 import { useFavorites } from "../../contexts/FavoritesContext";
 import { useAuth } from "../../contexts/AuthContext";
 
+/** Dummy filter chips — UI-only, no logic attached */
+const DUMMY_FILTERS = [
+  { label: "Price", icon: "cash-outline" as const },
+  { label: "Location", icon: "location-outline" as const },
+  { label: "Area", icon: "expand-outline" as const },
+  { label: "Status", icon: "shield-checkmark-outline" as const },
+];
+
 export default function BrowsePropertiesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<CategoryFilterType>("ALL ASSETS");
+  const [activeCategory, setActiveCategory] =
+    useState<CategoryFilterType>("ALL ASSETS");
   const [properties, setProperties] = useState<Property[]>([]);
   const [isFetchingProperties, setIsFetchingProperties] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,17 +82,31 @@ export default function BrowsePropertiesPage() {
   }, [searchQuery, activeCategory, properties]);
 
   const renderHeader = () => (
-    <View>
+    <View style={styles.headerWrapper}>
       <CategoryFilter active={activeCategory} onChange={setActiveCategory} />
       <View style={styles.sectionHeadingRow}>
-        <Text style={styles.sectionTitle}>Available Opportunities</Text>
+        <Text style={styles.sectionTitle}>Featured Properties</Text>
+        <Text style={styles.sectionCount}>
+          {filteredProperties.length}{" "}
+          {filteredProperties.length === 1 ? "listing" : "listings"}
+        </Text>
       </View>
     </View>
   );
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyText}>No properties found.</Text>
+      <View style={styles.emptyIconCircle}>
+        <Ionicons
+          name="search"
+          size={28}
+          color={Colors.primary}
+        />
+      </View>
+      <Text style={styles.emptyText}>No matching properties</Text>
+      <Text style={styles.emptySubtext}>
+        Try tweaking your search term or category filters.
+      </Text>
     </View>
   );
 
@@ -91,7 +114,7 @@ export default function BrowsePropertiesPage() {
 
   return (
     <View style={styles.root}>
-      {/* ── Sticky Search Bar ── */}
+      {/* ── Search Bar & Filter Chips Header ── */}
       <View style={styles.searchSection}>
         <View style={styles.searchContainer}>
           <Ionicons
@@ -102,20 +125,58 @@ export default function BrowsePropertiesPage() {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search properties..."
+            placeholder="Search city, neighborhood, project..."
             placeholderTextColor={Colors.outline}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery("")}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={Colors.outline}
+              />
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Filter Pills */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersRow}
+        >
+          {DUMMY_FILTERS.map((filter) => (
+            <TouchableOpacity
+              key={filter.label}
+              style={styles.filterChip}
+              activeOpacity={0.75}
+            >
+              <Ionicons
+                name={filter.icon}
+                size={13}
+                color={Colors.primary}
+              />
+              <Text style={styles.filterChipLabel}>{filter.label}</Text>
+              <Ionicons
+                name="chevron-down"
+                size={11}
+                color={Colors.outline}
+              />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
-      {/* ── Scrollable Content (Virtualized List) ── */}
+      {/* ── Virtualized Property List ── */}
       {isLoading ? (
         <View style={styles.scrollContent}>
           {renderHeader()}
-          <PropertySkeleton />
           <PropertySkeleton />
           <PropertySkeleton />
         </View>
@@ -164,41 +225,68 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.surface,
   },
-  // ── Search bar ──
+  // ── Search Section ──
   searchSection: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 6,
+    paddingBottom: 4,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.surfaceContainerHigh,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.surfaceContainerLow,
+    backgroundColor: Colors.surfaceContainerLowest,
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
-    borderRadius: 12,
-    height: 46,
-    paddingHorizontal: 12,
+    borderColor: "rgba(225, 227, 228, 0.8)",
+    borderRadius: 16,
+    height: 44,
+    paddingHorizontal: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
     color: Colors.onSurface,
-    fontWeight: "400",
+    fontWeight: "500",
     padding: 0,
   },
-  // ── Scroll ──
-  scrollView: {
-    flex: 1,
+  // ── Dummy Filters ──
+  filtersRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingTop: 10,
+    paddingBottom: 2,
   },
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+    backgroundColor: Colors.surfaceContainerLowest,
+  },
+  filterChipLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.onSurface,
+  },
+  // ── Scroll Content (Padding at bottom for Floating TabBar) ──
   scrollContent: {
-    paddingTop: 8,
-    paddingBottom: 32,
+    paddingTop: 2,
+    paddingBottom: 24,
+  },
+  headerWrapper: {
+    marginBottom: 2,
   },
   // ── Section Heading ──
   sectionHeadingRow: {
@@ -206,33 +294,49 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    marginBottom: 16,
-    marginTop: 8,
+    marginBottom: 8,
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: "800",
     color: Colors.onSurface,
     letterSpacing: -0.4,
   },
   sectionCount: {
     fontSize: 12,
-    fontWeight: "500",
-    color: Colors.onSurfaceVariant,
-    letterSpacing: 0.2,
+    fontWeight: "600",
+    color: Colors.outline,
   },
   // ── Cards ──
   cardWrapper: {
     paddingHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   // ── Empty state ──
   emptyState: {
     paddingTop: 60,
     alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.secondaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
   },
   emptyText: {
-    fontSize: 14,
-    color: Colors.onSurfaceVariant,
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.onSurface,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    color: Colors.outline,
+    marginTop: 6,
+    textAlign: "center",
   },
 });

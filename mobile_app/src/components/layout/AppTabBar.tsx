@@ -7,7 +7,7 @@
  */
 
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Colors } from "@/constants/colors";
@@ -117,25 +117,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-around",
     backgroundColor: Colors.surfaceContainerLowest,
+    marginHorizontal: 16,
+    marginBottom: Platform.OS === "ios" ? 14 : 10,
     paddingHorizontal: 8,
-    paddingTop: 12,
-    paddingBottom: 28,
+    paddingVertical: 6,
+    borderRadius: 24,
     shadowColor: "#0f1e22",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
     elevation: 8,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(225, 227, 228, 0.8)",
   },
   tabItem: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 12,
-    gap: 4,
+    gap: 2,
   },
   tabItemActive: {
     backgroundColor: Colors.primaryContainer,

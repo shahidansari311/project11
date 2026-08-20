@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 28,
     fontWeight: "bold",
-    color: Colors.primary,
+    color: "#ffffff",
   },
   infoContainer: {
     flex: 1,

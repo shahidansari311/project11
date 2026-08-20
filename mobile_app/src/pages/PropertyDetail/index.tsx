@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
+  Animated,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,6 +25,7 @@ import { Colors } from "@/constants/colors";
 import { propertyService } from "../../services/property.service";
 import { Property, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
 import LoginPromptModal from "@/components/LoginPromptModal";
+import FavoriteButton from "@/components/ui/FavoriteButton";
 import ImageViewing from "react-native-image-viewing";
 
 // Sub-components
@@ -39,6 +41,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 export default function PropertyDetailPage({ id }: { id: string }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const scrollY = React.useRef(new Animated.Value(0)).current;
 
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -101,31 +104,60 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   const images = property.images?.length > 0 ? property.images : [PLACEHOLDER_IMAGE];
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+
+      {/* ── Floating Header ── */}
+      <View style={[styles.floatingHeader, { top: insets.top + 6 }]} pointerEvents="box-none">
+        <TouchableOpacity
+          style={styles.glassNavBtn}
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={20} color={Colors.onSurface} />
+        </TouchableOpacity>
+        
+        <View style={styles.glassNavBtn}>
+          <FavoriteButton
+            propertyId={property.id}
+            size={20}
+            isGuest={isGuest}
+            onRequireLogin={() => setShowLoginPrompt(true)}
+          />
+        </View>
+      </View>
 
       {/* ── Main Scroll View ── */}
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         bounces={true}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
       >
-        <PropertyHeroBanner
-          property={property}
-          images={images}
-          insetsTop={insets.top}
-          screenWidth={SCREEN_WIDTH}
-          isGuest={isGuest}
-          onBack={() => router.back()}
-          onRequireLogin={() => setShowLoginPrompt(true)}
-          onImagePress={(index) => {
-            setImageViewerIndex(index);
-            setIsImageViewerVisible(true);
-          }}
-        />
+        <Animated.View style={{ zIndex: 0, transform: [{ 
+            translateY: scrollY.interpolate({
+                inputRange: [-100, 0, 1000],
+                outputRange: [0, 0, 500], // Extrapolate clamps negative values to 0, and uses 0.5x for positive
+            }) 
+        }] }}>
+          <PropertyHeroBanner
+            property={property}
+            images={images}
+            insetsTop={0}
+            screenWidth={SCREEN_WIDTH}
+            onImagePress={(index) => {
+              setImageViewerIndex(index);
+              setIsImageViewerVisible(true);
+            }}
+          />
+        </Animated.View>
 
         {/* ── Overlapping Detail Sheet Card ── */}
-        <View style={styles.slidingCard}>
+        <View style={[styles.slidingCard, { zIndex: 1 }]}>
           {/* Card Handle */}
           <View style={styles.cardHandle} />
 
@@ -138,7 +170,7 @@ export default function PropertyDetailPage({ id }: { id: string }) {
           {/* Extra Bottom Scroll Padding */}
           <View style={{ height: 130 }} />
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <PropertyActionBar
         property={property}
@@ -209,6 +241,30 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+  },
+  // ── Floating Header ──
+  floatingHeader: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 10,
+  },
+  glassNavBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.5)",
   },
   // ── Overlapping Detail Sheet Card ──
   slidingCard: {

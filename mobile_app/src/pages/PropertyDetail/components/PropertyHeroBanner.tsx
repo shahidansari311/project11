@@ -4,7 +4,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 
 import ImageCarousel from "@/components/ui/ImageCarousel";
-import FavoriteButton from "@/components/ui/FavoriteButton";
 import { Property } from "../../BrowseProperties/data";
 
 const HERO_HEIGHT = 300;
@@ -29,9 +28,6 @@ interface PropertyHeroBannerProps {
   images: string[];
   insetsTop: number;
   screenWidth: number;
-  isGuest: boolean;
-  onBack: () => void;
-  onRequireLogin: () => void;
   onImagePress: (index: number) => void;
 }
 
@@ -40,12 +36,9 @@ export default function PropertyHeroBanner({
   images,
   insetsTop,
   screenWidth,
-  isGuest,
-  onBack,
-  onRequireLogin,
   onImagePress,
 }: PropertyHeroBannerProps) {
-  const topInset = Math.max(insetsTop, 36);
+  const topInset = insetsTop;
 
   return (
     <View style={styles.heroGalleryContainer}>
@@ -58,25 +51,6 @@ export default function PropertyHeroBanner({
         sharedTransitionTagBase={`property-image-${property.id}`}
         onPress={onImagePress}
       />
-
-      {/* Floating Glass Back Button (Top Left - Camera Notch Cleared) */}
-      <TouchableOpacity
-        style={[styles.glassNavBtn, { top: topInset + 6, left: 16 }]}
-        onPress={onBack}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="arrow-back" size={20} color={Colors.onSurface} />
-      </TouchableOpacity>
-
-      {/* Floating Glass Favorite Button (Top Right - Camera Notch Cleared) */}
-      <View style={[styles.glassNavBtn, { top: topInset + 6, right: 16 }]}>
-        <FavoriteButton
-          propertyId={property.id}
-          size={20}
-          isGuest={isGuest}
-          onRequireLogin={onRequireLogin}
-        />
-      </View>
 
       {/* Glass Status Badge (Bottom Left) */}
       <View style={styles.heroStatusBadge}>
@@ -100,23 +74,6 @@ const styles = StyleSheet.create({
     height: HERO_HEIGHT,
     position: "relative",
     backgroundColor: "#0d1b1e",
-  },
-  glassNavBtn: {
-    position: "absolute",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.88)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 40,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.5)",
   },
   heroStatusBadge: {
     position: "absolute",

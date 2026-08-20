@@ -198,8 +198,7 @@ export default function DocumentUploadPage() {
         errorMsg = error.message;
       }
 
-      console.error("Upload Error:", errorMsg);
-      Alert.alert("Upload Error", errorMsg);
+      showToast(errorMsg, "error");
     } finally {
       setIsSubmitting(false);
     }

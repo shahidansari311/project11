@@ -33,5 +33,6 @@ jobs:
             
             # Go to backend and restart Docker
             cd backend
-            sudo docker compose down
+            sudo docker compose down || true
+            sudo docker rm -f silver_real_estate_backend || true
             sudo docker compose up -d --build

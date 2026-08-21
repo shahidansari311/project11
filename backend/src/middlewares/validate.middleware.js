@@ -8,6 +8,7 @@ function validate(schema) {
         body: req.body,
         query: req.query,
         params: req.params,
+        cookies: req.cookies,
       });
 
       // Update the request with validated (and potentially transformed/trimmed) data

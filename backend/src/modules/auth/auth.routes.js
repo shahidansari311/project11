@@ -26,5 +26,6 @@ router.post("/admin/resend-otp", loginLimiter, validate(sendOtpSchema), authCont
 router.post("/admin/cancel-otp", loginLimiter, validate(sendOtpSchema), authController.adminCancelOtp);
 router.post("/admin/verify-otp", loginLimiter, validate(verifyOtpSchema), authController.adminVerifyOtp);
 router.post("/admin/refresh-token", loginLimiter, validate(refreshTokenSchema), authController.refreshAdminToken);
+router.post("/admin/logout", verifyAuth, requireRole("admin"), authController.adminLogout);
 
 module.exports = router;

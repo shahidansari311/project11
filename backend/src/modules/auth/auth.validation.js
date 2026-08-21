@@ -41,13 +41,18 @@ const refreshTokenSchema = z.object({
   headers: headersSchema,
   body: z.object({
     refreshToken: z.string({
-      required_error: "Refresh token is missing.",
       invalid_type_error: "Refresh token must be text."
-    }).min(1, "Refresh token is required")
-  }),
+    }).min(1, "Refresh token cannot be empty").optional()
+  }).optional(),
+  cookies: z.object({
+    refreshToken: z.string().optional()
+  }).passthrough().optional(),
   query: z.object({}).passthrough().optional(),
   params: z.object({}).passthrough().optional()
-});
+}).refine(
+  (data) => Boolean(data.body?.refreshToken || data.cookies?.refreshToken),
+  { message: "Refresh token is missing. Please provide it in request body or cookie.", path: ["refreshToken"] }
+);
 
 const profileSchema = z.object({
   body: z.object({

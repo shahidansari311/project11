@@ -581,6 +581,22 @@ async function cancelOtpAdmin(phone) {
   return { success: true };
 }
 
+async function logoutAdmin(adminId, refreshToken) {
+  if (refreshToken) {
+    await prisma.session.deleteMany({
+      where: {
+        adminId,
+        refreshToken
+      }
+    });
+  } else {
+    await prisma.session.deleteMany({
+      where: { adminId }
+    });
+  }
+  return { success: true, message: "Admin logged out successfully" };
+}
+
 module.exports = {
   sendOtpUser,
   verifyOtpUser,
@@ -593,6 +609,7 @@ module.exports = {
   updateUserProfile,
   registerUser,
   logoutUser,
+  logoutAdmin,
   resendOtpUser,
   cancelOtpUser,
   sendOtpAdmin,

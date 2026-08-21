@@ -1,5 +1,6 @@
 const authService = require("./auth.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
+const { setAuthCookies, clearAuthCookies, extractRefreshToken } = require("../../utils/cookie.util");
 
 async function userSendOtp(req, res, next) {
   try {
@@ -21,6 +22,9 @@ async function userVerifyOtp(req, res, next) {
     if (!phone || !otp) return errorResponse(res, 400, "Phone and OTP are required");
     
     const result = await authService.verifyOtpUser(phone, otp, deviceFingerprint);
+    if (!result.isNewUser && result.token) {
+      setAuthCookies(res, { token: result.token, refreshToken: result.refreshToken });
+    }
     return successResponse(res, 200, result, "Login successful");
   } catch (err) {
     next(err);
@@ -37,6 +41,9 @@ async function userRegister(req, res, next) {
     }
 
     const result = await authService.registerUser(registrationToken, { fullName, email, profileUrl: profileImage, createdBy }, deviceFingerprint);
+    if (result.token) {
+      setAuthCookies(res, { token: result.token, refreshToken: result.refreshToken });
+    }
     return successResponse(res, 201, result, "Registration successful");
   } catch (err) {
     next(err);
@@ -45,10 +52,13 @@ async function userRegister(req, res, next) {
 
 async function refreshUserToken(req, res, next) {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = extractRefreshToken(req);
     const deviceFingerprint = req.headers["x-device-id"] || "unknown-device";
 
     const result = await authService.refreshUserToken(refreshToken, deviceFingerprint);
+    if (result.token) {
+      setAuthCookies(res, { token: result.token, refreshToken: result.refreshToken });
+    }
     return successResponse(res, 200, result, "Token refreshed successfully");
   } catch (err) {
     next(err);
@@ -75,6 +85,9 @@ async function adminVerifyOtp(req, res, next) {
     if (!phone || !otp) return errorResponse(res, 400, "Phone and OTP are required");
     
     const result = await authService.verifyOtpAdmin(phone, otp, deviceFingerprint);
+    if (result.token) {
+      setAuthCookies(res, { token: result.token, refreshToken: result.refreshToken });
+    }
     return successResponse(res, 200, result, "Login successful");
   } catch (err) {
     next(err);
@@ -83,10 +96,13 @@ async function adminVerifyOtp(req, res, next) {
 
 async function refreshAdminToken(req, res, next) {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = extractRefreshToken(req);
     const deviceFingerprint = req.headers["x-device-id"] || "unknown-device";
 
     const result = await authService.refreshAdminToken(refreshToken, deviceFingerprint);
+    if (result.token) {
+      setAuthCookies(res, { token: result.token, refreshToken: result.refreshToken });
+    }
     return successResponse(res, 200, result, "Token refreshed successfully");
   } catch (err) {
     next(err);
@@ -107,8 +123,20 @@ async function adminResendOtp(req, res, next) {
 
 async function userLogout(req, res, next) {
   try {
-    const { refreshToken } = req.body || {};
+    const refreshToken = extractRefreshToken(req);
     const result = await authService.logoutUser(req.user.id, refreshToken);
+    clearAuthCookies(res);
+    return successResponse(res, 200, null, result.message);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function adminLogout(req, res, next) {
+  try {
+    const refreshToken = extractRefreshToken(req);
+    const result = await authService.logoutAdmin(req.user.id, refreshToken);
+    clearAuthCookies(res);
     return successResponse(res, 200, null, result.message);
   } catch (err) {
     next(err);
@@ -248,6 +276,7 @@ module.exports = {
   adminCancelOtp,
   adminVerifyOtp,
   refreshAdminToken,
+  adminLogout,
   getAllUsers,
   getUserById,
   createUserByAdmin,

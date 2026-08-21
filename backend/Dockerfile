@@ -1,4 +1,7 @@
-FROM node:22-alpine
+FROM node:22-slim
+
+# Install OpenSSL (required by Prisma on Debian slim)
+RUN apt-get update -y && apt-get install -y openssl
 
 # Set working directory
 WORKDIR /app

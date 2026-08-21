@@ -26,21 +26,15 @@ router.use("/", documentRoutes);
 // Mount property routes — all protected as admin-only
 router.use("/admin/property", verifyAuth, requireRole("admin"), propertyRoutes);
 
-const multer = require("multer");
+const { imageUpload } = require("../config/multer.config");
 const { uploadProfileImage } = require("../middlewares/upload.middleware");
-
-// Configure Multer to intercept multipart/form-data in memory
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } 
-});
 
 // Protected admin routes
 router.get("/admin/users", verifyAuth, requireRole("admin"), authController.getAllUsers);
 router.get("/admin/users/:id", verifyAuth, requireRole("admin"), authController.getUserById);
-router.post("/admin/users", verifyAuth, requireRole("admin"), upload.single("profileImage"), uploadProfileImage, validate(adminCreateUserSchema), authController.createUserByAdmin);
-router.put("/admin/users/:id", verifyAuth, requireRole("admin"), upload.single("profileImage"), uploadProfileImage, validate(adminUpdateUserSchema), authController.updateUserByAdmin);
-router.patch("/admin/users/:id", verifyAuth, requireRole("admin"), upload.single("profileImage"), uploadProfileImage, validate(adminUpdateUserSchema), authController.updateUserByAdmin);
+router.post("/admin/users", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(adminCreateUserSchema), authController.createUserByAdmin);
+router.put("/admin/users/:id", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(adminUpdateUserSchema), authController.updateUserByAdmin);
+router.patch("/admin/users/:id", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(adminUpdateUserSchema), authController.updateUserByAdmin);
 router.delete("/admin/users/:id", verifyAuth, requireRole("admin"), authController.deleteUserByAdmin);
 
 const propertyController = require("../modules/property/property.controller");

@@ -66,6 +66,16 @@ const profileSchema = z.object({
   params: z.object({}).passthrough().optional()
 });
 
+const profileImageSchema = z.object({
+  body: z.object({
+    profileImage: z.string({
+      invalid_type_error: "Profile image must be text."
+    }).url("Invalid image URL").optional().or(z.literal("")),
+  }),
+  query: z.object({}).passthrough().optional(),
+  params: z.object({}).passthrough().optional()
+});
+
 const registerSchema = z.object({
   headers: headersSchema,
   body: z.object({
@@ -132,6 +142,7 @@ module.exports = {
   verifyOtpSchema,
   refreshTokenSchema,
   profileSchema,
+  profileImageSchema,
   registerSchema,
   adminCreateUserSchema,
   adminUpdateUserSchema

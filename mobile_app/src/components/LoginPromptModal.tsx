@@ -30,7 +30,7 @@ export default function LoginPromptModal({
       <View style={styles.overlay}>
         <View style={styles.card}>
           <View style={styles.iconCircle}>
-            <Ionicons name="lock-closed" size={32} color={Colors.primary} />
+            <Ionicons name="lock-closed" size={32} color={Colors.onPrimary} />
           </View>
           
           <Text style={styles.title}>Authentication Required</Text>

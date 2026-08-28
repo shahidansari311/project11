@@ -3,7 +3,7 @@ const router = express.Router();
 const authController = require("./auth.controller");
 const { loginLimiter } = require("../../middlewares/rateLimiter.middleware");
 const { validate } = require("../../middlewares/validate.middleware");
-const { sendOtpSchema, verifyOtpSchema, refreshTokenSchema, profileSchema, registerSchema } = require("./auth.validation");
+const { sendOtpSchema, verifyOtpSchema, refreshTokenSchema, profileSchema, profileImageSchema, registerSchema } = require("./auth.validation");
 const { verifyAuth } = require("../../middlewares/auth.middleware");
 const { requireRole } = require("../../middlewares/role.middleware");
 
@@ -18,6 +18,7 @@ router.post("/user/verify-otp",   loginLimiter, validate(verifyOtpSchema), authC
 router.post("/user/register",     loginLimiter, imageUpload.single("profileImage"), uploadProfileImage, validate(registerSchema), authController.userRegister);
 router.post("/user/refresh-token",loginLimiter, validate(refreshTokenSchema), authController.refreshUserToken);
 router.post("/user/profile",      verifyAuth, requireRole("user"), imageUpload.single("profileImage"), uploadProfileImage, validate(profileSchema), authController.updateProfile);
+router.post("/user/profile-image",verifyAuth, requireRole("user"), imageUpload.single("profileImage"), uploadProfileImage, validate(profileImageSchema), authController.updateProfileImage);
 router.post("/user/logout",       verifyAuth, requireRole("user"), authController.userLogout);
 
 // Admin routes

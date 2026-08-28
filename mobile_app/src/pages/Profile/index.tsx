@@ -11,8 +11,10 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import * as ImagePicker from "expo-image-picker";
 import { Colors } from "@/constants/colors";
 import api from "@/utils/api";
+import { useToast } from "@/components/Toast";
 import { authService, UserProfile } from "../../services/auth.service";
 import { useAuth } from "../../contexts/AuthContext";
 import { useFavorites } from "../../contexts/FavoritesContext";
@@ -24,6 +26,8 @@ export default function ProfilePage() {
   const { isGuest, userProfile, isLoading, refreshAuth } = useAuth();
   const [docStatus, setDocStatus] = useState<"PENDING" | "ACTION_REQUIRED" | "VERIFIED" | "INCOMPLETE">("INCOMPLETE");
   const { clearFavorites } = useFavorites();
+  const { showToast } = useToast();
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,11 +72,71 @@ export default function ProfilePage() {
     router.replace("/");
   }, [router, clearFavorites, refreshAuth]);
 
+  const handleUpdateProfileImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        showToast("Permission to access gallery is required!", "error");
+        return;
+      }
 
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (pickerResult.canceled) {
+        return;
+      }
+
+      const asset = pickerResult.assets[0];
+
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+        showToast("Image size exceeds 5MB limit. Please choose a smaller image.", "error");
+        return;
+      }
+
+      setIsUploadingImage(true);
+
+      const formData = new FormData();
+
+      const filename = asset.uri.split('/').pop() || 'profile.jpg';
+      let type = asset.mimeType;
+      if (!type) {
+        const match = /\.(\w+)$/.exec(filename);
+        const ext = match ? match[1].toLowerCase() : 'jpeg';
+        type = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+      }
+
+      formData.append("profileImage", {
+        uri: asset.uri,
+        name: filename,
+        type,
+      } as any);
+
+      await api.post("/auth/user/profile-image", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      await refreshAuth();
+      showToast("Profile image updated successfully!", "success");
+
+    } catch (error: any) {
+      console.error("Failed to update profile image:", error);
+      showToast(error?.response?.data?.message || error.message || "Failed to update profile image", "error");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
   if (isGuest) {
     return (
       <View style={[styles.root, styles.centerContent]}>
-        <Ionicons name="person-circle-outline" size={80} color={Colors.outlineVariant} />
+        <View style={styles.guestIconWrapper}>
+          <Ionicons name="lock-closed-outline" size={64} color={Colors.primary} />
+        </View>
         <Text style={styles.guestTitle}>Login Required</Text>
         <Text style={styles.guestSubtitle}>Please login to view your profile and manage your portfolio.</Text>
         <TouchableOpacity
@@ -105,8 +169,20 @@ export default function ProfilePage() {
                 <Ionicons name="person" size={48} color={Colors.onSurfaceVariant} />
               </View>
             )}
+            
+            {isUploadingImage && (
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 48, justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator color={Colors.onPrimary} />
+              </View>
+            )}
+
             {!isLoading && (
-              <TouchableOpacity style={styles.editButton} activeOpacity={0.8}>
+              <TouchableOpacity 
+                style={styles.editButton} 
+                activeOpacity={0.8}
+                onPress={handleUpdateProfileImage}
+                disabled={isUploadingImage}
+              >
                 <Ionicons name="pencil" size={12} color={Colors.onPrimaryContainer} />
               </TouchableOpacity>
             )}
@@ -228,6 +304,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
+  },
+  guestIconWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: Colors.secondaryContainer,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
   },
   guestTitle: {
     fontSize: 22,

@@ -17,4 +17,11 @@ export const authService = {
     const response = await api.get<{ data: UserProfile; message: string; success: boolean }>("/user/profile");
     return response.data;
   },
+  updateProfile: async (formData: FormData) => {
+    const response = await api.post<{ data: UserProfile; message: string; success: boolean }>(
+      "/auth/user/profile",
+      formData
+    );
+    return response.data;
+  },
 };

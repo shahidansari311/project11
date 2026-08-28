@@ -7,6 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "silverrealestate",
     "userInterfaceStyle": "automatic",
+    "jsEngine": "hermes",
     "ios": {
       "icon": "./assets/expo.icon"
     },

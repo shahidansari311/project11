@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -210,6 +211,7 @@ export default function ProfilePage() {
               <TouchableOpacity
                 style={[styles.listItem, styles.listItemBorder]}
                 activeOpacity={0.7}
+                onPress={() => router.navigate("/(tabs)/portfolio" as any)}
               >
                 <View style={styles.listItemLeft}>
                   <Ionicons name="business" size={22} color={Colors.primary} />
@@ -218,7 +220,11 @@ export default function ProfilePage() {
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.listItem} activeOpacity={0.7}>
+              <TouchableOpacity 
+                style={styles.listItem} 
+                activeOpacity={0.7}
+                onPress={() => Alert.alert("Coming Soon", "Performance History will be available soon.")}
+              >
                 <View style={styles.listItemLeft}>
                   <Ionicons name="stats-chart" size={22} color={Colors.primary} />
                   <Text style={styles.listItemText}>Performance History</Text>
@@ -256,6 +262,7 @@ export default function ProfilePage() {
               <TouchableOpacity
                 style={[styles.listItem, styles.listItemBorder]}
                 activeOpacity={0.7}
+                onPress={() => router.push("/agreement" as any)}
               >
                 <View style={styles.listItemLeft}>
                   <Ionicons name="hand-right" size={22} color={Colors.primary} />
@@ -264,7 +271,11 @@ export default function ProfilePage() {
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.listItem} activeOpacity={0.7}>
+              <TouchableOpacity 
+                style={styles.listItem} 
+                activeOpacity={0.7}
+                onPress={() => Alert.alert("Coming Soon", "Account Settings will be available soon.")}
+              >
                 <View style={styles.listItemLeft}>
                   <Ionicons
                     name="settings-sharp"

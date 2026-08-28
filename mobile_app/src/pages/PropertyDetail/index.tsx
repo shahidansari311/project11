@@ -88,6 +88,8 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   const handleInvestPress = () => {
     if (isGuest) {
       setShowLoginPrompt(true);
+    } else {
+      router.push("/agreement" as any);
     }
   };
 

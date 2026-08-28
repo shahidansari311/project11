@@ -63,6 +63,7 @@ export default function TabsLayout() {
       {/* ── Tab Content — only this area swaps ── */}
       <View style={styles.content}>
         <Stack screenOptions={{ headerShown: false, animation: "none" }}>
+          <Stack.Screen name="portfolio" />
           <Stack.Screen name="home" />
           <Stack.Screen name="saved" />
           <Stack.Screen name="profile" />

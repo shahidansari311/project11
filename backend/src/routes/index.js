@@ -40,6 +40,7 @@ router.delete("/admin/users/:id", verifyAuth, requireRole("admin"), authControll
 const propertyController = require("../modules/property/property.controller");
 
 // Public property routes (No authentication required)
+router.get("/public/property/filters", propertyController.getPropertyFilters);
 router.get("/public/property", propertyController.getAllProperties);
 router.get("/public/property/:id", propertyController.getPropertyById);
 

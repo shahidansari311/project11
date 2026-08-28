@@ -13,14 +13,15 @@ import {
   StyleSheet,
 } from "react-native";
 import { Colors } from "@/constants/colors";
-import { CATEGORIES, CategoryFilter as CategoryFilterType } from "../data";
 
 interface CategoryFilterProps {
-  active: CategoryFilterType;
-  onChange: (category: CategoryFilterType) => void;
+  categories: string[];
+  active: string;
+  onChange: (category: string) => void;
 }
 
 export default function CategoryFilter({
+  categories,
   active,
   onChange,
 }: CategoryFilterProps) {
@@ -35,7 +36,7 @@ export default function CategoryFilter({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const isActive = cat === active;
           return (
             <TouchableOpacity

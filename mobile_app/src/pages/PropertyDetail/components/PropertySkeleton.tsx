@@ -1,44 +1,81 @@
-import React, { useEffect, useRef } from "react";
-import { View, Animated, StyleSheet } from "react-native";
+import React from "react";
+import { View, StyleSheet, Dimensions } from "react-native";
 import { Colors } from "@/constants/colors";
+import Skeleton from "@/components/ui/Skeleton";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const HERO_HEIGHT = 300;
 
 export default function PropertyDetailSkeleton({ onBack }: { onBack: () => void }) {
-  const animatedValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(animatedValue, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(animatedValue, {
-          toValue: 0,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [animatedValue]);
-
-  const opacity = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.35, 0.75],
-  });
-
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.skeletonBlock, { width: "100%", height: 320, opacity }]} />
-      <View style={[styles.slidingCard, { marginTop: -28 }]}>
+      {/* ── Hero Image Skeleton ── */}
+      <View style={styles.heroWrapper}>
+        <Skeleton width={SCREEN_WIDTH} height={HERO_HEIGHT} borderRadius={0} />
+
+        {/* Back button skeleton — top-left */}
+        <View style={styles.backBtnSkeleton}>
+          <Skeleton width={40} height={40} borderRadius={20} />
+        </View>
+
+        {/* Like button skeleton — top-right */}
+        <View style={styles.likeBtnSkeleton}>
+          <Skeleton width={40} height={40} borderRadius={20} />
+        </View>
+
+        {/* Status badge skeleton — bottom-left */}
+        <View style={styles.statusBadgeSkeleton}>
+          <Skeleton width={68} height={22} borderRadius={11} />
+        </View>
+      </View>
+
+      {/* ── Sliding Card ── */}
+      <View style={styles.slidingCard}>
+        {/* Card handle */}
         <View style={styles.cardHandle} />
-        <View style={{ padding: 20 }}>
-          <Animated.View style={[styles.skeletonBlock, { width: "80%", height: 28, marginBottom: 12, opacity }]} />
-          <Animated.View style={[styles.skeletonBlock, { width: "50%", height: 18, marginBottom: 20, opacity }]} />
-          <View style={{ flexDirection: "row", gap: 12, marginBottom: 20 }}>
-            <Animated.View style={[styles.skeletonBlock, { flex: 1, height: 80, borderRadius: 16, opacity }]} />
-            <Animated.View style={[styles.skeletonBlock, { flex: 1, height: 80, borderRadius: 16, opacity }]} />
+
+        {/* ── Sticky Title Section ── */}
+        <View style={styles.titleSection}>
+          {/* Category badge */}
+          <Skeleton width={88} height={22} borderRadius={12} style={{ marginBottom: 10 }} />
+          {/* Property name */}
+          <Skeleton width="80%" height={26} borderRadius={6} style={{ marginBottom: 4 }} />
+          <Skeleton width="55%" height={18} borderRadius={6} style={{ marginBottom: 8 }} />
+          {/* Location row */}
+          <View style={styles.locationRow}>
+            <Skeleton width={14} height={14} borderRadius={7} />
+            <Skeleton width={110} height={13} borderRadius={4} />
           </View>
+        </View>
+
+        {/* ── Quick Stats Chips ── */}
+        <View style={styles.quickStatsRow}>
+          <Skeleton width={118} height={32} borderRadius={20} />
+          <Skeleton width={118} height={32} borderRadius={20} />
+        </View>
+
+        {/* ── Highlight Grid (2 cards) ── */}
+        <View style={styles.highlightGrid}>
+          <Skeleton width="47%" height={84} borderRadius={20} />
+          <Skeleton width="47%" height={84} borderRadius={20} />
+        </View>
+
+        {/* ── Investment Financials Card ── */}
+        <View style={styles.financialsCard}>
+          {/* Section header */}
+          <Skeleton width={170} height={18} borderRadius={4} style={{ marginBottom: 18 }} />
+
+          {/* Spec rows */}
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={[styles.specRow, i === 2 && { borderBottomWidth: 0 }]}>
+              <Skeleton width={36} height={36} borderRadius={12} />
+              <View style={styles.specLabelCol}>
+                <Skeleton width="54%" height={13} borderRadius={4} style={{ marginBottom: 6 }} />
+                <Skeleton width="36%" height={11} borderRadius={4} />
+              </View>
+              <Skeleton width={58} height={14} borderRadius={4} />
+            </View>
+          ))}
         </View>
       </View>
     </View>
@@ -50,12 +87,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.surface,
   },
-  skeletonBlock: {
+  // ── Hero ──
+  heroWrapper: {
+    width: "100%",
+    height: HERO_HEIGHT,
+    position: "relative",
     backgroundColor: Colors.surfaceContainerHighest,
-    borderRadius: 12,
   },
+  backBtnSkeleton: {
+    position: "absolute",
+    top: 6,
+    left: 16,
+  },
+  likeBtnSkeleton: {
+    position: "absolute",
+    top: 6,
+    right: 16,
+  },
+  statusBadgeSkeleton: {
+    position: "absolute",
+    bottom: 34,
+    left: 16,
+  },
+  // ── Card ──
   slidingCard: {
-    marginTop: -24,
+    marginTop: -20,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     backgroundColor: Colors.surface,
@@ -73,5 +129,48 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.outlineVariant,
     alignSelf: "center",
     marginBottom: 14,
+  },
+  // ── Sticky Title ──
+  titleSection: {
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  // ── Stats ──
+  quickStatsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    gap: 10,
+    marginBottom: 16,
+  },
+  highlightGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginBottom: 18,
+  },
+  // ── Financials ──
+  financialsCard: {
+    marginHorizontal: 20,
+    padding: 18,
+    borderRadius: 22,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: "rgba(225, 227, 228, 0.8)",
+  },
+  specRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+  },
+  specLabelCol: {
+    flex: 1,
+    marginLeft: 12,
   },
 });

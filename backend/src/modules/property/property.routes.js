@@ -12,6 +12,9 @@ router.get("/list", validate(queryPropertySchema), propertyController.getAllProp
 // GET /admin/property — get list of all properties (supports ?status= & ?category= & ?search=)
 router.get("/", propertyController.getAllProperties);
 
+// GET /admin/property/filters or /public/property/filters — get dynamic filters
+router.get("/filters", propertyController.getPropertyFilters);
+
 // GET /admin/property/:id — get single property by ID
 router.get("/:id", propertyController.getPropertyById);
 

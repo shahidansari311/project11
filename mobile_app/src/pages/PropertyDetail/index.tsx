@@ -28,7 +28,6 @@ import LoginPromptModal from "@/components/LoginPromptModal";
 import FavoriteButton from "@/components/ui/FavoriteButton";
 import ImageViewing from "react-native-image-viewing";
 
-// Sub-components
 import PropertyDetailSkeleton from "./components/PropertySkeleton";
 import PropertyHeroBanner from "./components/PropertyHeroBanner";
 import PropertyTitle from "./components/PropertyTitle";
@@ -89,8 +88,6 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   const handleInvestPress = () => {
     if (isGuest) {
       setShowLoginPrompt(true);
-    } else {
-      // Dummy action for logged in users
     }
   };
 
@@ -154,7 +151,7 @@ export default function PropertyDetailPage({ id }: { id: string }) {
         <Animated.View style={{ zIndex: 0, transform: [{ 
             translateY: scrollY.interpolate({
                 inputRange: [-100, 0, 1000],
-                outputRange: [0, 0, 500], // Extrapolate clamps negative values to 0, and uses 0.5x for positive
+                outputRange: [0, 0, 500],
             }) 
         }] }}>
           <PropertyHeroBanner

@@ -112,6 +112,10 @@ const queryPropertySchema = z.object({
       errorMap: () => ({ message: `Category must be one of: ${VALID_CATEGORIES.join(", ")}` }),
     }).optional(),
     search: z.string().optional(),
+    location: z.string().optional(),
+    area: z.string().optional(),
+    minPrice: z.coerce.number().min(0).optional(),
+    maxPrice: z.coerce.number().min(0).optional(),
   }).passthrough(),
 });
 

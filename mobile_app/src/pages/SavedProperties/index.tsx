@@ -69,7 +69,7 @@ export default function SavedPropertiesPage() {
           <Text style={styles.headerTitle}>Saved Properties</Text>
         </View>
         <FlatList
-          data={[1, 2, 3]}
+          data={[1, 2, 3, 4, 5, 6]}
           keyExtractor={(i) => i.toString()}
           renderItem={() => <PropertySkeleton />}
           contentContainerStyle={styles.listContainer}

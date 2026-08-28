@@ -6,25 +6,36 @@ import { useAuth } from "@/contexts/AuthContext";
 
 import LoginPage from "@/pages/Login";
 import RegisterPage from "@/pages/Register";
+import SplashScreen from "@/pages/Splash";
 
 export default function AuthScreen() {
   const router = useRouter();
   const [activePage, setActivePage] = useState<"login" | "register">("login");
   const [regToken, setRegToken] = useState<string>("");
   const { isGuest, isLoading } = useAuth();
+  const [isSplashFinished, setIsSplashFinished] = useState(false);
+
+  // Enforce a minimum display time for the splash screen
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsSplashFinished(true);
+    }, 2500); // 2.5 seconds
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
-    if (!isLoading && !isGuest) {
-      router.replace("/(tabs)/home" as any);
+    // Wait until both Auth Check is done AND Splash Timer has finished
+    if (!isLoading && isSplashFinished) {
+      if (!isGuest) {
+        // Logged in -> Route to Main App
+        router.replace("/(tabs)/home" as any);
+      }
     }
-  }, [isLoading, isGuest, router]);
+  }, [isLoading, isGuest, isSplashFinished, router]);
 
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: Colors.surface, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
+  // Show Splash Screen if auth is still loading, OR if minimum timer hasn't finished
+  if (isLoading || !isSplashFinished) {
+    return <SplashScreen />;
   }
 
   if (activePage === "login") {

@@ -69,9 +69,9 @@ async function getAllProperties(req, res, next) {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const { status, category, search } = req.query;
+    const { status, category, search, minPrice, maxPrice, location, area } = req.query;
 
-    const result = await propertyService.getAllProperties({ page, limit, status, category, search });
+    const result = await propertyService.getAllProperties({ page, limit, status, category, search, minPrice, maxPrice, location, area });
     return successResponse(res, 200, result, "Properties retrieved successfully");
   } catch (err) {
     next(err);
@@ -110,6 +110,15 @@ async function removePropertyImage(req, res, next) {
   }
 }
 
+async function getPropertyFilters(req, res, next) {
+  try {
+    const filters = await propertyService.getPropertyFilters();
+    return successResponse(res, 200, filters, "Property filters retrieved successfully");
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createProperty,
   updateProperty,
@@ -117,4 +126,5 @@ module.exports = {
   getAllProperties,
   getPropertyById,
   removePropertyImage,
+  getPropertyFilters,
 };

@@ -50,7 +50,7 @@ export default function ProfilePage() {
             }
           }
         } catch (e) {
-          console.error(e);
+          // Silent fallback for non-critical doc status fetch
         }
       };
       
@@ -68,48 +68,6 @@ export default function ProfilePage() {
     router.replace("/");
   }, [router, clearFavorites, refreshAuth]);
 
-  if (isLoading) {
-    return (
-      <View style={styles.root}>
-        <View style={styles.heroSection}>
-          <View style={styles.avatarContainer}>
-            <Skeleton width={96} height={96} borderRadius={48} />
-          </View>
-          <Skeleton width={150} height={24} style={{ marginTop: 16 }} />
-          <Skeleton width={100} height={16} style={{ marginTop: 8 }} />
-        </View>
-
-        <View style={styles.contentArea}>
-          <View style={styles.section}>
-            <Skeleton width={180} height={20} style={{ marginBottom: 12, marginLeft: 4 }} />
-            <View style={styles.card}>
-              <View style={[styles.listItem, styles.listItemBorder]}>
-                <Skeleton width={150} height={20} />
-              </View>
-              <View style={styles.listItem}>
-                <Skeleton width={150} height={20} />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Skeleton width={180} height={20} style={{ marginBottom: 12, marginLeft: 4 }} />
-            <View style={styles.card}>
-              <View style={[styles.listItem, styles.listItemBorder]}>
-                <Skeleton width={150} height={20} />
-              </View>
-              <View style={[styles.listItem, styles.listItemBorder]}>
-                <Skeleton width={150} height={20} />
-              </View>
-              <View style={styles.listItem}>
-                <Skeleton width={150} height={20} />
-              </View>
-            </View>
-          </View>
-        </View>
-      </View>
-    );
-  }
 
   if (isGuest) {
     return (
@@ -134,7 +92,9 @@ export default function ProfilePage() {
         {/* ── Hero / Avatar Section ── */}
         <View style={styles.heroSection}>
           <View style={styles.avatarContainer}>
-            {userProfile?.profileUrl ? (
+            {isLoading ? (
+              <Skeleton width={96} height={96} borderRadius={48} />
+            ) : userProfile?.profileUrl ? (
               <Image
                 source={{ uri: userProfile.profileUrl }}
                 style={styles.avatar}
@@ -145,12 +105,24 @@ export default function ProfilePage() {
                 <Ionicons name="person" size={48} color={Colors.onSurfaceVariant} />
               </View>
             )}
-            <TouchableOpacity style={styles.editButton} activeOpacity={0.8}>
-              <Ionicons name="pencil" size={12} color={Colors.onPrimaryContainer} />
-            </TouchableOpacity>
+            {!isLoading && (
+              <TouchableOpacity style={styles.editButton} activeOpacity={0.8}>
+                <Ionicons name="pencil" size={12} color={Colors.onPrimaryContainer} />
+              </TouchableOpacity>
+            )}
           </View>
-          <Text style={styles.userName}>{userProfile?.fullName || "Guest"}</Text>
-          <Text style={styles.userRole}>Accredited Investor</Text>
+
+          {isLoading ? (
+            <View style={{ alignItems: 'center', gap: 8, marginTop: 0 }}>
+              <Skeleton width={150} height={22} borderRadius={4} />
+              <Skeleton width={110} height={14} borderRadius={4} />
+            </View>
+          ) : (
+            <>
+              <Text style={styles.userName}>{userProfile?.fullName || "Guest"}</Text>
+              <Text style={styles.userRole}>Accredited Investor</Text>
+            </>
+          )}
         </View>
 
         {/* ── Content Area ── */}

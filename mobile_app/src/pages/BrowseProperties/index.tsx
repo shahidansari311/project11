@@ -14,7 +14,9 @@ import {
   FlatList,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
+import { useDebounce } from "../../hooks/useDebounce";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
@@ -22,13 +24,14 @@ import { Colors } from "@/constants/colors";
 import CategoryFilter from "./components/CategoryFilter";
 import PropertyCard from "./components/PropertyCard";
 import PropertySkeleton from "./components/PropertySkeleton";
+import FilterModal, { FilterType, ActiveFilters } from "./components/FilterModal";
 import LoginPromptModal from "../../components/LoginPromptModal";
 import { CategoryFilter as CategoryFilterType, Property } from "./data";
-import { propertyService } from "../../services/property.service";
+import { propertyService, FilterResponse } from "../../services/property.service";
 import { useFavorites } from "../../contexts/FavoritesContext";
 import { useAuth } from "../../contexts/AuthContext";
 
-/** Dummy filter chips — UI-only, no logic attached */
+/** Generic filter chips — UI-only for now, to be wired to backend modal */
 const DUMMY_FILTERS = [
   { label: "Price", icon: "cash-outline" as const },
   { label: "Location", icon: "location-outline" as const },
@@ -39,56 +42,90 @@ const DUMMY_FILTERS = [
 export default function BrowsePropertiesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] =
-    useState<CategoryFilterType>("ALL ASSETS");
+  const debouncedSearch = useDebounce(searchQuery, 500);
+
+  const [activeCategory, setActiveCategory] = useState<string>("ALL ASSETS");
+  const [categories, setCategories] = useState<string[]>(["ALL ASSETS"]);
+  
+  // Modal & Active Filters State
+  const [filterData, setFilterData] = useState<FilterResponse["data"] | null>(null);
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalFilterType, setModalFilterType] = useState<FilterType>(null);
+
   const [properties, setProperties] = useState<Property[]>([]);
   const [isFetchingProperties, setIsFetchingProperties] = useState(true);
+  
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+
   const [refreshing, setRefreshing] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const { refreshFavorites } = useFavorites();
   const { isGuest, refreshAuth, isLoading: authLoading } = useAuth();
 
-  const fetchProperties = useCallback(async () => {
+  useEffect(() => {
+    propertyService.getFilters().then(res => {
+      if (res?.data) {
+        setCategories(["ALL ASSETS", ...res.data.categories]);
+        setFilterData(res.data);
+      }
+    }).catch(console.error);
+  }, []);
+
+  const fetchProperties = useCallback(async (pageNum: number, isRefresh: boolean = false) => {
     try {
-      const res = await propertyService.getProperties();
+      const res = await propertyService.getProperties({
+        page: pageNum,
+        limit: 10,
+        search: debouncedSearch,
+        category: activeCategory === "ALL ASSETS" ? undefined : activeCategory,
+        ...activeFilters
+      });
+      
       if (res?.data?.properties) {
-        setProperties(res.data.properties);
+        if (isRefresh || pageNum === 1) {
+          setProperties(res.data.properties);
+        } else {
+          setProperties(prev => [...prev, ...res.data.properties]);
+        }
+        setHasMore(res.data.pagination.page < res.data.pagination.totalPages);
       }
     } catch (error) {
       console.error("Failed to fetch properties:", error);
     }
-  }, []);
+  }, [debouncedSearch, activeCategory, activeFilters]);
 
   useEffect(() => {
-    fetchProperties().finally(() => setIsFetchingProperties(false));
-  }, [fetchProperties]);
+    setIsFetchingProperties(true);
+    setPage(1);
+    fetchProperties(1, true).finally(() => setIsFetchingProperties(false));
+  }, [debouncedSearch, activeCategory, fetchProperties]);
+
+  const handleLoadMore = () => {
+    if (!hasMore || isFetchingMore || isFetchingProperties) return;
+    setIsFetchingMore(true);
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchProperties(nextPage).finally(() => setIsFetchingMore(false));
+  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchProperties(), refreshAuth(), refreshFavorites()]);
+    setPage(1);
+    await Promise.all([fetchProperties(1, true), refreshAuth(), refreshFavorites()]);
     setRefreshing(false);
   }, [fetchProperties, refreshAuth, refreshFavorites]);
 
-  const filteredProperties = useMemo(() => {
-    return properties.filter((p) => {
-      const matchesCategory =
-        activeCategory === "ALL ASSETS" || p.category === activeCategory;
-      const matchesSearch =
-        searchQuery.trim() === "" ||
-        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.location.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
-  }, [searchQuery, activeCategory, properties]);
-
   const renderHeader = () => (
     <View style={styles.headerWrapper}>
-      <CategoryFilter active={activeCategory} onChange={setActiveCategory} />
+      <CategoryFilter categories={categories} active={activeCategory} onChange={setActiveCategory} />
       <View style={styles.sectionHeadingRow}>
         <Text style={styles.sectionTitle}>Featured Properties</Text>
         <Text style={styles.sectionCount}>
-          {filteredProperties.length}{" "}
-          {filteredProperties.length === 1 ? "listing" : "listings"}
+          {properties.length}{" "}
+          {properties.length === 1 ? "listing" : "listings"}
         </Text>
       </View>
     </View>
@@ -151,25 +188,49 @@ export default function BrowsePropertiesPage() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersRow}
         >
-          {DUMMY_FILTERS.map((filter) => (
+          {Object.values(activeFilters).some(v => v !== undefined && v !== null) && (
             <TouchableOpacity
-              key={filter.label}
-              style={styles.filterChip}
+              style={[styles.filterChip, styles.resetChip]}
               activeOpacity={0.75}
+              onPress={() => setActiveFilters({})}
             >
-              <Ionicons
-                name={filter.icon}
-                size={13}
-                color={Colors.primary}
-              />
-              <Text style={styles.filterChipLabel}>{filter.label}</Text>
-              <Ionicons
-                name="chevron-down"
-                size={11}
-                color={Colors.outline}
-              />
+              <Ionicons name="refresh" size={14} color={Colors.onErrorContainer} />
+              <Text style={styles.resetChipLabel}>Reset</Text>
             </TouchableOpacity>
-          ))}
+          )}
+          {DUMMY_FILTERS.map((filter) => {
+            let isActive = false;
+            if (filter.label === "Price") isActive = !!(activeFilters.minPrice || activeFilters.maxPrice);
+            if (filter.label === "Location") isActive = !!activeFilters.location;
+            if (filter.label === "Area") isActive = !!activeFilters.area;
+            if (filter.label === "Status") isActive = !!activeFilters.status;
+
+            return (
+              <TouchableOpacity
+                key={filter.label}
+                style={[styles.filterChip, isActive && styles.filterChipActive]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setModalFilterType(filter.label as FilterType);
+                  setModalVisible(true);
+                }}
+              >
+                <Ionicons
+                  name={filter.icon}
+                  size={13}
+                  color={isActive ? Colors.onPrimary : Colors.primary}
+                />
+                <Text style={[styles.filterChipLabel, isActive && styles.filterChipLabelActive]}>
+                  {filter.label}
+                </Text>
+                <Ionicons
+                  name="chevron-down"
+                  size={11}
+                  color={isActive ? Colors.onPrimary : Colors.outline}
+                />
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -180,15 +241,25 @@ export default function BrowsePropertiesPage() {
           <View style={styles.cardWrapper}><PropertySkeleton /></View>
           <View style={styles.cardWrapper}><PropertySkeleton /></View>
           <View style={styles.cardWrapper}><PropertySkeleton /></View>
+          <View style={styles.cardWrapper}><PropertySkeleton /></View>
+          <View style={styles.cardWrapper}><PropertySkeleton /></View>
+          <View style={styles.cardWrapper}><PropertySkeleton /></View>
         </View>
       ) : (
         <FlatList
-          data={filteredProperties}
+          data={properties}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmptyState}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingMore ? (
+              <ActivityIndicator size="small" color={Colors.primary} style={{ margin: 16 }} />
+            ) : <View style={{ height: 24 }} />
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -216,6 +287,16 @@ export default function BrowsePropertiesPage() {
           setShowLoginPrompt(false);
           router.push("/");
         }}
+      />
+
+      {/* ── Filter Modal ── */}
+      <FilterModal
+        visible={modalVisible}
+        filterType={modalFilterType}
+        filterData={filterData}
+        activeFilters={activeFilters}
+        onClose={() => setModalVisible(false)}
+        onApply={(newFilters) => setActiveFilters(newFilters)}
       />
     </View>
   );
@@ -276,10 +357,27 @@ const styles = StyleSheet.create({
     borderColor: Colors.outlineVariant,
     backgroundColor: Colors.surfaceContainerLowest,
   },
+  filterChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
   filterChipLabel: {
     fontSize: 12,
     fontWeight: "600",
     color: Colors.onSurface,
+  },
+  filterChipLabelActive: {
+    color: Colors.onPrimary,
+  },
+  resetChip: {
+    backgroundColor: Colors.errorContainer,
+    borderColor: Colors.errorContainer,
+    borderStyle: "dashed",
+  },
+  resetChipLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.onErrorContainer,
   },
   // ── Scroll Content (Padding at bottom for Floating TabBar) ──
   scrollContent: {

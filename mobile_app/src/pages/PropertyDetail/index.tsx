@@ -36,12 +36,21 @@ import PropertyHighlights from "./components/PropertyHighlights";
 import PropertyFinancials from "./components/PropertyFinancials";
 import PropertyActionBar from "./components/PropertyActionBar";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function PropertyDetailPage({ id }: { id: string }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollY = React.useRef(new Animated.Value(0)).current;
+  const scrollViewRef = React.useRef<any>(null);
+
+  // Card starts at y=280 in scroll content (HERO=300, marginTop=-20).
+  // Stop card top just below floating header bottom (46px from scroll top) + 16px buffer.
+  // 280 - 46 - 16 = 218 — device-independent (works for both Android & iPhone).
+  const MAX_SCROLL_Y = 218;
+
+  // Inner card height: fills screen from max-scroll position down to bottom
+  const CARD_HEIGHT = SCREEN_HEIGHT - insets.top - 62;
 
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,7 +116,7 @@ export default function PropertyDetailPage({ id }: { id: string }) {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
-      {/* ── Floating Header ── */}
+      {/* ── Floating Header — back button only ── */}
       <View style={[styles.floatingHeader, { top: insets.top + 6 }]} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.glassNavBtn}
@@ -116,19 +125,11 @@ export default function PropertyDetailPage({ id }: { id: string }) {
         >
           <Ionicons name="arrow-back" size={20} color={Colors.onSurface} />
         </TouchableOpacity>
-        
-        <View style={styles.glassNavBtn}>
-          <FavoriteButton
-            propertyId={property.id}
-            size={20}
-            isGuest={isGuest}
-            onRequireLogin={() => setShowLoginPrompt(true)}
-          />
-        </View>
       </View>
 
       {/* ── Main Scroll View ── */}
       <Animated.ScrollView
+        ref={scrollViewRef}
         style={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         bounces={true}
@@ -137,6 +138,18 @@ export default function PropertyDetailPage({ id }: { id: string }) {
           { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
+        onScrollEndDrag={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y > MAX_SCROLL_Y) {
+            scrollViewRef.current?.scrollTo({ y: MAX_SCROLL_Y, animated: true });
+          }
+        }}
+        onMomentumScrollEnd={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y > MAX_SCROLL_Y) {
+            scrollViewRef.current?.scrollTo({ y: MAX_SCROLL_Y, animated: true });
+          }
+        }}
       >
         <Animated.View style={{ zIndex: 0, transform: [{ 
             translateY: scrollY.interpolate({
@@ -154,21 +167,36 @@ export default function PropertyDetailPage({ id }: { id: string }) {
               setIsImageViewerVisible(true);
             }}
           />
+
+          {/* ── Like button overlaid on hero image (bottom-right) ── */}
+          <View style={styles.heroLikeBtn} pointerEvents="box-none">
+            <FavoriteButton
+              propertyId={property.id}
+              size={22}
+              isGuest={isGuest}
+              onRequireLogin={() => setShowLoginPrompt(true)}
+            />
+          </View>
         </Animated.View>
 
         {/* ── Overlapping Detail Sheet Card ── */}
-        <View style={[styles.slidingCard, { zIndex: 1 }]}>
+        <View style={[styles.slidingCard, { zIndex: 1, height: CARD_HEIGHT }]}>
           {/* Card Handle */}
           <View style={styles.cardHandle} />
 
+          {/* Sticky property title — stays visible while details scroll */}
           <PropertyTitle property={property} />
-          
-          <PropertyHighlights property={property} />
-          
-          <PropertyFinancials property={property} />
 
-          {/* Extra Bottom Scroll Padding */}
-          <View style={{ height: 130 }} />
+          {/* Inner independently-scrollable content */}
+          <ScrollView
+            nestedScrollEnabled={true}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
+          >
+            <PropertyHighlights property={property} />
+
+            <PropertyFinancials property={property} />
+          </ScrollView>
         </View>
       </Animated.ScrollView>
 
@@ -268,7 +296,7 @@ const styles = StyleSheet.create({
   },
   // ── Overlapping Detail Sheet Card ──
   slidingCard: {
-    marginTop: -24,
+    marginTop: -20,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     backgroundColor: Colors.surface,
@@ -278,6 +306,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 8,
+  },
+  // ── Like button on hero image ──
+  heroLikeBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    zIndex: 15,
   },
   cardHandle: {
     width: 36,

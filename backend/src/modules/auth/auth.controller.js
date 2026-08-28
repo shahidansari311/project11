@@ -240,6 +240,18 @@ async function updateProfile(req, res, next) {
   }
 }
 
+async function updateProfileImage(req, res, next) {
+  try {
+    const { profileImage } = req.body;
+    // req.user is set by the verifyAuth middleware
+    const updatedUser = await authService.updateUserProfile(req.user.id, { profileUrl: profileImage });
+
+    return successResponse(res, 200, { user: updatedUser }, "Profile image updated successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function adminCancelOtp(req, res, next) {
   try {
     const { phone } = req.body;
@@ -270,6 +282,7 @@ module.exports = {
   userResendOtp,
   userCancelOtp,
   updateProfile,
+  updateProfileImage,
   getProfile,
   adminSendOtp,
   adminResendOtp,

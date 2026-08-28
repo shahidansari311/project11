@@ -14,10 +14,7 @@ import DocumentStatusTracker from "./components/DocumentStatusTracker";
 import Skeleton from "@/components/ui/Skeleton";
 import { Ionicons } from "@expo/vector-icons";
 
-// Enable LayoutAnimation for Android
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// LayoutAnimation works natively in New Architecture.
 
 export default function DocumentUploadPage() {
   const router = useRouter();

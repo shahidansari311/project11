@@ -50,6 +50,10 @@ export default function BrowsePropertiesPage() {
   // Modal & Active Filters State
   const [filterData, setFilterData] = useState<FilterResponse["data"] | null>(null);
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
+  
+  const hasActiveFilters = useMemo(() => {
+    return Object.values(activeFilters).some(v => v !== undefined && v !== null);
+  }, [activeFilters]);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalFilterType, setModalFilterType] = useState<FilterType>(null);
 
@@ -188,7 +192,7 @@ export default function BrowsePropertiesPage() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersRow}
         >
-          {Object.values(activeFilters).some(v => v !== undefined && v !== null) && (
+          {hasActiveFilters && (
             <TouchableOpacity
               style={[styles.filterChip, styles.resetChip]}
               activeOpacity={0.75}
@@ -238,12 +242,11 @@ export default function BrowsePropertiesPage() {
       {isLoading ? (
         <View style={styles.scrollContent}>
           {renderHeader()}
-          <View style={styles.cardWrapper}><PropertySkeleton /></View>
-          <View style={styles.cardWrapper}><PropertySkeleton /></View>
-          <View style={styles.cardWrapper}><PropertySkeleton /></View>
-          <View style={styles.cardWrapper}><PropertySkeleton /></View>
-          <View style={styles.cardWrapper}><PropertySkeleton /></View>
-          <View style={styles.cardWrapper}><PropertySkeleton /></View>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} style={styles.cardWrapper}>
+              <PropertySkeleton />
+            </View>
+          ))}
         </View>
       ) : (
         <FlatList
@@ -253,6 +256,9 @@ export default function BrowsePropertiesPage() {
           ListEmptyComponent={renderEmptyState}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={

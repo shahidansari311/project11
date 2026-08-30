@@ -62,6 +62,20 @@ export default function SavedPropertiesPage() {
     setIsRefreshing(false);
   };
 
+  const handleRequireLogin = useCallback(() => {
+    setShowLoginPrompt(true);
+  }, []);
+
+  const renderPropertyItem = useCallback(({ item }: { item: Property }) => (
+    <PropertyCard
+      property={item}
+      isGuest={isGuest}
+      onRequireLogin={handleRequireLogin}
+    />
+  ), [isGuest, handleRequireLogin]);
+
+  const renderSkeleton = useCallback(() => <PropertySkeleton />, []);
+
   if (isLoading) {
     return (
       <View style={styles.root}>
@@ -71,7 +85,7 @@ export default function SavedPropertiesPage() {
         <FlatList
           data={[1, 2, 3, 4, 5, 6]}
           keyExtractor={(i) => i.toString()}
-          renderItem={() => <PropertySkeleton />}
+          renderItem={renderSkeleton}
           contentContainerStyle={styles.listContainer}
         />
       </View>
@@ -121,13 +135,7 @@ export default function SavedPropertiesPage() {
         <FlatList
           data={properties}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <PropertyCard
-              property={item}
-              isGuest={isGuest}
-              onRequireLogin={() => setShowLoginPrompt(true)}
-            />
-          )}
+          renderItem={renderPropertyItem}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={

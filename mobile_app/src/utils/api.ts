@@ -9,6 +9,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 10000, // 10 seconds API Timeout (Point 15)
 });
 
 let isRefreshing = false;
@@ -25,13 +26,13 @@ const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue = [];
 };
 
+// Request Interceptor
 api.interceptors.request.use(
   async (config) => {
     try {
       const token = await SecureStore.getItemAsync("access_token");
       let deviceId = await SecureStore.getItemAsync("device_id");
 
-      // Generate a static device ID if none exists yet
       if (!deviceId) {
         deviceId = `${Platform.OS}-device-${Math.random().toString(36).substring(7)}`;
         await SecureStore.setItemAsync("device_id", deviceId);
@@ -51,11 +52,35 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 1000;
+
+// Response Interceptor
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
+    // Retry Logic (Point 16) for Network Errors, Timeouts, or 5xx Server Errors
+    if (
+      originalRequest &&
+      (!error.response || error.response.status >= 500)
+    ) {
+      originalRequest._retryCount = originalRequest._retryCount || 0;
+      
+      if (originalRequest._retryCount < MAX_RETRIES) {
+        originalRequest._retryCount += 1;
+        
+        // Exponential backoff
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(api(originalRequest));
+          }, RETRY_DELAY_MS * originalRequest._retryCount);
+        });
+      }
+    }
+
+    // Refresh Token Logic
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -98,7 +123,6 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (err) {
         processQueue(err as Error, null);
-        // Clean up tokens on refresh failure
         await SecureStore.deleteItemAsync("access_token");
         await SecureStore.deleteItemAsync("refresh_token");
         return Promise.reject(err);

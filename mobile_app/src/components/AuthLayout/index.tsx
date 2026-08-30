@@ -51,8 +51,12 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
       {/* Hero Image */}
       <View style={styles.heroContainer}>
-      <Image source={require("@/assets/images/hero-building.png")} style={styles.heroImage} resizeMode="cover" />
-      <View style={styles.heroOverlay} />
+        <Image 
+          source={{ uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200&auto=format&fit=crop" }} 
+          style={styles.heroImage} 
+          resizeMode="cover" 
+        />
+        <View style={styles.heroOverlay} />
       <View style={styles.brandContainer}>
         <View style={styles.brandLogo}><Text style={styles.brandLogoText}>◆</Text></View>
         <Text style={styles.brandText}>{BRAND_NAME}</Text>

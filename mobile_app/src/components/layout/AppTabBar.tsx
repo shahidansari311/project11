@@ -27,7 +27,7 @@ const VISUAL_TABS: VisualTab[] = [
     label: "Portfolio",
     icon: "business-outline",
     activeIcon: "business",
-    routeName: null,
+    routeName: "portfolio",
   },
   {
     id: "explore",

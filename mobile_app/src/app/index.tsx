@@ -38,9 +38,20 @@ export default function AuthScreen() {
     }
   }, [isLoading, isGuest, isSplashFinished, router]);
 
-  // Show Splash Screen if auth is still loading, OR if minimum timer hasn't finished
-  if (isLoading || !isSplashFinished) {
+  // Show Splash Screen ONLY if auth is still loading on the FIRST app launch
+  const isInitialLoading = isLoading && !hasAppLaunched;
+  
+  if (isInitialLoading || !isSplashFinished) {
     return <SplashScreen />;
+  }
+
+  // If loading later (like after OTP verification), just show a subtle spinner
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.background }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
   }
 
   if (activePage === "login") {

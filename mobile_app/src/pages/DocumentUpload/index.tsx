@@ -44,13 +44,6 @@ export default function DocumentUploadPage() {
 
   useEffect(() => {
     fetchData();
-
-    // Set up polling for real-time updates every 5 seconds
-    const intervalId = setInterval(() => {
-      fetchData(false); // pass false so we don't show the loading spinner again
-    }, 5000);
-
-    return () => clearInterval(intervalId);
   }, []);
 
   const fetchData = async (showLoader = true) => {

@@ -9,6 +9,7 @@ import "../../global.css";
 
 export default function RootLayout() {
   const appState = useRef(AppState.currentState);
+  const backgroundTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState: AppStateStatus) => {
@@ -17,16 +18,27 @@ export default function RootLayout() {
         nextAppState === "active"
       ) {
         // App has come to the foreground
-        console.log("App Lifecycle: FOREGROUND -> Resuming heavy operations");
+        if (backgroundTimer.current) {
+          clearTimeout(backgroundTimer.current);
+          backgroundTimer.current = null;
+          console.log("App Lifecycle: Returned quickly, cancelled background pause.");
+        } else {
+          console.log("App Lifecycle: FOREGROUND -> Resuming heavy operations");
+        }
       } else if (nextAppState === "background") {
         // App has gone to the background (Point 8, 20)
-        console.log("App Lifecycle: BACKGROUND -> Pausing operations to prevent Battery Drain");
+        console.log("App Lifecycle: BACKGROUND detected, starting 3m grace period...");
+        backgroundTimer.current = setTimeout(() => {
+          console.log("App Lifecycle: 3m elapsed -> Pausing operations to prevent Battery Drain");
+          backgroundTimer.current = null;
+        }, 180000); // 3 minutes grace period
       }
       appState.current = nextAppState;
     });
 
     return () => {
       subscription.remove();
+      if (backgroundTimer.current) clearTimeout(backgroundTimer.current);
     };
   }, []);
 

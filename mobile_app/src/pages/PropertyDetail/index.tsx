@@ -67,23 +67,29 @@ export default function PropertyDetailPage({ id }: { id: string }) {
     }
   };
 
-  const fetchProperty = useCallback(async () => {
-    try {
-      const res = await propertyService.getPropertyById(id);
-      if (res && res.data) {
-        setProperty(res.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch property details:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id]);
-
   useEffect(() => {
+    let isMounted = true;
+
+    const loadProperty = async () => {
+      try {
+        const res = await propertyService.getPropertyById(id);
+        if (isMounted && res && res.data) {
+          setProperty(res.data);
+        }
+      } catch (error) {
+        if (isMounted) console.error("Failed to fetch property details:", error);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
     checkAuthStatus();
-    fetchProperty();
-  }, [fetchProperty]);
+    loadProperty();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   const handleInvestPress = () => {
     if (isGuest) {

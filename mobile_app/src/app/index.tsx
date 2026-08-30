@@ -8,16 +8,21 @@ import LoginPage from "@/pages/Login";
 import RegisterPage from "@/pages/Register";
 import SplashScreen from "@/pages/Splash";
 
+let hasAppLaunched = false;
+
 export default function AuthScreen() {
   const router = useRouter();
   const [activePage, setActivePage] = useState<"login" | "register">("login");
   const [regToken, setRegToken] = useState<string>("");
   const { isGuest, isLoading } = useAuth();
-  const [isSplashFinished, setIsSplashFinished] = useState(false);
+  const [isSplashFinished, setIsSplashFinished] = useState(hasAppLaunched);
 
   // Enforce a minimum display time for the splash screen
   useEffect(() => {
+    if (hasAppLaunched) return;
+
     const timer = setTimeout(() => {
+      hasAppLaunched = true;
       setIsSplashFinished(true);
     }, 2500); // 2.5 seconds
     return () => clearTimeout(timer);

@@ -4,7 +4,7 @@
  * Search bar (sticky) → Category filters → Property cards
  */
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -41,6 +41,11 @@ const DUMMY_FILTERS = [
 
 export default function BrowsePropertiesPage() {
   const router = useRouter();
+  const mounted = useRef(true);
+  useEffect(() => {
+    return () => { mounted.current = false; };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -71,11 +76,13 @@ export default function BrowsePropertiesPage() {
 
   useEffect(() => {
     propertyService.getFilters().then(res => {
-      if (res?.data) {
+      if (res?.data && mounted.current) {
         setCategories(["ALL ASSETS", ...res.data.categories]);
         setFilterData(res.data);
       }
-    }).catch(console.error);
+    }).catch(error => {
+      if (mounted.current) console.error(error);
+    });
   }, []);
 
   const fetchProperties = useCallback(async (pageNum: number, isRefresh: boolean = false) => {
@@ -88,6 +95,8 @@ export default function BrowsePropertiesPage() {
         ...activeFilters
       });
       
+      if (!mounted.current) return;
+      
       if (res?.data?.properties) {
         if (isRefresh || pageNum === 1) {
           setProperties(res.data.properties);
@@ -97,14 +106,18 @@ export default function BrowsePropertiesPage() {
         setHasMore(res.data.pagination.page < res.data.pagination.totalPages);
       }
     } catch (error) {
-      console.error("Failed to fetch properties:", error);
+      if (mounted.current) console.error("Failed to fetch properties:", error);
     }
   }, [debouncedSearch, activeCategory, activeFilters]);
 
   useEffect(() => {
+    let ignore = false;
     setIsFetchingProperties(true);
     setPage(1);
-    fetchProperties(1, true).finally(() => setIsFetchingProperties(false));
+    fetchProperties(1, true).finally(() => {
+      if (!ignore && mounted.current) setIsFetchingProperties(false);
+    });
+    return () => { ignore = true; };
   }, [debouncedSearch, activeCategory, fetchProperties]);
 
   const handleLoadMore = () => {
@@ -121,6 +134,20 @@ export default function BrowsePropertiesPage() {
     await Promise.all([fetchProperties(1, true), refreshAuth(), refreshFavorites()]);
     setRefreshing(false);
   }, [fetchProperties, refreshAuth, refreshFavorites]);
+
+  const handleRequireLogin = useCallback(() => {
+    setShowLoginPrompt(true);
+  }, []);
+
+  const renderPropertyItem = useCallback(({ item }: { item: Property }) => (
+    <View style={styles.cardWrapper}>
+      <PropertyCard
+        property={item}
+        isGuest={isGuest}
+        onRequireLogin={handleRequireLogin}
+      />
+    </View>
+  ), [isGuest, handleRequireLogin]);
 
   const renderHeader = () => (
     <View style={styles.headerWrapper}>
@@ -273,15 +300,7 @@ export default function BrowsePropertiesPage() {
               colors={[Colors.primary]}
             />
           }
-          renderItem={({ item }) => (
-            <View style={styles.cardWrapper}>
-              <PropertyCard
-                property={item}
-                isGuest={isGuest}
-                onRequireLogin={() => setShowLoginPrompt(true)}
-              />
-            </View>
-          )}
+          renderItem={renderPropertyItem}
         />
       )}
 

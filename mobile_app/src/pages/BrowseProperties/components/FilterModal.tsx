@@ -12,22 +12,31 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
-import { FilterResponse } from "../../../services/property.service";
-
 export type FilterType = "Price" | "Location" | "Area" | "Status" | null;
 
 export interface ActiveFilters {
   minPrice?: number;
   maxPrice?: number;
+  minArea?: number;
+  maxArea?: number;
   location?: string;
-  area?: string;
   status?: string;
+}
+
+export interface FilterData {
+  categories: string[];
+  statuses: string[];
+  locations: string[];
+  minPrice: number;
+  maxPrice: number;
+  minArea: number;
+  maxArea: number;
 }
 
 interface FilterModalProps {
   visible: boolean;
   filterType: FilterType;
-  filterData: FilterResponse["data"] | null;
+  filterData: FilterData | null;
   activeFilters: ActiveFilters;
   onClose: () => void;
   onApply: (filters: ActiveFilters) => void;
@@ -52,6 +61,26 @@ export default function FilterModal({
   }, [visible, activeFilters]);
 
   const handleApply = () => {
+    // Validate Price
+    if (
+      localFilters.minPrice !== undefined &&
+      localFilters.maxPrice !== undefined &&
+      localFilters.minPrice >= localFilters.maxPrice
+    ) {
+      alert("Minimum price cannot be greater than or equal to maximum price.");
+      return;
+    }
+
+    // Validate Area
+    if (
+      localFilters.minArea !== undefined &&
+      localFilters.maxArea !== undefined &&
+      localFilters.minArea >= localFilters.maxArea
+    ) {
+      alert("Minimum area cannot be greater than or equal to maximum area.");
+      return;
+    }
+
     onApply(localFilters);
     onClose();
   };
@@ -62,7 +91,7 @@ export default function FilterModal({
     } else if (filterType === "Location") {
       setLocalFilters({ ...localFilters, location: undefined });
     } else if (filterType === "Area") {
-      setLocalFilters({ ...localFilters, area: undefined });
+      setLocalFilters({ ...localFilters, minArea: undefined, maxArea: undefined });
     } else if (filterType === "Status") {
       setLocalFilters({ ...localFilters, status: undefined });
     }
@@ -96,6 +125,41 @@ export default function FilterModal({
               placeholderTextColor={Colors.outline}
               value={localFilters.maxPrice ? String(localFilters.maxPrice) : ""}
               onChangeText={(val) => setLocalFilters({ ...localFilters, maxPrice: val ? Number(val) : undefined })}
+            />
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderAreaFilter = () => {
+    return (
+      <View style={styles.priceContainer}>
+        <Text style={styles.priceHelp}>
+          Enter a range between {(filterData?.minArea || 0).toLocaleString()} and {(filterData?.maxArea || 0).toLocaleString()} sqft
+        </Text>
+        <View style={styles.priceInputRow}>
+          <View style={styles.priceInputWrapper}>
+            <Text style={styles.priceLabel}>Min Area (sqft)</Text>
+            <TextInput
+              style={styles.priceInput}
+              keyboardType="numeric"
+              placeholder={(filterData?.minArea || 0).toString()}
+              placeholderTextColor={Colors.outline}
+              value={localFilters.minArea ? String(localFilters.minArea) : ""}
+              onChangeText={(val) => setLocalFilters({ ...localFilters, minArea: val ? Number(val) : undefined })}
+            />
+          </View>
+          <Text style={styles.priceDash}>-</Text>
+          <View style={styles.priceInputWrapper}>
+            <Text style={styles.priceLabel}>Max Area (sqft)</Text>
+            <TextInput
+              style={styles.priceInput}
+              keyboardType="numeric"
+              placeholder={(filterData?.maxArea || 0).toString()}
+              placeholderTextColor={Colors.outline}
+              value={localFilters.maxArea ? String(localFilters.maxArea) : ""}
+              onChangeText={(val) => setLocalFilters({ ...localFilters, maxArea: val ? Number(val) : undefined })}
             />
           </View>
         </View>
@@ -141,9 +205,7 @@ export default function FilterModal({
           setLocalFilters({ ...localFilters, location: val })
         );
       case "Area":
-        return renderSelectFilter(filterData?.areas, localFilters.area, (val) =>
-          setLocalFilters({ ...localFilters, area: val })
-        );
+        return renderAreaFilter();
       case "Status":
         return renderSelectFilter(filterData?.statuses, localFilters.status, (val) =>
           setLocalFilters({ ...localFilters, status: val })

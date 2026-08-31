@@ -8,6 +8,17 @@ const routes = require("./routes");
 
 const app = express();
 
+// Disable ETags to prevent 304 Not Modified responses
+app.set("etag", false);
+
+// Global middleware to prevent caching on all routes
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  next();
+});
+
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = process.env.FRONTEND_URL 

@@ -76,7 +76,7 @@ async function deleteProperty(id) {
   return { success: true, message: "Property deleted successfully" };
 }
 
-async function getAllProperties({ page = 1, limit = 20, status, category, search = "", minPrice, maxPrice, location, area } = {}) {
+async function getAllProperties({ page = 1, limit = 20, status, category, search = "", minPrice, maxPrice, location, area, minArea, maxArea } = {}) {
   const skip = (page - 1) * limit;
   const propertyModel = getPropertyModel();
 
@@ -85,6 +85,14 @@ async function getAllProperties({ page = 1, limit = 20, status, category, search
   if (category) where.category = category;
   if (location) where.location = location;
   if (area) where.totalSize = area;
+  
+  // Note: if totalSize is a String, doing gte/lte on it will be alphabetical.
+  // Ideally it should be numeric, but we will add the filter if minArea or maxArea is provided.
+  if (minArea !== undefined || maxArea !== undefined) {
+    where.totalSize = {};
+    if (minArea !== undefined) where.totalSize.gte = String(minArea);
+    if (maxArea !== undefined) where.totalSize.lte = String(maxArea);
+  }
   
   if (minPrice !== undefined || maxPrice !== undefined) {
     where.totalPrice = {};

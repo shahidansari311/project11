@@ -9,6 +9,22 @@ const getPropertyModel = () => {
   return model;
 };
 
+async function syncLatestPriceToProperty(propertyId) {
+  const priceHistoryModel = prisma.propertyPriceHistory || prisma.PropertyPriceHistory;
+  const latestHistory = await priceHistoryModel.findFirst({
+    where: { propertyId },
+    orderBy: { date: "desc" }
+  });
+  
+  if (latestHistory) {
+    const propertyModel = getPropertyModel();
+    await propertyModel.update({
+      where: { id: propertyId },
+      data: { totalPrice: latestHistory.price }
+    });
+  }
+}
+
 /**
  * Create a new property listing.
  * Called by admin only.
@@ -24,8 +40,11 @@ async function createProperty({
   totalPrice,
   totalSize,
   category,
+  youtubeVideoUrl,
 }) {
-  const property = await getPropertyModel().create({
+  const propertyModel = getPropertyModel();
+  
+  const property = await propertyModel.create({
     data: {
       title,
       description,
@@ -38,7 +57,17 @@ async function createProperty({
       totalPrice,
       totalSize,
       category,
+      youtubeVideoUrl,
+      priceHistory: {
+        create: {
+          price: totalPrice,
+          date: new Date(),
+        }
+      }
     },
+    include: {
+      priceHistory: true
+    }
   });
 
   return property;
@@ -60,6 +89,19 @@ async function updateProperty(id, data) {
     where: { id },
     data,
   });
+
+  if (data.totalPrice !== undefined && data.totalPrice !== existingProperty.totalPrice) {
+    const priceHistoryModel = prisma.propertyPriceHistory || prisma.PropertyPriceHistory;
+    if (priceHistoryModel) {
+      await priceHistoryModel.create({
+        data: {
+          propertyId: id,
+          price: data.totalPrice,
+          date: new Date(),
+        }
+      });
+    }
+  }
 
   return updatedProperty;
 }
@@ -114,6 +156,11 @@ async function getAllProperties({ page = 1, limit = 20, status, category, search
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,
+      include: {
+        priceHistory: {
+          orderBy: { date: "asc" }
+        }
+      }
     }),
     propertyModel.count({ where }),
   ]);
@@ -134,6 +181,11 @@ async function getAllProperties({ page = 1, limit = 20, status, category, search
 async function getPropertyById(id) {
   const property = await getPropertyModel().findUnique({
     where: { id },
+    include: {
+      priceHistory: {
+        orderBy: { date: "asc" }
+      }
+    }
   });
 
   if (!property) {
@@ -202,6 +254,71 @@ async function getPropertyFilters() {
   };
 }
 
+async function addPriceHistory(id, { price }) {
+  const propertyModel = getPropertyModel();
+  const existingProperty = await propertyModel.findUnique({ where: { id } });
+  if (!existingProperty) {
+    throw new Error("Property not found with the provided ID");
+  }
+
+  const priceHistoryModel = prisma.propertyPriceHistory || prisma.PropertyPriceHistory;
+  if (!priceHistoryModel) {
+    throw new Error("PropertyPriceHistory model not found on Prisma Client. Please run 'npx prisma generate'.");
+  }
+
+  const record = await priceHistoryModel.create({
+    data: {
+      propertyId: id,
+      price: price,
+      date: new Date(),
+    }
+  });
+  
+  await syncLatestPriceToProperty(id);
+
+  return record;
+}
+
+async function editPriceHistory(historyId, { price }) {
+  const priceHistoryModel = prisma.propertyPriceHistory || prisma.PropertyPriceHistory;
+  if (!priceHistoryModel) throw new Error("PropertyPriceHistory model not found.");
+
+  const existingHistory = await priceHistoryModel.findUnique({ where: { id: historyId } });
+  if (!existingHistory) {
+    throw new Error("Price history not found with the provided ID");
+  }
+  
+  const updatedRecord = await priceHistoryModel.update({
+    where: { id: historyId },
+    data: { price }
+  });
+  
+  await syncLatestPriceToProperty(existingHistory.propertyId);
+  
+  return updatedRecord;
+}
+
+async function deletePriceHistory(historyId) {
+  const priceHistoryModel = prisma.propertyPriceHistory || prisma.PropertyPriceHistory;
+  if (!priceHistoryModel) throw new Error("PropertyPriceHistory model not found.");
+
+  const existingHistory = await priceHistoryModel.findUnique({ where: { id: historyId } });
+  if (!existingHistory) {
+    throw new Error("Price history not found with the provided ID");
+  }
+  
+  const count = await priceHistoryModel.count({ where: { propertyId: existingHistory.propertyId } });
+  if (count <= 1) {
+    throw new Error("Cannot delete the only price history point for this property.");
+  }
+  
+  await priceHistoryModel.delete({ where: { id: historyId } });
+  
+  await syncLatestPriceToProperty(existingHistory.propertyId);
+  
+  return { success: true, message: "Price history deleted successfully" };
+}
+
 module.exports = {
   createProperty,
   updateProperty,
@@ -210,4 +327,7 @@ module.exports = {
   getPropertyById,
   removePropertyImage,
   getPropertyFilters,
+  addPriceHistory,
+  editPriceHistory,
+  deletePriceHistory,
 };

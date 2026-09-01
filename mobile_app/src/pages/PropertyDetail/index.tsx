@@ -33,6 +33,7 @@ import PropertyHeroBanner from "./components/PropertyHeroBanner";
 import PropertyTitle from "./components/PropertyTitle";
 import PropertyHighlights from "./components/PropertyHighlights";
 import PropertyFinancials from "./components/PropertyFinancials";
+import PropertyPriceGraph from "./components/PropertyPriceGraph";
 import PropertyActionBar from "./components/PropertyActionBar";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -201,6 +202,8 @@ export default function PropertyDetailPage({ id }: { id: string }) {
             <PropertyHighlights property={property} />
 
             <PropertyFinancials property={property} />
+
+            <PropertyPriceGraph priceHistory={property.priceHistory} />
           </ScrollView>
         </View>
       </Animated.ScrollView>

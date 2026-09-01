@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Animated from "react-native-reanimated";
 import { Colors } from "@/constants/colors";
 import { PLACEHOLDER_IMAGE } from "../../pages/BrowseProperties/data";
+import { WebView } from "react-native-webview";
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
@@ -25,6 +26,24 @@ interface ImageCarouselProps {
   showThumbnails?: boolean;
   showArrowControls?: boolean;
   sharedTransitionTagBase?: string;
+  youtubeVideoUrl?: string;
+}
+
+/**
+ * Extract YouTube video ID from various URL formats
+ */
+function extractYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
+    /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+    /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
 }
 
 export default function ImageCarousel({
@@ -35,22 +54,26 @@ export default function ImageCarousel({
   showThumbnails = false,
   showArrowControls = true,
   sharedTransitionTagBase,
+  youtubeVideoUrl,
 }: ImageCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const displayImages = images && images.length > 0 ? images : [PLACEHOLDER_IMAGE];
+  const hasVideo = !!youtubeVideoUrl;
+  // Total slides = images + (1 video slide if present)
+  const totalSlides = displayImages.length + (hasVideo ? 1 : 0);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollPosition / width);
-    if (index !== activeIndex && index >= 0 && index < displayImages.length) {
+    if (index !== activeIndex && index >= 0 && index < totalSlides) {
       setActiveIndex(index);
     }
   };
 
   const handleArrowPress = (targetIndex: number) => {
-    if (targetIndex >= 0 && targetIndex < displayImages.length) {
+    if (targetIndex >= 0 && targetIndex < totalSlides) {
       scrollViewRef.current?.scrollTo({ x: targetIndex * width, animated: true });
       setActiveIndex(targetIndex);
     }
@@ -60,6 +83,9 @@ export default function ImageCarousel({
     scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
     setActiveIndex(index);
   };
+
+  // Check if current slide is the video slide
+  const isVideoSlide = hasVideo && activeIndex === displayImages.length;
 
   return (
     <View style={[styles.container, { width, height }]}>
@@ -93,10 +119,20 @@ export default function ImageCarousel({
               />
             </Pressable>
           ))}
+
+          {/* ── YouTube Video Slide (last slide) ── */}
+          {hasVideo && (
+            <YouTubeSlide
+              url={youtubeVideoUrl!}
+              width={width}
+              height={height}
+              isActive={isVideoSlide}
+            />
+          )}
         </ScrollView>
 
         {/* ── Arrow Controls ── */}
-        {showArrowControls && displayImages.length > 1 && (
+        {showArrowControls && totalSlides > 1 && (
           <>
             {activeIndex > 0 && (
               <TouchableOpacity
@@ -109,7 +145,7 @@ export default function ImageCarousel({
               </TouchableOpacity>
             )}
 
-            {activeIndex < displayImages.length - 1 && (
+            {activeIndex < totalSlides - 1 && (
               <TouchableOpacity
                 style={[styles.arrowButton, styles.rightArrow]}
                 onPress={() => handleArrowPress(activeIndex + 1)}
@@ -123,14 +159,18 @@ export default function ImageCarousel({
         )}
 
         {/* ── Pagination Dots Indicator ── */}
-        {displayImages.length > 1 && (
+        {totalSlides > 1 && (
           <View style={styles.paginationContainer} pointerEvents="none">
-            {displayImages.map((_, index) => (
+            {Array.from({ length: totalSlides }).map((_, index) => (
               <View
                 key={index}
                 style={[
                   styles.dot,
                   activeIndex === index ? styles.activeDot : styles.inactiveDot,
+                  // Make the video dot a different color
+                  hasVideo && index === totalSlides - 1 && activeIndex !== index
+                    ? styles.videoDot
+                    : null,
                 ]}
               />
             ))}
@@ -160,6 +200,52 @@ export default function ImageCarousel({
           ))}
         </ScrollView>
       )}
+    </View>
+  );
+}
+
+/**
+ * Embedded YouTube player — only play/pause, no other controls.
+ * Uses an iframe embed with minimal YouTube parameters.
+ */
+function YouTubeSlide({
+  url,
+  width,
+  height,
+  isActive,
+}: {
+  url: string;
+  width: number;
+  height: number;
+  isActive: boolean;
+}) {
+  const videoId = extractYouTubeId(url);
+
+  if (!videoId) {
+    return (
+      <View style={[{ width, height }, styles.videoSlideContainer]}>
+        <Ionicons name="videocam-off-outline" size={48} color="rgba(255,255,255,0.5)" />
+      </View>
+    );
+  }
+
+  const youtubeUri = `https://www.youtube.com/embed/${videoId}?playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&fs=0&disablekb=1`;
+
+  return (
+    <View style={[{ width, height }, styles.videoSlideContainer]}>
+      <WebView
+        source={{ uri: youtubeUri }}
+        style={{ width, height, backgroundColor: '#000' }}
+        scrollEnabled={false}
+        allowsInlineMediaPlayback={true}
+        mediaPlaybackRequiresUserAction={false}
+        javaScriptEnabled={true}
+      />
+
+      {/* Video label badge */}
+      <View style={styles.videoBadge}>
+        <Ionicons name="logo-youtube" size={14} color="#FF0000" />
+      </View>
     </View>
   );
 }
@@ -223,6 +309,9 @@ const styles = StyleSheet.create({
     width: 6,
     backgroundColor: "rgba(255, 255, 255, 0.4)",
   },
+  videoDot: {
+    backgroundColor: "#FF0000",
+  },
   thumbnailsContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -242,5 +331,20 @@ const styles = StyleSheet.create({
   thumbnailImage: {
     width: "100%",
     height: "100%",
+  },
+  // ── Video Slide Styles ──
+  videoSlideContainer: {
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  videoBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    borderRadius: 8,
+    padding: 6,
+    zIndex: 10,
   },
 });

@@ -20,16 +20,21 @@ app.use((req, res, next) => {
 });
 
 const corsOptions = {
+  credentials: true,
   origin: function (origin, callback) {
     const allowedOrigins = process.env.FRONTEND_URL 
       ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
       : [];
       
+    // console.log("CORS Check - Origin:", origin);
+    // console.log("CORS Check - Allowed:", allowedOrigins);
+    
     // Allow requests with no origin (like mobile apps, postman, server-to-server)
     // Or if the origin is in our allowed list
     if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
       callback(null, true);
     } else {
+      console.error("CORS Error for origin:", origin);
       callback(new Error('Not allowed by CORS'));
     }
   }

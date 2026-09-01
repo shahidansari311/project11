@@ -3,7 +3,7 @@ const router = express.Router();
 const { imageUpload } = require("../../config/multer.config");
 const propertyController = require("./property.controller");
 const { validate } = require("../../middlewares/validate.middleware");
-const { createPropertySchema, updatePropertySchema, queryPropertySchema } = require("./property.validation");
+const { createPropertySchema, updatePropertySchema, queryPropertySchema, addPriceHistorySchema, updatePriceHistorySchema } = require("./property.validation");
 const { uploadPropertyImages } = require("../../middlewares/upload.middleware");
 
 // GET /admin/property or /admin/property/list — get list of all properties (supports ?status= & ?category= & ?search=)
@@ -20,6 +20,15 @@ router.get("/:id", propertyController.getPropertyById);
 
 // POST /admin/property/add — create a new property listing
 router.post("/add", imageUpload.array("images", 10), uploadPropertyImages, validate(createPropertySchema), propertyController.createProperty);
+
+// POST /admin/property/:id/price-history — add price history
+router.post("/:id/price-history", validate(addPriceHistorySchema), propertyController.addPriceHistory);
+
+// PUT /admin/property/price-history/:historyId — edit price history
+router.put("/price-history/:historyId", validate(updatePriceHistorySchema), propertyController.editPriceHistory);
+
+// DELETE /admin/property/price-history/:historyId — delete price history
+router.delete("/price-history/:historyId", propertyController.deletePriceHistory);
 
 // PUT & PATCH /admin/property/edit/:id or /admin/property/:id — edit property listing
 router.put("/edit/:id", imageUpload.array("images", 10), uploadPropertyImages, validate(updatePropertySchema), propertyController.updateProperty);

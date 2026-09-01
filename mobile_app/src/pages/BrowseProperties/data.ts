@@ -16,6 +16,8 @@ export interface Property {
   category: PropertyCategory;
   createdAt: string;
   updatedAt: string;
+  youtubeVideoUrl?: string;
+  priceHistory?: { id: string; price: number; date: string }[];
 }
 
 export const CATEGORIES = ["ALL ASSETS", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "LAND"] as const;

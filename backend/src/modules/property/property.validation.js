@@ -73,6 +73,7 @@ const createPropertySchema = z.object({
       required_error: "Please select a category for the property.",
       errorMap: () => ({ message: `Please select a valid category (${VALID_CATEGORIES.join(", ")}).` }),
     }),
+    youtubeVideoUrl: z.string().url("Must be a valid URL").optional(),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({}).passthrough().optional(),
@@ -96,6 +97,7 @@ const updatePropertySchema = z.object({
     }).optional(),
     investors: z.coerce.number().int().min(0).optional(),
     clearImages: z.coerce.boolean().optional(),
+    youtubeVideoUrl: z.string().url("Must be a valid URL").optional(),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({ id: z.string().optional() }).passthrough().optional(),
@@ -119,8 +121,24 @@ const queryPropertySchema = z.object({
   }).passthrough(),
 });
 
+const addPriceHistorySchema = z.object({
+  body: z.object({
+    price: z.coerce.number().positive("Price must be a positive number"),
+  }),
+  params: z.object({ id: z.string().optional() }).passthrough().optional(),
+});
+
+const updatePriceHistorySchema = z.object({
+  body: z.object({
+    price: z.coerce.number().positive("Price must be a positive number"),
+  }),
+  params: z.object({ historyId: z.string().optional() }).passthrough().optional(),
+});
+
 module.exports = {
   createPropertySchema,
   updatePropertySchema,
   queryPropertySchema,
+  addPriceHistorySchema,
+  updatePriceHistorySchema,
 };

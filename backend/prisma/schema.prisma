@@ -54,20 +54,34 @@ model OtpVerification {
 }
 
 model Property {
-  id            String           @id @default(cuid())
+  id            String                 @id @default(cuid())
   title         String
   description   String
   images        String[]
   location      String
-  status        PropertyStatus   @default(AVAILABLE)
+  status        PropertyStatus         @default(AVAILABLE)
   targetReturn  Float
   minInvestment Float
-  investors     Int              @default(0)
+  investors     Int                    @default(0)
   totalPrice    Float
   totalSize     String
   category      PropertyCategory
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  youtubeVideoUrl String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  priceHistory  PropertyPriceHistory[]
+}
+
+model PropertyPriceHistory {
+  id         String   @id @default(cuid())
+  propertyId String
+  price      Float
+  date       DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
 }
 
 model UserDocument {

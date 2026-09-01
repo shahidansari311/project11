@@ -119,6 +119,50 @@ async function getPropertyFilters(req, res, next) {
   }
 }
 
+async function addPriceHistory(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { price } = req.body;
+    const result = await propertyService.addPriceHistory(id, { price });
+    return successResponse(res, 201, result, "Price history added successfully");
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
+async function editPriceHistory(req, res, next) {
+  try {
+    const { historyId } = req.params;
+    const { price } = req.body;
+    const result = await propertyService.editPriceHistory(historyId, { price });
+    return successResponse(res, 200, result, "Price history updated successfully");
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
+async function deletePriceHistory(req, res, next) {
+  try {
+    const { historyId } = req.params;
+    const result = await propertyService.deletePriceHistory(historyId);
+    return successResponse(res, 200, null, result.message);
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    if (err.message && err.message.includes("Cannot delete the only price history")) {
+      return errorResponse(res, 400, err.message);
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   createProperty,
   updateProperty,
@@ -127,4 +171,7 @@ module.exports = {
   getPropertyById,
   removePropertyImage,
   getPropertyFilters,
+  addPriceHistory,
+  editPriceHistory,
+  deletePriceHistory,
 };

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   ScrollView,
@@ -8,6 +8,7 @@ import {
   NativeScrollEvent,
   Pressable,
   TouchableOpacity,
+  Animated as RNAnimated,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -220,6 +221,29 @@ function YouTubeSlide({
   isActive: boolean;
 }) {
   const videoId = extractYouTubeId(url);
+  const webViewRef = useRef<WebView>(null);
+  const [playing, setPlaying] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [scrubberWidth, setScrubberWidth] = useState(0);
+  const fadeAnim = useRef(new RNAnimated.Value(1)).current;
+
+  useEffect(() => {
+    RNAnimated.timing(fadeAnim, {
+      toValue: playing ? 0 : 1,
+      duration: playing ? 2500 : 300,
+      useNativeDriver: true,
+    }).start();
+  }, [playing]);
+
+  // Auto-pause when user scrolls away from this slide
+  useEffect(() => {
+    if (!isActive && playing) {
+      setPlaying(false);
+      webViewRef.current?.injectJavaScript(`if(player && player.pauseVideo) player.pauseVideo(); true;`);
+    }
+  }, [isActive]);
 
   if (!videoId) {
     return (
@@ -229,23 +253,181 @@ function YouTubeSlide({
     );
   }
 
-  const youtubeUri = `https://www.youtube.com/embed/${videoId}?playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&fs=0&disablekb=1`;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <script src="https://www.youtube.com/iframe_api"></script>
+        <style>
+          body, html { 
+            margin: 0; 
+            padding: 0; 
+            background-color: #000; 
+            width: 100%; 
+            height: 100%; 
+            overflow: hidden; 
+          }
+          #player-wrapper {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1.45);
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div id="player-wrapper">
+          <div id="player"></div>
+        </div>
+        <script>
+          var player;
+          function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+              height: '100%',
+              width: '100%',
+              videoId: '${videoId}',
+              playerVars: {
+                'playsinline': 1,
+                'controls': 0,
+                'rel': 0,
+                'modestbranding': 1,
+                'iv_load_policy': 3,
+                'fs': 0,
+                'disablekb': 1,
+                'origin': 'https://silverrealestate.com'
+              },
+              events: {
+                'onReady': function(event) {
+                  setInterval(function() {
+                    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'progress',
+                        time: player.getCurrentTime(),
+                        duration: player.getDuration()
+                      }));
+                    }
+                  }, 500);
+                },
+                'onStateChange': function(event) {
+                  if (event.data === YT.PlayerState.PLAYING) {
+                    window.ReactNativeWebView.postMessage('playing');
+                  } else if (event.data === YT.PlayerState.PAUSED) {
+                    window.ReactNativeWebView.postMessage('paused');
+                  } else if (event.data === YT.PlayerState.ENDED) {
+                    player.seekTo(0);
+                    player.pauseVideo();
+                    window.ReactNativeWebView.postMessage('ended');
+                  }
+                }
+              }
+            });
+          }
+        </script>
+      </body>
+    </html>
+  `;
+
+  const handleMessage = (event: any) => {
+    try {
+      const msg = event.nativeEvent.data;
+      if (msg === 'playing') {
+        setPlaying(true);
+        if (!hasStarted) setHasStarted(true);
+      }
+      else if (msg === 'paused' || msg === 'ended') setPlaying(false);
+      else {
+        const data = JSON.parse(msg);
+        if (data.type === 'progress') {
+          setProgress(data.time);
+          setDuration(data.duration);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const togglePlay = () => {
+    const newState = !playing;
+    setPlaying(newState);
+    const js = newState 
+      ? `if(player && player.playVideo) player.playVideo(); true;`
+      : `if(player && player.pauseVideo) player.pauseVideo(); true;`;
+    webViewRef.current?.injectJavaScript(js);
+  };
 
   return (
     <View style={[{ width, height }, styles.videoSlideContainer]}>
+      {/* Thumbnail cover perfectly hides the giant red YouTube play button before playback */}
+      {!hasStarted && (
+        <Pressable 
+          style={[StyleSheet.absoluteFill, { zIndex: 10, overflow: 'hidden', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }]}
+          onPress={togglePlay}
+        >
+          <Image 
+            source={{ uri: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` }} 
+            style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.45 }] }]} 
+            contentFit="cover"
+          />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)' }]} />
+          <View style={styles.centerPlayButton}>
+            <Ionicons name="play" size={32} color="#fff" style={{ marginLeft: 4 }} />
+          </View>
+        </Pressable>
+      )}
+
       <WebView
-        source={{ uri: youtubeUri }}
+        ref={webViewRef}
+        source={{ html, baseUrl: 'https://silverrealestate.com/' }}
         style={{ width, height, backgroundColor: '#000' }}
         scrollEnabled={false}
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
         javaScriptEnabled={true}
+        originWhitelist={["*"]}
+        onMessage={handleMessage}
       />
 
-      {/* Video label badge */}
-      <View style={styles.videoBadge}>
-        <Ionicons name="logo-youtube" size={14} color="#FF0000" />
-      </View>
+      {/* Invisible overlay to toggle play/pause by tapping the video */}
+      {hasStarted && (
+        <Pressable 
+          style={[StyleSheet.absoluteFill, { zIndex: 20 }]} 
+          onPress={togglePlay}
+        />
+      )}
+
+      {/* Unified Bottom Control Bar (Fades out when playing) */}
+      {hasStarted && (
+        <RNAnimated.View 
+          style={[styles.controlBar, { opacity: fadeAnim }]}
+          pointerEvents={playing ? "none" : "auto"}
+        >
+          <Pressable onPress={togglePlay} style={styles.playPauseBtn} hitSlop={10}>
+            <Ionicons name={playing ? "pause" : "play"} size={22} color="#fff" />
+          </Pressable>
+
+          <Pressable 
+            style={styles.scrubberHitArea}
+            onLayout={(e) => setScrubberWidth(e.nativeEvent.layout.width)}
+            onPress={(e) => {
+              if (duration === 0 || scrubberWidth === 0) return;
+              const { locationX } = e.nativeEvent;
+              const percent = Math.max(0, Math.min(1, locationX / scrubberWidth));
+              const seekTime = percent * duration;
+              webViewRef.current?.injectJavaScript(`if(player) player.seekTo(${seekTime}, true); true;`);
+              setProgress(seekTime);
+            }}
+          >
+            <View style={styles.scrubberTrack}>
+              <View style={[styles.scrubberFill, { width: `${duration > 0 ? (progress / duration) * 100 : 0}%` }]} />
+            </View>
+          </Pressable>
+        </RNAnimated.View>
+      )}
     </View>
   );
 }
@@ -346,5 +528,47 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 6,
     zIndex: 10,
+  },
+  centerPlayButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  controlBar: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    right: 12,
+    height: 44,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    zIndex: 25,
+  },
+  playPauseBtn: {
+    marginRight: 16,
+  },
+  scrubberHitArea: {
+    flex: 1,
+    height: 44,
+    justifyContent: 'center',
+  },
+  scrubberTrack: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  scrubberFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
   },
 });

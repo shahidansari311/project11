@@ -10,13 +10,14 @@ import {
   Dimensions,
   StyleSheet,
   TouchableOpacity,
-  Animated
+  Animated,
+  Keyboard
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const BRAND_NAME = "Silver Real Estate";
 
 interface AuthLayoutProps {
@@ -27,6 +28,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
   const router = useRouter();
 
   const arrowAnim = useRef(new Animated.Value(0)).current;
+  const heroHeight = useRef(new Animated.Value(SCREEN_HEIGHT * 0.6)).current;
 
   useEffect(() => {
     Animated.loop(
@@ -43,14 +45,41 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
         }),
       ])
     ).start();
-  }, [arrowAnim]);
+
+    const showSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => {
+        Animated.timing(heroHeight, {
+          toValue: SCREEN_HEIGHT * 0.15, // shrink image to just header size
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+
+    const hideSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        Animated.timing(heroHeight, {
+          toValue: SCREEN_HEIGHT * 0.6,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [arrowAnim, heroHeight]);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       {/* Hero Image */}
-      <View style={styles.heroContainer}>
+      <Animated.View style={[styles.heroContainer, { height: heroHeight }]}>
         <Image 
           source={{ uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200&auto=format&fit=crop" }} 
           style={styles.heroImage} 
@@ -73,10 +102,10 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           <Ionicons name="arrow-forward" size={14} color={Colors.onPrimary} style={{ marginLeft: 4 }} />
         </Animated.View>
       </TouchableOpacity>
-    </View>
+    </Animated.View>
 
     {/* Content Container */}
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex1}>
+    <View style={styles.flex1}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -85,7 +114,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       >
         {children}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   </View>
   );
 }
@@ -93,7 +122,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   flex1: { flex: 1 },
-  heroContainer: { width: "100%", height: SCREEN_WIDTH * 0.55, position: "relative" },
+  heroContainer: { width: "100%", position: "relative" },
   heroImage: { width: "100%", height: "100%", position: "absolute" },
   heroOverlay: { position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.35)" },
   brandContainer: { position: "absolute", top: Platform.OS === "ios" ? 56 : 44, left: 24, flexDirection: "row", alignItems: "center", gap: 10, zIndex: 10 },

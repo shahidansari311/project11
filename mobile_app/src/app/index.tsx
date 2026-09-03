@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 
+import AuthLayout from "@/components/AuthLayout";
 import LoginPage from "@/pages/Login";
+import OtpPage from "@/pages/Otp";
 import RegisterPage from "@/pages/Register";
 import SplashScreen from "@/pages/Splash";
 
@@ -12,7 +14,8 @@ let hasAppLaunched = false;
 
 export default function AuthScreen() {
   const router = useRouter();
-  const [activePage, setActivePage] = useState<"login" | "register">("login");
+  const [activePage, setActivePage] = useState<"login" | "otp" | "register">("login");
+  const [phoneForOtp, setPhoneForOtp] = useState<string>("");
   const [regToken, setRegToken] = useState<string>("");
   const { isGuest, isLoading } = useAuth();
   const [isSplashFinished, setIsSplashFinished] = useState(hasAppLaunched);
@@ -38,37 +41,39 @@ export default function AuthScreen() {
     }
   }, [isLoading, isGuest, isSplashFinished, router]);
 
-  // Show Splash Screen ONLY if auth is still loading on the FIRST app launch
+  // Show Splash Screen ONLY on first app launch while auth state is resolving
   const isInitialLoading = isLoading && !hasAppLaunched;
   
   if (isInitialLoading || !isSplashFinished) {
     return <SplashScreen />;
   }
 
-  // If loading later (like after OTP verification), just show a subtle spinner
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.background }}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
-
-  if (activePage === "login") {
-    return (
-      <LoginPage 
-        onRegisterRequired={(token) => {
-          setRegToken(token);
-          setActivePage("register");
-        }} 
-      />
-    );
-  }
-
   return (
-    <RegisterPage 
-      registrationToken={regToken}
-      onGoBackToLogin={() => setActivePage("login")} 
-    />
+    <AuthLayout>
+      {activePage === "login" && (
+        <LoginPage 
+          onSendOtp={(phone) => {
+            setPhoneForOtp(phone);
+            setActivePage("otp");
+          }} 
+        />
+      )}
+      {activePage === "otp" && (
+        <OtpPage
+          phone={phoneForOtp}
+          onRegisterRequired={(token) => {
+            setRegToken(token);
+            setActivePage("register");
+          }}
+          onGoBack={() => setActivePage("login")}
+        />
+      )}
+      {activePage === "register" && (
+        <RegisterPage 
+          registrationToken={regToken}
+          onGoBackToLogin={() => setActivePage("login")} 
+        />
+      )}
+    </AuthLayout>
   );
 }

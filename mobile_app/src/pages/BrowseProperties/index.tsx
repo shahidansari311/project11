@@ -155,10 +155,10 @@ export default function BrowsePropertiesPage() {
       <CategoryFilter categories={categories} active={activeCategory} onChange={setActiveCategory} />
       <View style={styles.sectionHeadingRow}>
         <Text style={styles.sectionTitle}>Featured Properties</Text>
-        <Text style={styles.sectionCount}>
+        {/* <Text style={styles.sectionCount}>
           {properties.length}{" "}
           {properties.length === 1 ? "listing" : "listings"}
-        </Text>
+        </Text> */}
       </View>
     </View>
   );

@@ -41,7 +41,15 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
   const [emailError, setEmailError] = useState("");
   const [termsError, setTermsError] = useState("");
 
-  const registerOpacity = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   const handleRegister = useCallback(async () => {
     const result = registerStep1Schema.safeParse({ fullName, email });
@@ -87,64 +95,62 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
   }, [fullName, email, termsAccepted, registrationToken, router, refreshFavorites]);
 
   return (
-    <AuthLayout>
-      <Animated.View style={{ opacity: registerOpacity }}>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>Complete Profile</Text>
-          <Text style={styles.headerSubtitle}>We need a few details to create your account.</Text>
-        </View>
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      <View style={styles.headerTextContainer}>
+        <Text style={styles.headerTitle}>Complete Profile</Text>
+        <Text style={styles.headerSubtitle}>We need a few details to create your account.</Text>
+      </View>
 
-        <CustomInput 
-          label="Full Name" 
-          value={fullName} 
-          onChange={(t: string) => { setFullName(t); if (nameError) setNameError(""); }} 
-          error={nameError} 
-          placeholder="Enter your full name" 
-          autoCapitalize="words" 
-        />
-        
-        <CustomInput 
-          label="Email Address" 
-          value={email} 
-          onChange={(t: string) => { setEmail(t); if (emailError) setEmailError(""); }} 
-          error={emailError} 
-          placeholder="name@example.com (optional)" 
-          keyboardType="email-address" 
-          autoCapitalize="none" 
-        />
+      <CustomInput 
+        label="Full Name" 
+        value={fullName} 
+        onChange={(t: string) => { setFullName(t); if (nameError) setNameError(""); }} 
+        error={nameError} 
+        placeholder="Enter your full name" 
+        autoCapitalize="words" 
+      />
+      
+      <CustomInput 
+        label="Email Address" 
+        value={email} 
+        onChange={(t: string) => { setEmail(t); if (emailError) setEmailError(""); }} 
+        error={emailError} 
+        placeholder="name@example.com (optional)" 
+        keyboardType="email-address" 
+        autoCapitalize="none" 
+      />
 
-        <View style={styles.termsRow}>
-          <TouchableOpacity
-            onPress={() => { setTermsAccepted(!termsAccepted); if (termsError) setTermsError(""); }}
-            style={[styles.checkbox, termsAccepted ? styles.checkboxActive : (termsError ? styles.checkboxError : styles.checkboxDefault)]}
-            activeOpacity={0.7}
-          >
-            {termsAccepted && <Text style={styles.checkboxCheck}>✓</Text>}
-          </TouchableOpacity>
-          <Text style={styles.termsText}>
-            I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text>.
-          </Text>
-        </View>
-        {termsError ? <Text style={styles.termsErrorText}>{termsError}</Text> : null}
-
+      <View style={styles.termsRow}>
         <TouchableOpacity
-          style={[styles.primaryButton, { opacity: fullName.trim().length >= 2 && termsAccepted ? 1 : 0.5, marginTop: 16 }]}
-          onPress={handleRegister}
-          disabled={fullName.trim().length < 2 || !termsAccepted || loading}
-          activeOpacity={0.9}
+          onPress={() => { setTermsAccepted(!termsAccepted); if (termsError) setTermsError(""); }}
+          style={[styles.checkbox, termsAccepted ? styles.checkboxActive : (termsError ? styles.checkboxError : styles.checkboxDefault)]}
+          activeOpacity={0.7}
         >
-          <Text style={styles.primaryButtonText}>{loading ? "Saving..." : "Continue"}</Text>
+          {termsAccepted && <Text style={styles.checkboxCheck}>✓</Text>}
         </TouchableOpacity>
+        <Text style={styles.termsText}>
+          I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text>.
+        </Text>
+      </View>
+      {termsError ? <Text style={styles.termsErrorText}>{termsError}</Text> : null}
 
-        {onGoBackToLogin && (
-           <TouchableOpacity style={{ marginTop: 24, alignItems: "center" }} onPress={onGoBackToLogin}>
-             <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.primary }}>
-               Go back to Login
-             </Text>
-           </TouchableOpacity>
-        )}
-      </Animated.View>
-    </AuthLayout>
+      <TouchableOpacity
+        style={[styles.primaryButton, { opacity: fullName.trim().length >= 2 && termsAccepted ? 1 : 0.5, marginTop: 16 }]}
+        onPress={handleRegister}
+        disabled={fullName.trim().length < 2 || !termsAccepted || loading}
+        activeOpacity={0.9}
+      >
+        <Text style={styles.primaryButtonText}>{loading ? "Saving..." : "Continue"}</Text>
+      </TouchableOpacity>
+
+      {onGoBackToLogin && (
+          <TouchableOpacity style={{ marginTop: 24, alignItems: "center" }} onPress={onGoBackToLogin}>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.primary }}>
+              Go back to Login
+            </Text>
+          </TouchableOpacity>
+      )}
+    </Animated.View>
   );
 }
 

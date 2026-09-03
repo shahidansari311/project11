@@ -23,7 +23,8 @@ import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
 
 import { propertyService } from "../../services/property.service";
-import { Property, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
+import { investmentService } from "../../services/investment.service";
+import { Property, InvestmentInfo, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
 import LoginPromptModal from "@/components/LoginPromptModal";
 import FavoriteButton from "@/components/ui/FavoriteButton";
 import ImageViewing from "react-native-image-viewing";
@@ -34,7 +35,7 @@ import PropertyTitle from "./components/PropertyTitle";
 import PropertyHighlights from "./components/PropertyHighlights";
 import PropertyFinancials from "./components/PropertyFinancials";
 import PropertyPriceGraph from "./components/PropertyPriceGraph";
-import PropertyActionBar from "./components/PropertyActionBar";
+import InvestNowPanel from "./components/InvestNowPanel";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -58,6 +59,8 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
+  const [investmentInfo, setInvestmentInfo] = useState<InvestmentInfo | null>(null);
+  const [investInfoLoading, setInvestInfoLoading] = useState(true);
 
   const checkAuthStatus = async () => {
     try {
@@ -67,6 +70,18 @@ export default function PropertyDetailPage({ id }: { id: string }) {
       setIsGuest(true);
     }
   };
+
+  const loadInvestmentInfo = useCallback(async () => {
+    try {
+      setInvestInfoLoading(true);
+      const res = await investmentService.getPropertyInvestmentInfo(id);
+      if (res?.data) setInvestmentInfo(res.data);
+    } catch (e) {
+      // Silent fail — not critical
+    } finally {
+      setInvestInfoLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
     let isMounted = true;
@@ -86,19 +101,12 @@ export default function PropertyDetailPage({ id }: { id: string }) {
 
     checkAuthStatus();
     loadProperty();
+    loadInvestmentInfo();
 
     return () => {
       isMounted = false;
     };
   }, [id]);
-
-  const handleInvestPress = () => {
-    if (isGuest) {
-      setShowLoginPrompt(true);
-    } else {
-      router.push("/agreement" as any);
-    }
-  };
 
   if (isLoading) {
     return <PropertyDetailSkeleton onBack={() => router.back()} />;
@@ -208,11 +216,22 @@ export default function PropertyDetailPage({ id }: { id: string }) {
         </View>
       </Animated.ScrollView>
 
-      <PropertyActionBar
-        property={property}
-        insetsBottom={insets.bottom}
-        onInvestPress={handleInvestPress}
-      />
+      {/* ── Floating InvestNow Panel ── */}
+      <View
+        style={[
+          styles.investPanelContainer,
+          { bottom: Math.max(insets.bottom + 10, 16) },
+        ]}
+      >
+        <InvestNowPanel
+          propertyId={id}
+          investmentInfo={investmentInfo}
+          isLoading={investInfoLoading}
+          isGuest={isGuest}
+          onRequireLogin={() => setShowLoginPrompt(true)}
+          onSuccess={loadInvestmentInfo}
+        />
+      </View>
 
       {/* ── Login Prompt Modal ── */}
       <LoginPromptModal
@@ -314,6 +333,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 8,
+  },
+  // ── Invest Now Panel ──
+  investPanelContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
   },
   // ── Like button on hero image ──
   heroLikeBtn: {

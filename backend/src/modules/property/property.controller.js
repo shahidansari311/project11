@@ -14,10 +14,10 @@ async function createProperty(req, res, next) {
       location,
       status,
       targetReturn,
-      minInvestment,
       totalPrice,
       totalSize,
       category,
+      youtubeVideoUrl,
     } = req.body;
 
     const property = await propertyService.createProperty({
@@ -27,10 +27,10 @@ async function createProperty(req, res, next) {
       location,
       status,
       targetReturn,
-      minInvestment,
       totalPrice,
       totalSize,
       category,
+      youtubeVideoUrl,
     });
 
     return successResponse(res, 201, property, "Property created successfully");
@@ -163,6 +163,24 @@ async function deletePriceHistory(req, res, next) {
   }
 }
 
+/**
+ * GET /public/property/:id/investment-info
+ * GET /user/property/:id/investment-info
+ * Returns per-unit price, remaining units, min/max investment for the property.
+ */
+async function getPropertyInvestmentInfo(req, res, next) {
+  try {
+    const { id } = req.params;
+    const info = await propertyService.getPropertyInvestmentInfo(id);
+    return successResponse(res, 200, info, "Property investment info retrieved successfully");
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   createProperty,
   updateProperty,
@@ -174,4 +192,5 @@ module.exports = {
   addPriceHistory,
   editPriceHistory,
   deletePriceHistory,
+  getPropertyInvestmentInfo,
 };

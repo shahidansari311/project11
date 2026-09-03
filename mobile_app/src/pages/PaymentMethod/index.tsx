@@ -1,17 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Colors } from "@/constants/colors";
+import { investmentService } from "../../services/investment.service";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function PaymentMethodPage() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const { userProfile, refreshAuth } = useAuth();
   
-  // Dummy data (No actual data as requested, just enough to test the logic)
-  const amountToPay = 250000; // > 100,000 to trigger razorpay disable logic
+  const propertyId = params.propertyId as string;
+  const units = params.units ? parseInt(params.units as string, 10) : 1;
+  const amountToPay = params.amount ? parseFloat(params.amount as string) : 250000;
+  
   const isRazorpayDisabled = amountToPay > 100000;
 
   const [showWarningModal, setShowWarningModal] = useState(false);
+  const [showKycModal, setShowKycModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [activeTab, setActiveTab] = useState<"razorpay" | "bank">(
     isRazorpayDisabled ? "bank" : "razorpay"
@@ -33,7 +41,34 @@ export default function PaymentMethodPage() {
 
   const handleUploadProof = () => {
     // Empty logic for now
-    // Could also use a custom modal here, but leaving as is for now or just ignoring.
+  };
+
+  const handleConfirmPayment = async () => {
+    setIsSubmitting(true);
+    try {
+      // 1. Create the investment (PENDING)
+      await investmentService.createInvestment(propertyId, units);
+      
+      // 2. Check KYC status
+      await refreshAuth(); // Ensure we have latest profile
+      const hasAadhar = userProfile?.documents?.some(d => d.documentType === "AADHAAR" && d.status === "APPROVED");
+      const hasPan = userProfile?.documents?.some(d => d.documentType === "PAN" && d.status === "APPROVED");
+      
+      const isKycVerified = hasAadhar && hasPan;
+      
+      if (!isKycVerified) {
+        // Show KYC warning popup
+        setShowKycModal(true);
+      } else {
+        // Navigate directly to portfolio
+        router.replace("/(tabs)/portfolio");
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Failed to submit investment. Please try again.";
+      alert(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -159,14 +194,19 @@ export default function PaymentMethodPage() {
       {/* Fixed Bottom Action */}
       <View style={styles.bottomAction}>
         <TouchableOpacity
-          style={styles.confirmButton}
+          style={[styles.confirmButton, isSubmitting && { opacity: 0.7 }]}
           activeOpacity={0.8}
-          onPress={() => {
-            // Placeholder
-          }}
+          onPress={handleConfirmPayment}
+          disabled={isSubmitting}
         >
-          <Text style={styles.confirmButtonText}>Confirm Payment</Text>
-          <Ionicons name="arrow-forward" size={18} color={Colors.onPrimary} />
+          {isSubmitting ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <>
+              <Text style={styles.confirmButtonText}>Confirm Payment</Text>
+              <Ionicons name="arrow-forward" size={18} color={Colors.onPrimary} />
+            </>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -194,6 +234,48 @@ export default function PaymentMethodPage() {
               activeOpacity={0.8}
             >
               <Text style={styles.modalButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* KYC Warning Modal */}
+      <Modal
+        visible={showKycModal}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={[styles.modalIconCircle, { backgroundColor: Colors.primary }]}>
+              <Ionicons name="document-text" size={32} color={Colors.onPrimary} />
+            </View>
+            
+            <Text style={styles.modalTitle}>Verification Pending</Text>
+            <Text style={styles.modalMessage}>
+              Your investment request has been recorded. However, you must upload your Aadhar and PAN cards for final verification.
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { marginBottom: 12 }]}
+              onPress={() => {
+                setShowKycModal(false);
+                router.replace("/(tabs)/profile");
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalButtonText}>Upload Now</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: Colors.surfaceContainerHighest }]}
+              onPress={() => {
+                setShowKycModal(false);
+                router.replace("/(tabs)/portfolio");
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.modalButtonText, { color: Colors.primary }]}>Do it Later</Text>
             </TouchableOpacity>
           </View>
         </View>

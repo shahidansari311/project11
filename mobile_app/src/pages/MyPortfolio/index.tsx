@@ -23,6 +23,8 @@ import { Colors } from "@/constants/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { investmentService } from "@/services/investment.service";
 import { Investment, InvestmentStatus, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
+import { useAuth } from "../../contexts/AuthContext";
+import { useRouter, useFocusEffect } from "expo-router";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-IN", {
@@ -72,14 +74,22 @@ const PortfolioSkeleton = ({ insets }: { insets: any }) => {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <Animated.View style={[styles.scrollContent, { opacity: anim }]}>
+      <Animated.View style={[styles.scrollContent, { opacity: anim, paddingTop: 4 }]}>
         {/* Title */}
         <View style={styles.skelTitle} />
-        {/* Summary Card */}
-        <View style={styles.skelSummary} />
+        {/* Summary Card (Primary Color) */}
+        <View style={styles.skelSummary}>
+          <View style={styles.skelSummaryLabel} />
+          <View style={styles.skelSummaryValue} />
+          <View style={styles.skelStatsRow}>
+            <View style={styles.skelStatBox} />
+            <View style={styles.skelStatBox} />
+            <View style={styles.skelStatBox} />
+          </View>
+        </View>
         {/* Filter Chips */}
         <View style={styles.skelFilters}>
-          <View style={styles.skelChip} />
+          <View style={[styles.skelChip, { width: 50, backgroundColor: Colors.primary }]} />
           <View style={styles.skelChip} />
           <View style={styles.skelChip} />
           <View style={styles.skelChip} />
@@ -87,9 +97,26 @@ const PortfolioSkeleton = ({ insets }: { insets: any }) => {
         {/* Subtitle */}
         <View style={styles.skelSubtitle} />
         {/* Cards */}
-        <View style={styles.skelCard} />
-        <View style={styles.skelCard} />
-        <View style={styles.skelCard} />
+        <View style={styles.skelCard}>
+          <View style={styles.skelCardHeader}>
+            <View style={styles.skelPropImage} />
+            <View style={{ flex: 1, gap: 8 }}>
+              <View style={styles.skelPropTitle} />
+              <View style={styles.skelPropLocation} />
+            </View>
+          </View>
+          <View style={styles.skelDetailGrid} />
+        </View>
+        <View style={styles.skelCard}>
+          <View style={styles.skelCardHeader}>
+            <View style={styles.skelPropImage} />
+            <View style={{ flex: 1, gap: 8 }}>
+              <View style={styles.skelPropTitle} />
+              <View style={styles.skelPropLocation} />
+            </View>
+          </View>
+          <View style={styles.skelDetailGrid} />
+        </View>
       </Animated.View>
     </View>
   );
@@ -97,11 +124,28 @@ const PortfolioSkeleton = ({ insets }: { insets: any }) => {
 
 export default function MyPortfolioPage() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  
+  const { userProfile, refreshAuth } = useAuth();
+  
+  const aadharDoc = userProfile?.documents?.find(d => d.documentType === "AADHAAR");
+  const panDoc = userProfile?.documents?.find(d => d.documentType === "PAN");
+  const hasAadhar = aadharDoc?.status === "APPROVED";
+  const hasPan = panDoc?.status === "APPROVED";
+  const isKycVerified = hasAadhar && hasPan;
+
+  let pendingMessage = "Document verification pending";
+  if (!hasAadhar && !hasPan) {
+    pendingMessage = "Aadhar & PAN verification pending";
+  } else if (!hasAadhar) {
+    pendingMessage = "Aadhar verification pending";
+  } else if (!hasPan) {
+    pendingMessage = "PAN verification pending";
+  }
 
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<InvestmentStatus | "ALL">("ALL");
 
   const loadInvestments = useCallback(async (silent = false) => {
@@ -119,46 +163,20 @@ export default function MyPortfolioPage() {
     }
   }, []);
 
-  useEffect(() => {
-    loadInvestments();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadInvestments(true);
+      refreshAuth();
+    }, [loadInvestments, refreshAuth])
+  );
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
+    await refreshAuth();
     loadInvestments(true);
   };
 
-  const handleCancel = (investment: Investment) => {
-    Alert.alert(
-      "Cancel Investment",
-      `Cancel your investment of ${formatCurrency(investment.totalAmount)} for ${investment.units} unit${investment.units > 1 ? "s" : ""}?\n\nUnits will be released back immediately.`,
-      [
-        { text: "Keep", style: "cancel" },
-        {
-          text: "Cancel Investment",
-          style: "destructive",
-          onPress: async () => {
-            setCancellingId(investment.id);
-            try {
-              await investmentService.cancelInvestment(investment.id);
-              setInvestments((prev) =>
-                prev.map((inv) =>
-                  inv.id === investment.id ? { ...inv, status: "CANCELLED" } : inv
-                )
-              );
-            } catch (err: any) {
-              Alert.alert(
-                "Error",
-                err?.response?.data?.message || "Failed to cancel investment."
-              );
-            } finally {
-              setCancellingId(null);
-            }
-          },
-        },
-      ]
-    );
-  };
+  // Removed handleCancel function as per requirements
 
   // ── Derived stats ──
   const approvedInvestments = investments.filter((i) => i.status === "APPROVED");
@@ -271,10 +289,17 @@ export default function MyPortfolioPage() {
           filteredInvestments.map((inv) => {
             const cfg = STATUS_CONFIG[inv.status];
             const img = inv.property?.images?.[0] ?? PLACEHOLDER_IMAGE;
-            const isCancelling = cancellingId === inv.id;
 
             return (
-              <View key={inv.id} style={styles.investmentCard}>
+              <TouchableOpacity 
+                key={inv.id} 
+                style={[
+                  styles.investmentCard,
+                  inv.status === "REJECTED" && styles.investmentCardRejected,
+                ]}
+                activeOpacity={0.85}
+                onPress={() => router.push(`/portfolio/${inv.id}` as any)}
+              >
                 {/* Property image + title */}
                 <View style={styles.cardHeader}>
                   <Image source={{ uri: img }} style={styles.propImage} />
@@ -322,25 +347,19 @@ export default function MyPortfolioPage() {
                   )}
                 </View>
 
-                {/* Cancel button (PENDING only) */}
-                {inv.status === "PENDING" && (
-                  <TouchableOpacity
-                    style={styles.cancelBtn}
-                    onPress={() => handleCancel(inv)}
-                    disabled={isCancelling}
-                    activeOpacity={0.8}
-                  >
-                    {isCancelling ? (
-                      <ActivityIndicator size="small" color={Colors.error} />
-                    ) : (
-                      <>
-                        <Ionicons name="close" size={13} color={Colors.error} />
-                        <Text style={styles.cancelText}>Cancel Investment</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                {/* KYC Banner */}
+                {!isKycVerified ? (
+                  <View style={styles.kycWarningBadge}>
+                    <Ionicons name="warning" size={14} color="#B8860B" />
+                    <Text style={styles.kycWarningText}>{pendingMessage}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.kycSuccessBadge}>
+                    <Ionicons name="checkmark-circle" size={14} color="#2E8B57" />
+                    <Text style={styles.kycSuccessText}>All documents verified</Text>
+                  </View>
                 )}
-              </View>
+              </TouchableOpacity>
             );
           })
         )}
@@ -505,6 +524,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.outlineVariant,
   },
+  investmentCardRejected: {
+    backgroundColor: "#FFF0F0",
+    borderColor: "#FFCDD2",
+  },
   cardHeader: {
     flexDirection: "row",
     gap: 12,
@@ -589,21 +612,35 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  cancelBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+  kycWarningBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.error,
-    borderRadius: 12,
+    backgroundColor: '#FFF8E1',
     paddingVertical: 8,
-    backgroundColor: Colors.errorContainer,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 12,
   },
-  cancelText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: Colors.error,
+  kycWarningText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B8860B',
+  },
+  kycSuccessBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E8F5E9',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  kycSuccessText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2E7D32',
   },
 
   // ── Skeleton Styles ──
@@ -617,9 +654,35 @@ const styles = StyleSheet.create({
   skelSummary: {
     width: "100%",
     height: 160,
-    backgroundColor: Colors.surfaceContainerHigh,
+    backgroundColor: Colors.primary,
     borderRadius: 24,
     marginBottom: 16,
+    padding: 24,
+    opacity: 0.8,
+  },
+  skelSummaryLabel: {
+    width: 120,
+    height: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skelSummaryValue: {
+    width: 200,
+    height: 36,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    borderRadius: 8,
+    marginBottom: 24,
+  },
+  skelStatsRow: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  skelStatBox: {
+    flex: 1,
+    height: 30,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 6,
   },
   skelFilters: {
     flexDirection: "row",
@@ -641,9 +704,40 @@ const styles = StyleSheet.create({
   },
   skelCard: {
     width: "100%",
-    height: 180,
-    backgroundColor: Colors.surfaceContainerHigh,
+    backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+  },
+  skelCardHeader: {
+    flexDirection: "row",
+    gap: 12,
     marginBottom: 12,
   },
+  skelPropImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceContainerHigh,
+  },
+  skelPropTitle: {
+    width: "70%",
+    height: 16,
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: 4,
+  },
+  skelPropLocation: {
+    width: "40%",
+    height: 12,
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: 4,
+  },
+  skelDetailGrid: {
+    height: 56,
+    backgroundColor: Colors.surfaceContainerLow,
+    borderRadius: 12,
+    marginBottom: 10,
+  }
 });

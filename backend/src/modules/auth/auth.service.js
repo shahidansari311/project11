@@ -459,7 +459,8 @@ async function getUserById(userId) {
       createdby_admin: true,
       hasPurchasedProperty: true,
       createdAt: true,
-      updatedAt: true
+      updatedAt: true,
+      documents: true,
     }
   });
 

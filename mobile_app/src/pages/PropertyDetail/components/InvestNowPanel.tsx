@@ -126,6 +126,8 @@ export default function InvestNowPanel({
     setInputText(String(clamped));
   };
 
+  const router = require("expo-router").useRouter();
+
   const handlePayNow = async () => {
     if (isGuest) {
       onRequireLogin();
@@ -136,22 +138,15 @@ export default function InvestNowPanel({
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      await investmentService.createInvestment(propertyId, units);
-      setSuccessMessage(
-        `✅ Investment request for ${units} unit${units > 1 ? "s" : ""} (${formatCurrency(investAmount)}) submitted!\nAwaiting admin approval.`
-      );
-      setIsExpanded(false);
-      onSuccess?.();
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.message ||
-        "Failed to submit investment. Please try again.";
-      Alert.alert("Error", msg);
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Instead of calling API immediately, route to agreement page
+    router.push({
+      pathname: "/agreement",
+      params: {
+        propertyId,
+        units: String(units),
+        amount: String(investAmount),
+      },
+    });
   };
 
   // ── Status pill label ──

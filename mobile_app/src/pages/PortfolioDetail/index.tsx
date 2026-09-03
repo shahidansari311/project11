@@ -1,0 +1,445 @@
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Image,
+  Dimensions,
+  Linking,
+  Alert
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Colors } from "@/constants/colors";
+import { useAuth } from "@/contexts/AuthContext";
+import { investmentService } from "@/services/investment.service";
+import { propertyService } from "@/services/property.service";
+import { Investment, Property, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
+import { LineChart } from "react-native-gifted-charts";
+
+const { width } = Dimensions.get("window");
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
+
+const formatDate = (dateStr: string) =>
+  new Date(dateStr).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+export default function PortfolioDetailPage({ id }: { id: string }) {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { userProfile } = useAuth();
+
+  const [investment, setInvestment] = useState<Investment | null>(null);
+  const [property, setProperty] = useState<Property | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // KYC Check
+  const aadharDoc = userProfile?.documents?.find(d => d.documentType === "AADHAAR");
+  const panDoc = userProfile?.documents?.find(d => d.documentType === "PAN");
+  const hasAadhar = aadharDoc?.status === "APPROVED";
+  const hasPan = panDoc?.status === "APPROVED";
+  const isKycVerified = hasAadhar && hasPan;
+
+  let pendingMessage = "Verify Aadhar & PAN to download";
+  if (!hasAadhar && hasPan) {
+    pendingMessage = "Verify Aadhar to download";
+  } else if (hasAadhar && !hasPan) {
+    pendingMessage = "Verify PAN to download";
+  }
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const invRes = await investmentService.getMyInvestmentById(id);
+        if (invRes?.data) {
+          setInvestment(invRes.data);
+          
+          // Load full property to get history etc.
+          const propRes = await propertyService.getPropertyById(invRes.data.propertyId);
+          if (propRes?.data) {
+            setProperty(propRes.data);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load investment details", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (!investment) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ color: Colors.onSurface }}>Investment not found</Text>
+      </View>
+    );
+  }
+
+  const img = investment.property?.images?.[0] ?? PLACEHOLDER_IMAGE;
+
+  // Process chart data if price history exists
+  const chartData = property?.priceHistory?.map(ph => ({
+    value: ph.price,
+    label: new Date(ph.date).toLocaleDateString("en-IN", { month: "short" })
+  })) || [{ value: investment.unitPriceAtTime, label: "Current" }];
+
+  const currentPrice = property?.perUnitPrice || investment.unitPriceAtTime;
+  const priceDiff = currentPrice - investment.unitPriceAtTime;
+  const isPositive = priceDiff >= 0;
+
+  const handleDownloadAgreement = () => {
+    if (investment.status === "PENDING") {
+      Alert.alert(
+        "Payment Pending",
+        "Your investment is currently pending admin approval. You can download the agreement once it is approved."
+      );
+      return;
+    }
+
+    if (!isKycVerified) {
+      Alert.alert(
+        "Verification Pending",
+        "You must upload and verify your Aadhar and PAN cards to download the final agreement.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Upload Now", onPress: () => router.push("/(tabs)/profile") }
+        ]
+      );
+      return;
+    }
+    // Implement real download logic here
+    Alert.alert("Success", "Downloading Agreement...");
+  };
+
+  return (
+    <View style={[styles.root, { paddingBottom: insets.bottom }]}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Investment Details</Text>
+        <View style={styles.headerPlaceholder} />
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Hero Card */}
+        <View style={styles.heroCard}>
+          <Image source={{ uri: img }} style={styles.heroImage} />
+          <View style={styles.heroOverlay}>
+            <Text style={styles.heroTitle} numberOfLines={1}>
+              {investment.property?.title ?? "Property"}
+            </Text>
+            <Text style={styles.heroLocation}>
+              <Ionicons name="location-outline" size={14} color="#fff" />{" "}
+              {investment.property?.location ?? "—"}
+            </Text>
+          </View>
+        </View>
+
+        {/* Snapshot */}
+        <View style={styles.snapshotCard}>
+          <Text style={styles.sectionTitle}>Snapshot</Text>
+          <View style={styles.snapshotGrid}>
+            <View style={styles.snapshotItem}>
+              <Text style={styles.snapshotLabel}>Units Owned</Text>
+              <Text style={styles.snapshotValue}>{investment.units}</Text>
+            </View>
+            <View style={styles.snapshotItem}>
+              <Text style={styles.snapshotLabel}>Invested At</Text>
+              <Text style={styles.snapshotValue}>{formatCurrency(investment.unitPriceAtTime)}</Text>
+            </View>
+            <View style={styles.snapshotItem}>
+              <Text style={styles.snapshotLabel}>Total Invested</Text>
+              <Text style={styles.snapshotValue}>{formatCurrency(investment.totalAmount)}</Text>
+            </View>
+            <View style={styles.snapshotItem}>
+              <Text style={styles.snapshotLabel}>Current Value</Text>
+              <Text style={[styles.snapshotValue, { color: isPositive ? "#2E7D32" : Colors.error }]}>
+                {formatCurrency(investment.units * currentPrice)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Graph */}
+        <View style={styles.chartCard}>
+          <Text style={styles.sectionTitle}>Value Trend</Text>
+          {property?.priceHistory && property.priceHistory.length > 1 ? (
+             <LineChart
+               data={chartData}
+               width={width - 64}
+               height={180}
+               spacing={50}
+               initialSpacing={20}
+               color1={Colors.primary}
+               textColor1={Colors.onSurface}
+               dataPointsColor1={Colors.primary}
+               textFontSize={10}
+               hideRules
+               yAxisColor="transparent"
+               xAxisColor={Colors.outlineVariant}
+               yAxisTextStyle={{ color: Colors.outline, fontSize: 10 }}
+               xAxisLabelTextStyle={{ color: Colors.outline, fontSize: 10, width: 40 }}
+               isAnimated
+               thickness={3}
+               curved
+             />
+          ) : (
+            <View style={styles.noDataBox}>
+              <Ionicons name="bar-chart-outline" size={32} color={Colors.outlineVariant} />
+              <Text style={styles.noDataText}>Not enough data to show trend</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Documents */}
+        <View style={styles.docsCard}>
+          <Text style={styles.sectionTitle}>Documents</Text>
+          
+          <TouchableOpacity 
+            style={[styles.docRow, (!isKycVerified || investment.status === "PENDING") && styles.docRowDisabled]}
+            activeOpacity={0.7}
+            onPress={handleDownloadAgreement}
+          >
+            <View style={styles.docIconBox}>
+              <Ionicons name="document-text" size={20} color={isKycVerified && investment.status !== "PENDING" ? Colors.primary : Colors.outline} />
+            </View>
+            <View style={styles.docInfo}>
+              <Text style={[styles.docTitle, (!isKycVerified || investment.status === "PENDING") && { color: Colors.outline }]}>Fractional Ownership Agreement</Text>
+              <Text style={styles.docSubtitle}>Signed on {formatDate(investment.createdAt)}</Text>
+            </View>
+            <Ionicons name="download-outline" size={20} color={isKycVerified && investment.status !== "PENDING" ? Colors.primary : Colors.outline} />
+          </TouchableOpacity>
+
+          {investment.status === "PENDING" ? (
+            <View style={styles.kycWarningBox}>
+              <Ionicons name="time" size={16} color="#B8860B" />
+              <Text style={styles.kycWarningText}>Payment pending admin approval</Text>
+            </View>
+          ) : !isKycVerified && (
+            <View style={styles.kycWarningBox}>
+              <Ionicons name="warning" size={16} color="#B8860B" />
+              <Text style={styles.kycWarningText}>{pendingMessage}</Text>
+              <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+                <Text style={styles.kycWarningLink}>Verify Now</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.outlineVariant,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.surfaceContainerHighest,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.onSurface,
+  },
+  headerPlaceholder: {
+    width: 40,
+  },
+  content: {
+    flex: 1,
+  },
+  heroCard: {
+    margin: 16,
+    height: 180,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: Colors.surfaceContainer,
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  heroOverlay: {
+    position: "absolute",
+    bottom: 0, left: 0, right: 0,
+    padding: 16,
+    paddingTop: 40,
+    backgroundColor: 'rgba(0,0,0,0.4)'
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  heroLocation: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+  snapshotCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.onSurface,
+    marginBottom: 16,
+  },
+  snapshotGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+  snapshotItem: {
+    width: "45%",
+  },
+  snapshotLabel: {
+    fontSize: 11,
+    color: Colors.outline,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  snapshotValue: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: Colors.onSurface,
+  },
+  chartCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+    overflow: "hidden",
+  },
+  noDataBox: {
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surfaceContainer,
+    borderRadius: 12,
+  },
+  noDataText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: Colors.outline,
+  },
+  docsCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+  },
+  docRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.surfaceContainer,
+    padding: 12,
+    borderRadius: 12,
+  },
+  docRowDisabled: {
+    opacity: 0.6,
+  },
+  docIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  docInfo: {
+    flex: 1,
+  },
+  docTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.onSurface,
+    marginBottom: 2,
+  },
+  docSubtitle: {
+    fontSize: 11,
+    color: Colors.outline,
+  },
+  kycWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E1',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  kycWarningText: {
+    fontSize: 12,
+    color: '#B8860B',
+    flex: 1,
+  },
+  kycWarningLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  }
+});

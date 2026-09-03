@@ -8,6 +8,8 @@ export default function ViewSignAgreementPage() {
   const router = useRouter();
   const [isChecked, setIsChecked] = useState(false);
 
+  const params = require("expo-router").useLocalSearchParams();
+
   return (
     <View style={styles.root}>
       {/* Header */}
@@ -96,8 +98,15 @@ export default function ViewSignAgreementPage() {
           activeOpacity={0.8}
           disabled={!isChecked}
           onPress={() => {
-            // Push to payment screen
-            router.push("/payment" as any);
+            // Push to payment screen with params
+            router.push({
+              pathname: "/payment",
+              params: {
+                propertyId: params.propertyId,
+                units: params.units,
+                amount: params.amount,
+              },
+            });
           }}
         >
           <Ionicons name="pencil" size={18} color={isChecked ? Colors.onPrimary : Colors.outline} />

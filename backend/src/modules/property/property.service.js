@@ -18,10 +18,18 @@ async function syncLatestPriceToProperty(propertyId) {
   
   if (latestHistory) {
     const propertyModel = getPropertyModel();
-    await propertyModel.update({
-      where: { id: propertyId },
-      data: { totalPrice: latestHistory.price }
-    });
+    const property = await propertyModel.findUnique({ where: { id: propertyId } });
+    if (property) {
+      const newPerUnitPrice = latestHistory.price / property.totalSize;
+      await propertyModel.update({
+        where: { id: propertyId },
+        data: { 
+          totalPrice: latestHistory.price,
+          perUnitPrice: newPerUnitPrice,
+          minInvestment: newPerUnitPrice // Always auto-sync 1 unit
+        }
+      });
+    }
   }
 }
 

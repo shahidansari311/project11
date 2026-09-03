@@ -15,6 +15,7 @@ import {
   Dimensions,
   StatusBar,
   Animated,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,7 +24,8 @@ import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
 
 import { propertyService } from "../../services/property.service";
-import { Property, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
+import { investmentService } from "../../services/investment.service";
+import { Property, InvestmentInfo, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
 import LoginPromptModal from "@/components/LoginPromptModal";
 import FavoriteButton from "@/components/ui/FavoriteButton";
 import ImageViewing from "react-native-image-viewing";
@@ -33,7 +35,8 @@ import PropertyHeroBanner from "./components/PropertyHeroBanner";
 import PropertyTitle from "./components/PropertyTitle";
 import PropertyHighlights from "./components/PropertyHighlights";
 import PropertyFinancials from "./components/PropertyFinancials";
-import PropertyActionBar from "./components/PropertyActionBar";
+import PropertyPriceGraph from "./components/PropertyPriceGraph";
+import InvestNowPanel from "./components/InvestNowPanel";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -57,6 +60,9 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
+  const [investmentInfo, setInvestmentInfo] = useState<InvestmentInfo | null>(null);
+  const [investInfoLoading, setInvestInfoLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const checkAuthStatus = async () => {
     try {
@@ -67,39 +73,47 @@ export default function PropertyDetailPage({ id }: { id: string }) {
     }
   };
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadProperty = async () => {
-      try {
-        const res = await propertyService.getPropertyById(id);
-        if (isMounted && res && res.data) {
-          setProperty(res.data);
-        }
-      } catch (error) {
-        if (isMounted) console.error("Failed to fetch property details:", error);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-
-    checkAuthStatus();
-    loadProperty();
-
-    return () => {
-      isMounted = false;
-    };
+  const loadInvestmentInfo = useCallback(async () => {
+    try {
+      setInvestInfoLoading(true);
+      const res = await investmentService.getPropertyInvestmentInfo(id);
+      if (res?.data) setInvestmentInfo(res.data);
+    } catch (e) {
+      // Silent fail — not critical
+    } finally {
+      setInvestInfoLoading(false);
+    }
   }, [id]);
 
-  const handleInvestPress = () => {
-    if (isGuest) {
-      setShowLoginPrompt(true);
-    } else {
-      router.push("/agreement" as any);
+  const loadProperty = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setIsLoading(true);
+    try {
+      const res = await propertyService.getPropertyById(id);
+      if (res && res.data) {
+        setProperty(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch property details:", error);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [id]);
 
-  if (isLoading) {
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setIsRefreshing(true);
+    await Promise.all([
+      checkAuthStatus(),
+      loadProperty(isRefresh),
+      loadInvestmentInfo()
+    ]);
+    if (isRefresh) setIsRefreshing(false);
+  }, [loadProperty, loadInvestmentInfo]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (isLoading && !isRefreshing) {
     return <PropertyDetailSkeleton onBack={() => router.back()} />;
   }
 
@@ -155,6 +169,15 @@ export default function PropertyDetailPage({ id }: { id: string }) {
             scrollViewRef.current?.scrollTo({ y: MAX_SCROLL_Y, animated: true });
           }
         }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => fetchData(true)}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+            progressViewOffset={insets.top + 50}
+          />
+        }
       >
         <Animated.View style={{ zIndex: 0, transform: [{ 
             translateY: scrollY.interpolate({
@@ -201,15 +224,28 @@ export default function PropertyDetailPage({ id }: { id: string }) {
             <PropertyHighlights property={property} />
 
             <PropertyFinancials property={property} />
+
+            <PropertyPriceGraph priceHistory={property.priceHistory} />
           </ScrollView>
         </View>
       </Animated.ScrollView>
 
-      <PropertyActionBar
-        property={property}
-        insetsBottom={insets.bottom}
-        onInvestPress={handleInvestPress}
-      />
+      {/* ── Floating InvestNow Panel ── */}
+      <View
+        style={[
+          styles.investPanelContainer,
+          { bottom: Math.max(insets.bottom + 10, 16) },
+        ]}
+      >
+        <InvestNowPanel
+          propertyId={id}
+          investmentInfo={investmentInfo}
+          isLoading={investInfoLoading}
+          isGuest={isGuest}
+          onRequireLogin={() => setShowLoginPrompt(true)}
+          onSuccess={loadInvestmentInfo}
+        />
+      </View>
 
       {/* ── Login Prompt Modal ── */}
       <LoginPromptModal
@@ -311,6 +347,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 8,
+  },
+  // ── Invest Now Panel ──
+  investPanelContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
   },
   // ── Like button on hero image ──
   heroLikeBtn: {

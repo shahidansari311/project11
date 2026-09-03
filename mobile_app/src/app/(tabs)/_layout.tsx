@@ -48,6 +48,14 @@ export default function TabsLayout() {
     router.replace("/");
   }, [router]);
 
+  // Strictly enforce that guests cannot access ANY tab screens.
+  // If they somehow navigate back via hardware button, kick them out immediately.
+  React.useEffect(() => {
+    if (isGuest) {
+      router.replace("/");
+    }
+  }, [isGuest, router]);
+
   return (
     <SafeAreaView style={styles.root} edges={["top"]}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />

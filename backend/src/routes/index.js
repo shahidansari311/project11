@@ -1,18 +1,20 @@
 const express = require("express");
 const router = express.Router();
-const authRoutes = require("../modules/auth/auth.routes");
-const { verifyAuth } = require("../middlewares/auth.middleware");
+const authRoutes      = require("../modules/auth/auth.routes");
+const { verifyAuth }  = require("../middlewares/auth.middleware");
 const { requireRole } = require("../middlewares/role.middleware");
 const { successResponse } = require("../utils/apiResponse");
 
-const { validate } = require("../middlewares/validate.middleware");
+const { validate }           = require("../middlewares/validate.middleware");
 const { adminCreateUserSchema, adminUpdateUserSchema } = require("../modules/auth/auth.validation");
-const authController = require("../modules/auth/auth.controller");
+const authController         = require("../modules/auth/auth.controller");
 
-const propertyRoutes = require("../modules/property/property.routes");
-const uploadRoutes = require("../modules/upload/upload.routes");
-const documentRoutes = require("../modules/document/document.routes");
-const favoriteRoutes = require("../modules/favorite/favorite.routes");
+const propertyRoutes   = require("../modules/property/property.routes");
+const uploadRoutes     = require("../modules/upload/upload.routes");
+const documentRoutes   = require("../modules/document/document.routes");
+const favoriteRoutes   = require("../modules/favorite/favorite.routes");
+const { userRouter: investmentUserRouter, adminRouter: investmentAdminRouter } =
+  require("../modules/investment/investment.routes");
 
 // Mount auth routes
 router.use("/auth", authRoutes);
@@ -25,6 +27,10 @@ router.use("/", documentRoutes);
 
 // Mount property routes — all protected as admin-only
 router.use("/admin/property", verifyAuth, requireRole("admin"), propertyRoutes);
+
+// Mount investment routes — user and admin separately
+router.use("/user",          verifyAuth, requireRole("user"),  investmentUserRouter);
+router.use("/admin/investments", verifyAuth, requireRole("admin"), investmentAdminRouter);
 
 const { imageUpload } = require("../config/multer.config");
 const { uploadProfileImage } = require("../middlewares/upload.middleware");
@@ -40,13 +46,16 @@ router.delete("/admin/users/:id", verifyAuth, requireRole("admin"), authControll
 const propertyController = require("../modules/property/property.controller");
 
 // Public property routes (No authentication required)
-router.get("/public/property/filters", propertyController.getPropertyFilters);
-router.get("/public/property", propertyController.getAllProperties);
-router.get("/public/property/:id", propertyController.getPropertyById);
+router.get("/public/property/filters",           propertyController.getPropertyFilters);
+router.get("/public/property",                   propertyController.getAllProperties);
+router.get("/public/property/:id",               propertyController.getPropertyById);
+// Investment info (unit price, remaining units, min/max investment)
+router.get("/public/property/:id/investment-info", propertyController.getPropertyInvestmentInfo);
 
 // User property routes (protected for registered users)
-router.get("/user/property", verifyAuth, requireRole("user"), propertyController.getAllProperties);
-router.get("/user/property/:id", verifyAuth, requireRole("user"), propertyController.getPropertyById);
+router.get("/user/property",                     verifyAuth, requireRole("user"), propertyController.getAllProperties);
+router.get("/user/property/:id",                 verifyAuth, requireRole("user"), propertyController.getPropertyById);
+router.get("/user/property/:id/investment-info", verifyAuth, requireRole("user"), propertyController.getPropertyInvestmentInfo);
 
 router.get("/user/profile", verifyAuth, requireRole("user"), authController.getProfile);
 router.use("/user/favorites", verifyAuth, requireRole("user"), favoriteRoutes);

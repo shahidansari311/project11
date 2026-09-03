@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { View, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
-import { Colors } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 
 import LoginPage from "@/pages/Login";
-import RegisterPage from "@/pages/Register";
+import OtpPage from "@/pages/Otp";
 import SplashScreen from "@/pages/Splash";
 
 let hasAppLaunched = false;
 
 export default function AuthScreen() {
   const router = useRouter();
-  const [activePage, setActivePage] = useState<"login" | "register">("login");
-  const [regToken, setRegToken] = useState<string>("");
+  const [activePage, setActivePage] = useState<"login" | "otp">("login");
+  const [phoneForOtp, setPhoneForOtp] = useState<string>("");
   const { isGuest, isLoading } = useAuth();
   const [isSplashFinished, setIsSplashFinished] = useState(hasAppLaunched);
 
@@ -38,26 +36,32 @@ export default function AuthScreen() {
     }
   }, [isLoading, isGuest, isSplashFinished, router]);
 
-  // Show Splash Screen if auth is still loading, OR if minimum timer hasn't finished
-  if (isLoading || !isSplashFinished) {
+  // Show Splash Screen ONLY on first app launch while auth state is resolving
+  const isInitialLoading = isLoading && !hasAppLaunched;
+  
+  if (isInitialLoading || !isSplashFinished) {
     return <SplashScreen />;
   }
 
-  if (activePage === "login") {
-    return (
-      <LoginPage 
-        onRegisterRequired={(token) => {
-          setRegToken(token);
-          setActivePage("register");
-        }} 
-      />
-    );
-  }
-
   return (
-    <RegisterPage 
-      registrationToken={regToken}
-      onGoBackToLogin={() => setActivePage("login")} 
-    />
+    <>
+      {activePage === "login" && (
+        <LoginPage 
+          onSendOtp={(phone) => {
+            setPhoneForOtp(phone);
+            setActivePage("otp");
+          }} 
+        />
+      )}
+      {activePage === "otp" && (
+        <OtpPage
+          phone={phoneForOtp}
+          onRegisterRequired={(token) => {
+            router.push({ pathname: "/register", params: { token } });
+          }}
+          onGoBack={() => setActivePage("login")}
+        />
+      )}
+    </>
   );
 }

@@ -47,13 +47,7 @@ const createPropertySchema = z.object({
       })
       .positive("The target return must be greater than 0."),
 
-    minInvestment: z.coerce
-      .number({ 
-        required_error: "Please enter the minimum investment amount.",
-        invalid_type_error: "Minimum investment must be a valid number."
-      })
-      .positive("The minimum investment must be greater than 0."),
-
+    // minInvestment is NOT accepted from admin — always auto-computed as perUnitPrice (1 unit)
     totalPrice: z.coerce
       .number({ 
         required_error: "Please enter the total price of the property.",
@@ -61,18 +55,19 @@ const createPropertySchema = z.object({
       })
       .positive("The total price must be greater than 0."),
 
-    totalSize: z
-      .string({ 
-        required_error: "Please enter the total size (e.g., '2400 sq ft').",
-        invalid_type_error: "The total size must be text."
+    // totalSize is numeric area in sq.ft (e.g. 2000)
+    totalSize: z.coerce
+      .number({
+        required_error: "Please enter the total area of the property (e.g. 2000 for 2000 sq.ft).",
+        invalid_type_error: "The total size must be a number.",
       })
-      .trim()
-      .min(1, "Please enter the total size."),
+      .positive("The total size must be greater than 0."),
 
     category: z.enum(VALID_CATEGORIES, {
       required_error: "Please select a category for the property.",
       errorMap: () => ({ message: `Please select a valid category (${VALID_CATEGORIES.join(", ")}).` }),
     }),
+    youtubeVideoUrl: z.string().url("Must be a valid URL").optional(),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({}).passthrough().optional(),
@@ -88,14 +83,16 @@ const updatePropertySchema = z.object({
       errorMap: () => ({ message: `Status must be one of: ${VALID_STATUSES.join(", ")}` }),
     }).optional(),
     targetReturn: z.coerce.number().positive("Target return must be a positive number").optional(),
-    minInvestment: z.coerce.number().positive("Minimum investment must be a positive number").optional(),
+    // minInvestment is auto-computed — strip from update payload
     totalPrice: z.coerce.number().positive("Total price must be a positive number").optional(),
-    totalSize: z.string().trim().min(1, "Total size is required").optional(),
+    // totalSize accepts numeric area in sq.ft
+    totalSize: z.coerce.number().positive("Total size must be a positive number").optional(),
     category: z.enum(VALID_CATEGORIES, {
       errorMap: () => ({ message: `Category must be one of: ${VALID_CATEGORIES.join(", ")}` }),
     }).optional(),
     investors: z.coerce.number().int().min(0).optional(),
     clearImages: z.coerce.boolean().optional(),
+    youtubeVideoUrl: z.string().url("Must be a valid URL").optional(),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({ id: z.string().optional() }).passthrough().optional(),
@@ -119,8 +116,24 @@ const queryPropertySchema = z.object({
   }).passthrough(),
 });
 
+const addPriceHistorySchema = z.object({
+  body: z.object({
+    price: z.coerce.number().positive("Price must be a positive number"),
+  }),
+  params: z.object({ id: z.string().optional() }).passthrough().optional(),
+});
+
+const updatePriceHistorySchema = z.object({
+  body: z.object({
+    price: z.coerce.number().positive("Price must be a positive number"),
+  }),
+  params: z.object({ historyId: z.string().optional() }).passthrough().optional(),
+});
+
 module.exports = {
   createPropertySchema,
   updatePropertySchema,
   queryPropertySchema,
+  addPriceHistorySchema,
+  updatePriceHistorySchema,
 };

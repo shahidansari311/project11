@@ -16,17 +16,7 @@ export interface PropertyListResponse {
   message: string;
 }
 
-export interface FilterResponse {
-  data: {
-    categories: string[];
-    statuses: string[];
-    locations: string[];
-    areas: string[];
-    minPrice: number;
-    maxPrice: number;
-  };
-  message: string;
-}
+
 
 export const propertyService = {
   async getProperties(params?: {
@@ -39,19 +29,24 @@ export const propertyService = {
     area?: string;
     minPrice?: number;
     maxPrice?: number;
+    minArea?: number;
+    maxArea?: number;
   }): Promise<PropertyListResponse> {
-    // Switch to /public/property so it doesn't require authentication tokens
-    const response = await api.get("/public/property", { params });
+    const cleanParams = { ...params };
+    // Remove empty search query
+    if (cleanParams.search !== undefined && cleanParams.search.trim() === "") {
+      delete cleanParams.search;
+    }
+    
+    // Use GET /public/property with query params and a cache-buster
+    const response = await api.get("/public/property", { 
+      params: { ...cleanParams, _t: Date.now() } 
+    });
     return response.data;
   },
 
   async getPropertyById(id: string): Promise<{ data: Property; message: string }> {
     const response = await api.get(`/public/property/${id}`);
-    return response.data;
-  },
-
-  async getFilters(): Promise<FilterResponse> {
-    const response = await api.get("/public/property/filters");
     return response.data;
   }
 };

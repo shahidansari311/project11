@@ -50,6 +50,7 @@ export default function PropertyHeroBanner({
         showArrowControls={true}
         sharedTransitionTagBase={`property-image-${property.id}`}
         onPress={onImagePress}
+        youtubeVideoUrl={property.youtubeVideoUrl}
       />
 
       {/* Glass Status Badge (Bottom Left) */}

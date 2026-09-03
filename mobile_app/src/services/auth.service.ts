@@ -1,5 +1,11 @@
 import api from "../utils/api";
 
+export interface UserDocument {
+  id: string;
+  documentType: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+}
+
 export interface UserProfile {
   id: string;
   phone: string;
@@ -10,6 +16,7 @@ export interface UserProfile {
   hasPurchasedProperty: boolean;
   createdAt: string;
   updatedAt: string;
+  documents?: UserDocument[];
 }
 
 export const authService = {

@@ -20,6 +20,7 @@ model User {
   favoriteProperties   String[]       @default([])
   sessions             Session[]
   documents            UserDocument[]
+  investments          Investment[]
 }
 
 model Admin {
@@ -54,20 +55,38 @@ model OtpVerification {
 }
 
 model Property {
-  id            String           @id @default(cuid())
-  title         String
-  description   String
-  images        String[]
-  location      String
-  status        PropertyStatus   @default(AVAILABLE)
-  targetReturn  Float
-  minInvestment Float
-  investors     Int              @default(0)
-  totalPrice    Float
-  totalSize     String
-  category      PropertyCategory
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id              String                 @id @default(cuid())
+  title           String
+  description     String
+  images          String[]
+  location        String
+  status          PropertyStatus         @default(AVAILABLE)
+  targetReturn    Float
+  minInvestment   Float
+  investors       Int                    @default(0)
+  totalPrice      Float
+  totalSize       Float                  // area in sq.ft (numeric)
+  totalUnits      Int                    @default(0) // floor(totalPrice / totalSize)
+  perUnitPrice    Float                  @default(0) // totalPrice / totalUnits
+  purchasedUnits  Int                    @default(0) // sum of PENDING+APPROVED investments
+  category        PropertyCategory
+  youtubeVideoUrl String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  priceHistory    PropertyPriceHistory[]
+  investments     Investment[]
+}
+
+model PropertyPriceHistory {
+  id         String   @id @default(cuid())
+  propertyId String
+  price      Float
+  date       DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
 }
 
 model UserDocument {
@@ -106,4 +125,32 @@ enum DocumentStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model Investment {
+  id              String           @id @default(cuid())
+  propertyId      String
+  userId          String
+  units           Int              // number of units the user is buying
+  unitPriceAtTime Float            // perUnitPrice snapshot at investment creation time
+  totalAmount     Float            // units × unitPriceAtTime
+  status          InvestmentStatus @default(PENDING)
+  paymentRef      String?          // future payment gateway reference
+  adminRemark     String?          // admin note on approve/reject
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  property        Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([userId])
+  @@index([status])
+}
+
+enum InvestmentStatus {
+  PENDING    // user clicked pay — awaiting admin approval
+  APPROVED   // admin confirmed the investment
+  REJECTED   // admin rejected it (units released back)
+  CANCELLED  // user cancelled before admin acted (units released back)
 }

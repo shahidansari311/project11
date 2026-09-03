@@ -5,9 +5,9 @@ import { Colors } from "@/constants/colors";
 import { Property } from "../../BrowseProperties/data";
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
     maximumFractionDigits: 0,
   }).format(value);
 };
@@ -28,8 +28,19 @@ export default function PropertyHighlights({ property }: PropertyHighlightsProps
 
         <View style={styles.quickStatChip}>
           <Ionicons name="cube-outline" size={14} color={Colors.primary} />
-          <Text style={styles.quickStatText}>{property.totalSize}</Text>
+          <Text style={styles.quickStatText}>
+            {typeof property.totalSize === "number"
+              ? `${new Intl.NumberFormat("en-IN").format(property.totalSize)} sq.ft`
+              : property.totalSize}
+          </Text>
         </View>
+
+        {property.totalUnits > 0 && (
+          <View style={styles.quickStatChip}>
+            <Ionicons name="layers-outline" size={14} color={Colors.primary} />
+            <Text style={styles.quickStatText}>{property.totalUnits} Units</Text>
+          </View>
+        )}
       </View>
 
       {/* ── High-Contrast Highlight Grid ── */}
@@ -41,11 +52,11 @@ export default function PropertyHighlights({ property }: PropertyHighlightsProps
         </View>
 
         <View style={styles.secondaryHighlightCard}>
-          <Text style={styles.highlightCardLabelDark}>MIN INVESTMENT</Text>
+          <Text style={styles.highlightCardLabelDark}>PER UNIT</Text>
           <Text style={styles.secondaryHighlightValue}>
-            {formatCurrency(property.minInvestment)}
+            {formatCurrency(property.perUnitPrice > 0 ? property.perUnitPrice : property.minInvestment)}
           </Text>
-          <Text style={styles.highlightSubtextDark}>Starting entry</Text>
+          <Text style={styles.highlightSubtextDark}>Min. entry (1 unit)</Text>
         </View>
       </View>
     </>

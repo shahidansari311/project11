@@ -14,10 +14,10 @@ async function createProperty(req, res, next) {
       location,
       status,
       targetReturn,
-      minInvestment,
       totalPrice,
       totalSize,
       category,
+      youtubeVideoUrl,
     } = req.body;
 
     const property = await propertyService.createProperty({
@@ -27,10 +27,10 @@ async function createProperty(req, res, next) {
       location,
       status,
       targetReturn,
-      minInvestment,
       totalPrice,
       totalSize,
       category,
+      youtubeVideoUrl,
     });
 
     return successResponse(res, 201, property, "Property created successfully");
@@ -69,9 +69,9 @@ async function getAllProperties(req, res, next) {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const { status, category, search, minPrice, maxPrice, location, area } = req.query;
+    const { status, category, search, minPrice, maxPrice, location, area, minArea, maxArea } = req.query;
 
-    const result = await propertyService.getAllProperties({ page, limit, status, category, search, minPrice, maxPrice, location, area });
+    const result = await propertyService.getAllProperties({ page, limit, status, category, search, minPrice, maxPrice, location, area, minArea, maxArea });
     return successResponse(res, 200, result, "Properties retrieved successfully");
   } catch (err) {
     next(err);
@@ -119,6 +119,68 @@ async function getPropertyFilters(req, res, next) {
   }
 }
 
+async function addPriceHistory(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { price } = req.body;
+    const result = await propertyService.addPriceHistory(id, { price });
+    return successResponse(res, 201, result, "Price history added successfully");
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
+async function editPriceHistory(req, res, next) {
+  try {
+    const { historyId } = req.params;
+    const { price } = req.body;
+    const result = await propertyService.editPriceHistory(historyId, { price });
+    return successResponse(res, 200, result, "Price history updated successfully");
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
+async function deletePriceHistory(req, res, next) {
+  try {
+    const { historyId } = req.params;
+    const result = await propertyService.deletePriceHistory(historyId);
+    return successResponse(res, 200, null, result.message);
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    if (err.message && err.message.includes("Cannot delete the only price history")) {
+      return errorResponse(res, 400, err.message);
+    }
+    next(err);
+  }
+}
+
+/**
+ * GET /public/property/:id/investment-info
+ * GET /user/property/:id/investment-info
+ * Returns per-unit price, remaining units, min/max investment for the property.
+ */
+async function getPropertyInvestmentInfo(req, res, next) {
+  try {
+    const { id } = req.params;
+    const info = await propertyService.getPropertyInvestmentInfo(id);
+    return successResponse(res, 200, info, "Property investment info retrieved successfully");
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   createProperty,
   updateProperty,
@@ -127,4 +189,8 @@ module.exports = {
   getPropertyById,
   removePropertyImage,
   getPropertyFilters,
+  addPriceHistory,
+  editPriceHistory,
+  deletePriceHistory,
+  getPropertyInvestmentInfo,
 };

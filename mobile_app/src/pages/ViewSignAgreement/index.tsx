@@ -2,14 +2,18 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 
 export default function ViewSignAgreementPage() {
   const router = useRouter();
   const [isChecked, setIsChecked] = useState(false);
 
+  const insets = useSafeAreaInsets();
+  const params = require("expo-router").useLocalSearchParams();
+
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -96,8 +100,15 @@ export default function ViewSignAgreementPage() {
           activeOpacity={0.8}
           disabled={!isChecked}
           onPress={() => {
-            // Push to payment screen
-            router.push("/payment" as any);
+            // Push to payment screen with params
+            router.push({
+              pathname: "/payment",
+              params: {
+                propertyId: params.propertyId,
+                units: params.units,
+                amount: params.amount,
+              },
+            });
           }}
         >
           <Ionicons name="pencil" size={18} color={isChecked ? Colors.onPrimary : Colors.outline} />

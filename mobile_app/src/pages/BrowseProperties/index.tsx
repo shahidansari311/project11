@@ -24,10 +24,10 @@ import { Colors } from "@/constants/colors";
 import CategoryFilter from "./components/CategoryFilter";
 import PropertyCard from "./components/PropertyCard";
 import PropertySkeleton from "./components/PropertySkeleton";
-import FilterModal, { FilterType, ActiveFilters } from "./components/FilterModal";
+import FilterModal, { FilterType, ActiveFilters, FilterData } from "./components/FilterModal";
 import LoginPromptModal from "../../components/LoginPromptModal";
 import { CategoryFilter as CategoryFilterType, Property } from "./data";
-import { propertyService, FilterResponse } from "../../services/property.service";
+import { propertyService } from "../../services/property.service";
 import { useFavorites } from "../../contexts/FavoritesContext";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -38,6 +38,16 @@ const DUMMY_FILTERS = [
   { label: "Area", icon: "expand-outline" as const },
   { label: "Status", icon: "shield-checkmark-outline" as const },
 ];
+
+const STATIC_FILTER_DATA: FilterData = {
+  categories: ["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "LAND"],
+  statuses: ["AVAILABLE", "SOLD", "UNDER_REVIEW", "COMING_SOON"],
+  locations: ["Mumbai", "Delhi", "Bangalore", "Pune", "Hyderabad", "Chennai"],
+  minPrice: 0,
+  maxPrice: 100000000,
+  minArea: 0,
+  maxArea: 100000,
+};
 
 export default function BrowsePropertiesPage() {
   const router = useRouter();
@@ -50,10 +60,10 @@ export default function BrowsePropertiesPage() {
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   const [activeCategory, setActiveCategory] = useState<string>("ALL ASSETS");
-  const [categories, setCategories] = useState<string[]>(["ALL ASSETS"]);
+  const [categories, setCategories] = useState<string[]>(["ALL ASSETS", ...STATIC_FILTER_DATA.categories]);
   
   // Modal & Active Filters State
-  const [filterData, setFilterData] = useState<FilterResponse["data"] | null>(null);
+  const [filterData, setFilterData] = useState<FilterData>(STATIC_FILTER_DATA);
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
   
   const hasActiveFilters = useMemo(() => {
@@ -74,16 +84,7 @@ export default function BrowsePropertiesPage() {
   const { refreshFavorites } = useFavorites();
   const { isGuest, refreshAuth, isLoading: authLoading } = useAuth();
 
-  useEffect(() => {
-    propertyService.getFilters().then(res => {
-      if (res?.data && mounted.current) {
-        setCategories(["ALL ASSETS", ...res.data.categories]);
-        setFilterData(res.data);
-      }
-    }).catch(error => {
-      if (mounted.current) console.error(error);
-    });
-  }, []);
+  // Filters are now static, no need to fetch them from backend on mount.
 
   const fetchProperties = useCallback(async (pageNum: number, isRefresh: boolean = false) => {
     try {
@@ -154,10 +155,10 @@ export default function BrowsePropertiesPage() {
       <CategoryFilter categories={categories} active={activeCategory} onChange={setActiveCategory} />
       <View style={styles.sectionHeadingRow}>
         <Text style={styles.sectionTitle}>Featured Properties</Text>
-        <Text style={styles.sectionCount}>
+        {/* <Text style={styles.sectionCount}>
           {properties.length}{" "}
           {properties.length === 1 ? "listing" : "listings"}
-        </Text>
+        </Text> */}
       </View>
     </View>
   );
@@ -231,9 +232,9 @@ export default function BrowsePropertiesPage() {
           )}
           {DUMMY_FILTERS.map((filter) => {
             let isActive = false;
-            if (filter.label === "Price") isActive = !!(activeFilters.minPrice || activeFilters.maxPrice);
+            if (filter.label === "Price") isActive = !!(activeFilters.minPrice !== undefined || activeFilters.maxPrice !== undefined);
             if (filter.label === "Location") isActive = !!activeFilters.location;
-            if (filter.label === "Area") isActive = !!activeFilters.area;
+            if (filter.label === "Area") isActive = !!(activeFilters.minArea !== undefined || activeFilters.maxArea !== undefined);
             if (filter.label === "Status") isActive = !!activeFilters.status;
 
             return (
@@ -407,7 +408,7 @@ const styles = StyleSheet.create({
   // ── Scroll Content (Padding at bottom for Floating TabBar) ──
   scrollContent: {
     paddingTop: 2,
-    paddingBottom: 24,
+    paddingBottom: 110,
   },
   headerWrapper: {
     marginBottom: 2,

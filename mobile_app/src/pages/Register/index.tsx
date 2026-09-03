@@ -1,17 +1,23 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   Animated,
   StyleSheet,
+  Image,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+  StatusBar,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { z } from "zod";
 import * as SecureStore from "expo-secure-store";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 
-import AuthLayout from "@/components/AuthLayout";
 import CustomInput from "@/components/CustomInput";
 import api from "@/utils/api";
 import { useFavorites } from "@/contexts/FavoritesContext";
@@ -29,6 +35,7 @@ interface RegisterPageProps {
 
 export default function RegisterPage({ registrationToken, onGoBackToLogin }: RegisterPageProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const { refreshFavorites } = useFavorites();
   const { refreshAuth } = useAuth();
@@ -41,7 +48,15 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
   const [emailError, setEmailError] = useState("");
   const [termsError, setTermsError] = useState("");
 
-  const registerOpacity = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(16)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   const handleRegister = useCallback(async () => {
     const result = registerStep1Schema.safeParse({ fullName, email });
@@ -62,14 +77,14 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
 
     setLoading(true);
     try {
-      const response = await api.post("/auth/user/register", { 
+      const response = await api.post("/auth/user/register", {
         registrationToken,
-        fullName, 
-        email: email || "" 
+        fullName,
+        email: email || "",
       });
 
       const { token, refreshToken } = response.data.data;
-      
+
       // Save tokens securely now that registration is complete
       await SecureStore.setItemAsync("access_token", token);
       await SecureStore.setItemAsync("refresh_token", refreshToken);
@@ -86,83 +101,166 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
     }
   }, [fullName, email, termsAccepted, registrationToken, router, refreshFavorites]);
 
+  const canContinue = fullName.trim().length >= 2 && termsAccepted && !loading;
+
   return (
-    <AuthLayout>
-      <Animated.View style={{ opacity: registerOpacity }}>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>Complete Profile</Text>
-          <Text style={styles.headerSubtitle}>We need a few details to create your account.</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
+      {/* Top app bar — solid brand band instead of a photo, keeps this screen visually distinct from Login */}
+      <View style={[styles.topBand, { paddingTop: (insets.top > 0 ? insets.top : 48) + 20 }]}>
+        <Image source={require("@/assets/images/logo-glow.png")} style={styles.glowImage} resizeMode="contain" />
+
+        <View style={styles.topBarRow}>
+          {onGoBackToLogin ? (
+            <TouchableOpacity style={styles.backButton} onPress={onGoBackToLogin} activeOpacity={0.8}>
+              <Ionicons name="chevron-back" size={20} color={Colors.onPrimary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.backButtonPlaceholder} />
+          )}
+          <View style={styles.stepPill}>
+            <Text style={styles.stepPillText}>Step 2 of 2</Text>
+          </View>
         </View>
+      </View>
 
-        <CustomInput 
-          label="Full Name" 
-          value={fullName} 
-          onChange={(t: string) => { setFullName(t); if (nameError) setNameError(""); }} 
-          error={nameError} 
-          placeholder="Enter your full name" 
-          autoCapitalize="words" 
-        />
-        
-        <CustomInput 
-          label="Email Address" 
-          value={email} 
-          onChange={(t: string) => { setEmail(t); if (emailError) setEmailError(""); }} 
-          error={emailError} 
-          placeholder="name@example.com (optional)" 
-          keyboardType="email-address" 
-          autoCapitalize="none" 
-        />
-
-        <View style={styles.termsRow}>
-          <TouchableOpacity
-            onPress={() => { setTermsAccepted(!termsAccepted); if (termsError) setTermsError(""); }}
-            style={[styles.checkbox, termsAccepted ? styles.checkboxActive : (termsError ? styles.checkboxError : styles.checkboxDefault)]}
-            activeOpacity={0.7}
-          >
-            {termsAccepted && <Text style={styles.checkboxCheck}>✓</Text>}
-          </TouchableOpacity>
-          <Text style={styles.termsText}>
-            I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text>.
-          </Text>
-        </View>
-        {termsError ? <Text style={styles.termsErrorText}>{termsError}</Text> : null}
-
-        <TouchableOpacity
-          style={[styles.primaryButton, { opacity: fullName.trim().length >= 2 && termsAccepted ? 1 : 0.5, marginTop: 16 }]}
-          onPress={handleRegister}
-          disabled={fullName.trim().length < 2 || !termsAccepted || loading}
-          activeOpacity={0.9}
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[styles.flex1, { marginTop: -34, zIndex: 1 }]}>
+        <ScrollView
+          style={styles.flex1}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.primaryButtonText}>{loading ? "Saving..." : "Continue"}</Text>
-        </TouchableOpacity>
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+            {/* Avatar overlaps the band above, anchoring the form */}
+            <View style={styles.avatarWrapper}>
+              <View style={styles.avatarCircle}>
+                <Ionicons name="person-add" size={28} color={Colors.primary} />
+              </View>
+            </View>
 
-        {onGoBackToLogin && (
-           <TouchableOpacity style={{ marginTop: 24, alignItems: "center" }} onPress={onGoBackToLogin}>
-             <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.primary }}>
-               Go back to Login
-             </Text>
-           </TouchableOpacity>
-        )}
-      </Animated.View>
-    </AuthLayout>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Complete your profile</Text>
+              <Text style={styles.headerSubtitle}>Just a couple of details to set up your account.</Text>
+            </View>
+
+            <CustomInput
+              label="Full Name"
+              icon="person-outline"
+              value={fullName}
+              onChange={(t: string) => { setFullName(t); if (nameError) setNameError(""); }}
+              error={nameError}
+              placeholder="Enter your full name"
+              autoCapitalize="words"
+            />
+
+            <CustomInput
+              label="Email Address"
+              icon="mail-outline"
+              value={email}
+              onChange={(t: string) => { setEmail(t); if (emailError) setEmailError(""); }}
+              error={emailError}
+              placeholder="name@example.com (optional)"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <TouchableOpacity
+              onPress={() => { setTermsAccepted(!termsAccepted); if (termsError) setTermsError(""); }}
+              style={styles.termsRow}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, termsAccepted ? styles.checkboxActive : (termsError ? styles.checkboxError : styles.checkboxDefault)]}>
+                {termsAccepted && <Ionicons name="checkmark" size={13} color={Colors.onPrimary} />}
+              </View>
+              <Text style={styles.termsText}>
+                I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text>.
+              </Text>
+            </TouchableOpacity>
+            {termsError ? <Text style={styles.termsErrorText}>{termsError}</Text> : null}
+          </Animated.View>
+        </ScrollView>
+
+        {/* Sticky action bar */}
+        <View style={[styles.actionBar, { paddingBottom: (insets.bottom > 0 ? insets.bottom : 24) + 16 }]}>
+          <TouchableOpacity
+            style={[styles.primaryButton, { opacity: canContinue ? 1 : 0.5 }]}
+            onPress={handleRegister}
+            disabled={!canContinue}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.primaryButtonText}>{loading ? "Saving..." : "Continue"}</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerTextContainer: { alignItems: "center", marginBottom: 32 },
-  headerTitle: { fontSize: 24, fontWeight: "700", color: Colors.onSurface, marginBottom: 8, letterSpacing: -0.2 },
-  headerSubtitle: { fontSize: 14, color: Colors.onSurfaceVariant, lineHeight: 20, textAlign: "center" },
-  
-  primaryButton: { width: "100%", height: 52, backgroundColor: Colors.primary, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 8 },
-  primaryButtonText: { fontSize: 14, fontWeight: "600", color: Colors.onPrimary },
-  
-  termsRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 8, marginTop: 16 },
-  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, alignItems: "center", justifyContent: "center", marginTop: 2 },
+  container: { flex: 1, backgroundColor: Colors.background },
+  flex1: { flex: 1 },
+
+  topBand: {
+    backgroundColor: Colors.primary,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    paddingBottom: 44,
+    paddingHorizontal: 20,
+    overflow: "hidden",
+  },
+  glowImage: {
+    position: "absolute",
+    top: -60,
+    right: -60,
+    width: 220,
+    height: 220,
+    opacity: 0.5
+  },
+  topBarRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  backButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
+  backButtonPlaceholder: { width: 36, height: 36 },
+  stepPill: { backgroundColor: "rgba(255,255,255,0.16)", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  stepPillText: { color: Colors.onPrimary, fontSize: 12, fontWeight: "600", letterSpacing: 0.2 },
+
+  scrollContent: { paddingHorizontal: 24, paddingTop: 0, paddingBottom: 24, flexGrow: 1 },
+
+  avatarWrapper: { alignItems: "center", marginTop: 0, marginBottom: 16 },
+  avatarCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: Colors.surfaceContainerLowest,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: Colors.onSurface,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+
+  headerTextContainer: { alignItems: "center", marginBottom: 28 },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: Colors.onSurface, marginBottom: 6, letterSpacing: -0.2 },
+  headerSubtitle: { fontSize: 13, color: Colors.onSurfaceVariant, lineHeight: 19, textAlign: "center", paddingHorizontal: 12 },
+
+  termsRow: { flexDirection: "row", alignItems: "flex-start", marginTop: 4 },
+  checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center", marginTop: 1 },
   checkboxActive: { borderColor: Colors.primary, backgroundColor: Colors.primary },
   checkboxDefault: { borderColor: Colors.border, backgroundColor: Colors.surfaceContainerLowest },
   checkboxError: { borderColor: Colors.error, backgroundColor: Colors.surfaceContainerLowest },
-  checkboxCheck: { color: Colors.onPrimary, fontSize: 12, fontWeight: "700" },
-  termsText: { flex: 1, marginLeft: 12, fontSize: 14, lineHeight: 20, color: Colors.onSurfaceVariant },
-  termsLink: { color: Colors.primary, fontWeight: "500" },
-  termsErrorText: { fontSize: 12, color: Colors.error, marginLeft: 32, marginBottom: 8, lineHeight: 16 },
+  termsText: { flex: 1, marginLeft: 12, fontSize: 13, lineHeight: 19, color: Colors.onSurfaceVariant },
+  termsLink: { color: Colors.primary, fontWeight: "600" },
+  termsErrorText: { fontSize: 12, color: Colors.error, marginLeft: 32, marginTop: 8, lineHeight: 16 },
+
+  actionBar: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  primaryButton: { width: "100%", height: 52, backgroundColor: Colors.primary, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  primaryButtonText: { fontSize: 14, fontWeight: "600", color: Colors.onPrimary },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager, TouchableOpacity, Text, ActivityIndicator, Alert } from "react-native";
+import { View, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager, TouchableOpacity, Text, ActivityIndicator, Alert, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 import api from "@/utils/api";
@@ -20,6 +20,7 @@ export default function DocumentUploadPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [documentType, setDocumentType] = useState<DocumentType>("AADHAAR");
@@ -69,6 +70,12 @@ export default function DocumentUploadPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData(false);
+    setIsRefreshing(false);
   };
 
   const handleDocumentTypeChange = (type: DocumentType) => {
@@ -242,7 +249,18 @@ export default function DocumentUploadPage() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+          colors={[Colors.primary]}
+          tintColor={Colors.primary}
+        />
+      }
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={Colors.onSurface} />

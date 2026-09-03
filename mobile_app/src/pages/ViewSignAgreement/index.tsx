@@ -2,16 +2,18 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 
 export default function ViewSignAgreementPage() {
   const router = useRouter();
   const [isChecked, setIsChecked] = useState(false);
 
+  const insets = useSafeAreaInsets();
   const params = require("expo-router").useLocalSearchParams();
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity

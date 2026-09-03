@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   Image,
   Dimensions,
   Linking,
-  Alert
+  Alert,
+  RefreshControl
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -20,8 +21,69 @@ import { investmentService } from "@/services/investment.service";
 import { propertyService } from "@/services/property.service";
 import { Investment, Property, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
 import { LineChart } from "react-native-gifted-charts";
+import Skeleton from "@/components/ui/Skeleton";
+import ActionModal from "@/components/ActionModal";
 
 const { width } = Dimensions.get("window");
+
+const PortfolioDetailSkeleton = ({ insets }: { insets: any }) => {
+  return (
+    <View style={[styles.root, { paddingBottom: insets.bottom }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <Skeleton width={40} height={40} borderRadius={20} />
+        <Skeleton width={160} height={24} borderRadius={6} />
+        <View style={styles.headerPlaceholder} />
+      </View>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* Hero Card Skeleton */}
+        <View style={styles.heroCard}>
+          <Skeleton width="100%" height="100%" borderRadius={0} />
+        </View>
+
+        {/* Snapshot Skeleton */}
+        <View style={styles.snapshotCard}>
+          <Skeleton width={100} height={20} borderRadius={4} style={{ marginBottom: 16 }} />
+          <View style={styles.snapshotGrid}>
+            <View style={styles.snapshotItem}>
+              <Skeleton width={80} height={12} borderRadius={4} style={{ marginBottom: 6 }} />
+              <Skeleton width={60} height={24} borderRadius={4} />
+            </View>
+            <View style={styles.snapshotItem}>
+              <Skeleton width={80} height={12} borderRadius={4} style={{ marginBottom: 6 }} />
+              <Skeleton width={80} height={24} borderRadius={4} />
+            </View>
+            <View style={styles.snapshotItem}>
+              <Skeleton width={80} height={12} borderRadius={4} style={{ marginBottom: 6 }} />
+              <Skeleton width={80} height={24} borderRadius={4} />
+            </View>
+            <View style={styles.snapshotItem}>
+              <Skeleton width={80} height={12} borderRadius={4} style={{ marginBottom: 6 }} />
+              <Skeleton width={100} height={24} borderRadius={4} />
+            </View>
+          </View>
+        </View>
+
+        {/* Chart Skeleton */}
+        <View style={styles.chartCard}>
+          <Skeleton width={140} height={20} borderRadius={4} style={{ marginBottom: 16 }} />
+          <Skeleton width="100%" height={200} borderRadius={12} />
+        </View>
+        
+        {/* Docs Skeleton */}
+        <View style={styles.docsCard}>
+          <Skeleton width={100} height={20} borderRadius={4} style={{ marginBottom: 16 }} />
+          <View style={[styles.docRow, { backgroundColor: Colors.surfaceContainerHighest }]}>
+            <Skeleton width={40} height={40} borderRadius={20} style={{ marginRight: 12 }} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <Skeleton width={180} height={16} borderRadius={4} />
+              <Skeleton width={120} height={12} borderRadius={4} />
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-IN", {
@@ -45,6 +107,20 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
   const [investment, setInvestment] = useState<Investment | null>(null);
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    iconName?: any;
+    primaryBtn?: string;
+    secondaryBtn?: string;
+    onPrimary?: () => void;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+  });
 
   // KYC Check
   const aadharDoc = userProfile?.documents?.find(d => d.documentType === "AADHAAR");
@@ -60,34 +136,38 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
     pendingMessage = "Verify PAN to download";
   }
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const invRes = await investmentService.getMyInvestmentById(id);
-        if (invRes?.data) {
-          setInvestment(invRes.data);
-          
-          // Load full property to get history etc.
-          const propRes = await propertyService.getPropertyById(invRes.data.propertyId);
-          if (propRes?.data) {
-            setProperty(propRes.data);
-          }
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setIsLoading(true);
+    try {
+      const invRes = await investmentService.getMyInvestmentById(id);
+      if (invRes?.data) {
+        setInvestment(invRes.data);
+        
+        // Load full property to get history etc.
+        const propRes = await propertyService.getPropertyById(invRes.data.propertyId);
+        if (propRes?.data) {
+          setProperty(propRes.data);
         }
-      } catch (error) {
-        console.error("Failed to load investment details", error);
-      } finally {
-        setIsLoading(false);
       }
-    };
-    loadData();
+    } catch (error) {
+      console.error("Failed to load investment details", error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   }, [id]);
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    loadData(true);
+  }, [loadData]);
+
+  if (isLoading && !isRefreshing) {
+    return <PortfolioDetailSkeleton insets={insets} />;
   }
 
   if (!investment) {
@@ -102,9 +182,20 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
 
   // Process chart data if price history exists
   const chartData = property?.priceHistory?.map(ph => ({
-    value: ph.price,
-    label: new Date(ph.date).toLocaleDateString("en-IN", { month: "short" })
-  })) || [{ value: investment.unitPriceAtTime, label: "Current" }];
+    value: ph.price * investment.units,
+    label: new Date(ph.date).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })
+  })) || [{ value: investment.totalAmount, label: "Current" }];
+
+  const minInvestedValue = Math.min(...chartData.map(d => d.value));
+  const yAxisOffset = Math.max(0, Math.floor(minInvestedValue * 0.85));
+
+  const formatYLabel = (val: string) => {
+    const num = Number(val);
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)}Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(1)}L`;
+    if (num >= 1000) return `₹${(num / 1000).toFixed(1)}K`;
+    return `₹${num}`;
+  };
 
   const currentPrice = property?.perUnitPrice || investment.unitPriceAtTime;
   const priceDiff = currentPrice - investment.unitPriceAtTime;
@@ -112,26 +203,40 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
 
   const handleDownloadAgreement = () => {
     if (investment.status === "PENDING") {
-      Alert.alert(
-        "Payment Pending",
-        "Your investment is currently pending admin approval. You can download the agreement once it is approved."
-      );
+      setModalConfig({
+        visible: true,
+        title: "Payment Pending",
+        message: "Your investment is currently pending admin approval. You can download the agreement once it is approved.",
+        iconName: "time",
+        primaryBtn: "Okay",
+      });
       return;
     }
 
     if (!isKycVerified) {
-      Alert.alert(
-        "Verification Pending",
-        "You must upload and verify your Aadhar and PAN cards to download the final agreement.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Upload Now", onPress: () => router.push("/(tabs)/profile") }
-        ]
-      );
+      setModalConfig({
+        visible: true,
+        title: "Verification Pending",
+        message: "You must upload and verify your Aadhar and PAN cards to download the final agreement.",
+        iconName: "alert-circle",
+        primaryBtn: "Upload Now",
+        secondaryBtn: "Cancel",
+        onPrimary: () => {
+          setModalConfig(prev => ({ ...prev, visible: false }));
+          router.push("/(tabs)/profile" as any);
+        }
+      });
       return;
     }
+    
     // Implement real download logic here
-    Alert.alert("Success", "Downloading Agreement...");
+    setModalConfig({
+      visible: true,
+      title: "Downloading",
+      message: "Your agreement is being downloaded.",
+      iconName: "download",
+      primaryBtn: "Okay",
+    });
   };
 
   return (
@@ -145,7 +250,18 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
         <View style={styles.headerPlaceholder} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
+      >
         {/* Hero Card */}
         <View style={styles.heroCard}>
           <Image source={{ uri: img }} style={styles.heroImage} />
@@ -187,26 +303,64 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
 
         {/* Graph */}
         <View style={styles.chartCard}>
-          <Text style={styles.sectionTitle}>Value Trend</Text>
+          <Text style={styles.sectionTitle}>Portfolio Value Trend</Text>
           {property?.priceHistory && property.priceHistory.length > 1 ? (
              <LineChart
                data={chartData}
-               width={width - 64}
-               height={180}
-               spacing={50}
-               initialSpacing={20}
+               width={width - 110}
+               height={200}
+               spacing={55}
+               initialSpacing={15}
                color1={Colors.primary}
                textColor1={Colors.onSurface}
                dataPointsColor1={Colors.primary}
+               dataPointsRadius1={4}
                textFontSize={10}
                hideRules
-               yAxisColor="transparent"
+               yAxisColor={Colors.outlineVariant}
                xAxisColor={Colors.outlineVariant}
                yAxisTextStyle={{ color: Colors.outline, fontSize: 10 }}
                xAxisLabelTextStyle={{ color: Colors.outline, fontSize: 10, width: 40 }}
                isAnimated
                thickness={3}
                curved
+               areaChart
+               startFillColor={Colors.primary}
+               startOpacity={0.3}
+               endFillColor={Colors.primary}
+               endOpacity={0.05}
+               yAxisOffset={yAxisOffset}
+               formatYLabel={formatYLabel}
+               yAxisLabelWidth={45}
+               pointerConfig={{
+                 pointerStripUptoDataPoint: true,
+                 pointerStripColor: Colors.primary,
+                 pointerStripWidth: 2,
+                 strokeDashArray: [2, 5],
+                 pointerColor: Colors.primary,
+                 radius: 4,
+                 pointerLabelWidth: 100,
+                 pointerLabelHeight: 40,
+                 activatePointersOnLongPress: false,
+                 autoAdjustPointerLabelPosition: true,
+                 pointerLabelComponent: (items: any) => {
+                   return (
+                     <View
+                       style={{
+                         height: 40,
+                         width: 100,
+                         backgroundColor: Colors.surfaceContainerHighest,
+                         borderRadius: 8,
+                         justifyContent: 'center',
+                         alignItems: 'center',
+                       }}>
+                       <Text style={{color: Colors.onSurface, fontSize: 12, fontWeight: '700'}}>
+                         {formatCurrency(items[0].value)}
+                       </Text>
+                     </View>
+                   );
+                 },
+               }}
              />
           ) : (
             <View style={styles.noDataBox}>
@@ -253,6 +407,17 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <ActionModal
+        visible={modalConfig.visible}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        iconName={modalConfig.iconName}
+        primaryButtonText={modalConfig.primaryBtn}
+        secondaryButtonText={modalConfig.secondaryBtn}
+        onPrimaryAction={modalConfig.onPrimary}
+        onClose={() => setModalConfig(prev => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }

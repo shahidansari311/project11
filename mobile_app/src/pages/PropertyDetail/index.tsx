@@ -15,6 +15,7 @@ import {
   Dimensions,
   StatusBar,
   Animated,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -61,6 +62,7 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
   const [investmentInfo, setInvestmentInfo] = useState<InvestmentInfo | null>(null);
   const [investInfoLoading, setInvestInfoLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const checkAuthStatus = async () => {
     try {
@@ -83,32 +85,35 @@ export default function PropertyDetailPage({ id }: { id: string }) {
     }
   }, [id]);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadProperty = async () => {
-      try {
-        const res = await propertyService.getPropertyById(id);
-        if (isMounted && res && res.data) {
-          setProperty(res.data);
-        }
-      } catch (error) {
-        if (isMounted) console.error("Failed to fetch property details:", error);
-      } finally {
-        if (isMounted) setIsLoading(false);
+  const loadProperty = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setIsLoading(true);
+    try {
+      const res = await propertyService.getPropertyById(id);
+      if (res && res.data) {
+        setProperty(res.data);
       }
-    };
-
-    checkAuthStatus();
-    loadProperty();
-    loadInvestmentInfo();
-
-    return () => {
-      isMounted = false;
-    };
+    } catch (error) {
+      console.error("Failed to fetch property details:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [id]);
 
-  if (isLoading) {
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setIsRefreshing(true);
+    await Promise.all([
+      checkAuthStatus(),
+      loadProperty(isRefresh),
+      loadInvestmentInfo()
+    ]);
+    if (isRefresh) setIsRefreshing(false);
+  }, [loadProperty, loadInvestmentInfo]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (isLoading && !isRefreshing) {
     return <PropertyDetailSkeleton onBack={() => router.back()} />;
   }
 
@@ -164,6 +169,15 @@ export default function PropertyDetailPage({ id }: { id: string }) {
             scrollViewRef.current?.scrollTo({ y: MAX_SCROLL_Y, animated: true });
           }
         }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => fetchData(true)}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+            progressViewOffset={insets.top + 50}
+          />
+        }
       >
         <Animated.View style={{ zIndex: 0, transform: [{ 
             translateY: scrollY.interpolate({

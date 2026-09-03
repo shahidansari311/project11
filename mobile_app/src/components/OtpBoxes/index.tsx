@@ -4,22 +4,32 @@ import { Colors } from "@/constants/colors";
 
 const OTP_LENGTH = 6;
 
-const OtpBoxes = memo(({ values, refs, onChange, onKeyPress, hasError }: any) => (
-  <View style={styles.otpBoxContainer}>
-    {Array.from({ length: OTP_LENGTH }).map((_, i) => (
-      <TextInput
-        key={i}
-        ref={(ref) => { refs.current[i] = ref; }}
-        style={[styles.otpInput, hasError && styles.otpInputError]}
-        maxLength={OTP_LENGTH}
-        keyboardType="number-pad"
-        value={values[i]}
-        onChangeText={(text) => onChange(text, i)}
-        onKeyPress={(e) => onKeyPress(e, i)}
-      />
-    ))}
-  </View>
-));
+const OtpBoxes = memo(({ values, refs, onChange, onKeyPress, hasError }: any) => {
+  const [focusedIndex, setFocusedIndex] = React.useState<number | null>(null);
+
+  return (
+    <View style={styles.otpBoxContainer}>
+      {Array.from({ length: OTP_LENGTH }).map((_, i) => (
+        <TextInput
+          key={i}
+          ref={(ref) => { refs.current[i] = ref; }}
+          style={[
+            styles.otpInput, 
+            focusedIndex === i && styles.otpInputFocused,
+            hasError && styles.otpInputError
+          ]}
+          maxLength={OTP_LENGTH}
+          keyboardType="number-pad"
+          value={values[i]}
+          onChangeText={(text) => onChange(text, i)}
+          onKeyPress={(e) => onKeyPress(e, i)}
+          onFocus={() => setFocusedIndex(i)}
+          onBlur={() => setFocusedIndex(null)}
+        />
+      ))}
+    </View>
+  );
+});
 
 OtpBoxes.displayName = "OtpBoxes";
 
@@ -40,6 +50,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.border, 
     backgroundColor: Colors.surfaceContainerLowest, 
     color: Colors.onSurface 
+  },
+  otpInputFocused: {
+    borderColor: "#1B4942", // Primary green color from the image
+    borderWidth: 1.5,
   },
   otpInputError: { 
     borderColor: Colors.error 

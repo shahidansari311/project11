@@ -5,7 +5,7 @@ import { Colors } from "@/constants/colors";
 import { Property } from "../../BrowseProperties/data";
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,

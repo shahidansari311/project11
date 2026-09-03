@@ -11,6 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 export type FilterType = "Price" | "Location" | "Area" | "Status" | null;
 
@@ -52,6 +53,7 @@ export default function FilterModal({
 }: FilterModalProps) {
   // Local state for the modal
   const [localFilters, setLocalFilters] = useState<ActiveFilters>({});
+  const insets = useSafeAreaInsets();
 
   // Reset local state to match active filters when modal opens
   useEffect(() => {
@@ -220,7 +222,7 @@ export default function FilterModal({
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
         
-        <View style={styles.bottomSheet}>
+        <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Filter by {filterType}</Text>

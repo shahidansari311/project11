@@ -8,6 +8,7 @@
 
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Colors } from "@/constants/colors";
@@ -60,6 +61,8 @@ interface AppTabBarProps {
 }
 
 export default function AppTabBar({ activeRouteName, userProfileUrl, onTabPress }: AppTabBarProps) {
+  const insets = useSafeAreaInsets();
+
   const handlePress = (tab: VisualTab) => {
     if (!tab.routeName) {
       Alert.alert("Coming Soon", `The ${tab.label} feature is coming soon!`);
@@ -69,7 +72,10 @@ export default function AppTabBar({ activeRouteName, userProfileUrl, onTabPress 
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container,
+      { bottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) }
+    ]}>
       {VISUAL_TABS.map((tab) => {
         const isActive = tab.routeName === activeRouteName;
         return (
@@ -113,12 +119,13 @@ export default function AppTabBar({ activeRouteName, userProfileUrl, onTabPress 
 
 const styles = StyleSheet.create({
   container: {
+    position: "absolute",
+    left: 16,
+    right: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
     backgroundColor: Colors.surfaceContainerLowest,
-    marginHorizontal: 16,
-    marginBottom: Platform.OS === "ios" ? 14 : 10,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 24,

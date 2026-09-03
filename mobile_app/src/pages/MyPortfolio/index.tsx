@@ -73,8 +73,8 @@ const PortfolioSkeleton = ({ insets }: { insets: any }) => {
   }, [anim]);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <Animated.View style={[styles.scrollContent, { opacity: anim, paddingTop: 4 }]}>
+    <View style={styles.root}>
+      <Animated.View style={[styles.scrollContent, { opacity: anim }]}>
         {/* Title */}
         <View style={styles.skelTitle} />
         {/* Summary Card (Primary Color) */}
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
   pageTitle: {
     fontSize: 26,

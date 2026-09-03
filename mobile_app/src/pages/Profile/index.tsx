@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,47 +30,60 @@ export default function ProfilePage() {
   const { clearFavorites } = useFavorites();
   const { showToast } = useToast();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchDocs = useCallback(async () => {
+    try {
+      const docRes = await api.get("/user/document").catch(() => null);
+      if (docRes && docRes.data?.data) {
+        const docs = docRes.data.data;
+        const pan = docs.find((d: any) => d.documentType === "PAN");
+        const aadhar = docs.find((d: any) => d.documentType === "AADHAAR");
+        
+        if (!pan || !aadhar) {
+          setDocStatus("INCOMPLETE");
+        } else {
+          const statuses = [pan.status, aadhar.status];
+          if (statuses.some(s => s === "REJECTED" || s === "REUPLOAD_REQUIRED")) {
+            setDocStatus("ACTION_REQUIRED");
+          } else if (statuses.every(s => s === "APPROVED")) {
+            setDocStatus("VERIFIED");
+          } else {
+            setDocStatus("PENDING");
+          }
+        }
+      }
+    } catch (e) {
+      // Silent fallback for non-critical doc status fetch
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      // We only need to fetch documents here now, profile is global
-      const fetchDocs = async () => {
-        try {
-          const docRes = await api.get("/user/document").catch(() => null);
-          if (docRes && docRes.data?.data) {
-            const docs = docRes.data.data;
-            const pan = docs.find((d: any) => d.documentType === "PAN");
-            const aadhar = docs.find((d: any) => d.documentType === "AADHAAR");
-            
-            if (!pan || !aadhar) {
-              setDocStatus("INCOMPLETE");
-            } else {
-              const statuses = [pan.status, aadhar.status];
-              if (statuses.some(s => s === "REJECTED" || s === "REUPLOAD_REQUIRED")) {
-                setDocStatus("ACTION_REQUIRED");
-              } else if (statuses.every(s => s === "APPROVED")) {
-                setDocStatus("VERIFIED");
-              } else {
-                setDocStatus("PENDING");
-              }
-            }
-          }
-        } catch (e) {
-          // Silent fallback for non-critical doc status fetch
-        }
-      };
-      
       if (!isGuest) {
         fetchDocs();
       }
-    }, [isGuest])
+    }, [isGuest, fetchDocs])
   );
+
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    if (!isGuest) {
+      await Promise.all([refreshAuth(), fetchDocs()]);
+    } else {
+      await refreshAuth();
+    }
+    setIsRefreshing(false);
+  }, [isGuest, refreshAuth, fetchDocs]);
 
   const handleLogout = useCallback(async () => {
     await SecureStore.deleteItemAsync("access_token");
     await SecureStore.deleteItemAsync("refresh_token");
     clearFavorites();
     await refreshAuth();
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
     router.replace("/");
   }, [router, clearFavorites, refreshAuth]);
 
@@ -153,7 +167,17 @@ export default function ProfilePage() {
 
   return (
     <View style={styles.root}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
+      >
         {/* ── Hero / Avatar Section ── */}
         <View style={styles.heroSection}>
           <View style={styles.avatarContainer}>
@@ -259,14 +283,18 @@ export default function ProfilePage() {
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.listItem, styles.listItemBorder]}
+              <TouchableOpacity 
+                style={[styles.listItem, styles.listItemBorder]} 
                 activeOpacity={0.7}
-                onPress={() => router.push("/agreement" as any)}
+                onPress={() => router.push("/profile/help" as any)}
               >
                 <View style={styles.listItemLeft}>
-                  <Ionicons name="hand-right" size={22} color={Colors.primary} />
-                  <Text style={styles.listItemText}>Agreements</Text>
+                  <Ionicons
+                    name="help-buoy"
+                    size={22}
+                    color={Colors.primary}
+                  />
+                  <Text style={styles.listItemText}>Help & Support</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
               </TouchableOpacity>
@@ -274,15 +302,15 @@ export default function ProfilePage() {
               <TouchableOpacity 
                 style={styles.listItem} 
                 activeOpacity={0.7}
-                onPress={() => Alert.alert("Coming Soon", "Account Settings will be available soon.")}
+                onPress={() => Alert.alert("Coming Soon", "Privacy Policy and Terms of Service will be available soon.")}
               >
                 <View style={styles.listItemLeft}>
                   <Ionicons
-                    name="settings-sharp"
+                    name="shield-checkmark"
                     size={22}
                     color={Colors.primary}
                   />
-                  <Text style={styles.listItemText}>Account Settings</Text>
+                  <Text style={styles.listItemText}>Privacy & Terms</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
               </TouchableOpacity>
@@ -300,7 +328,7 @@ export default function ProfilePage() {
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 32 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
     </View>
   );

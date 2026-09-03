@@ -28,7 +28,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
   const router = useRouter();
 
   const arrowAnim = useRef(new Animated.Value(0)).current;
-  const heroHeight = useRef(new Animated.Value(SCREEN_HEIGHT * 0.6)).current;
+  const heroHeight = useRef(new Animated.Value(SCREEN_HEIGHT * 0.7)).current;
 
   useEffect(() => {
     Animated.loop(
@@ -50,7 +50,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       () => {
         Animated.timing(heroHeight, {
-          toValue: SCREEN_HEIGHT * 0.15, // shrink image to just header size
+          toValue: SCREEN_HEIGHT * 0.35, // shrink image just enough to keep button visible
           duration: 250,
           useNativeDriver: false,
         }).start();
@@ -61,7 +61,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
       () => {
         Animated.timing(heroHeight, {
-          toValue: SCREEN_HEIGHT * 0.6,
+          toValue: SCREEN_HEIGHT * 0.7,
           duration: 250,
           useNativeDriver: false,
         }).start();
@@ -81,7 +81,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       {/* Hero Image */}
       <Animated.View style={[styles.heroContainer, { height: heroHeight }]}>
         <Image 
-          source={{ uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200&auto=format&fit=crop" }} 
+          source={{ uri: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop" }} 
           style={styles.heroImage} 
           resizeMode="cover" 
         />
@@ -145,5 +145,5 @@ const styles = StyleSheet.create({
   skipButtonText: { color: Colors.onPrimary, fontSize: 14, fontWeight: "600", letterSpacing: 0.3 },
 
   scrollView: { flex: 1, backgroundColor: Colors.surfaceContainerLowest, borderTopLeftRadius: 32, borderTopRightRadius: 32, marginTop: -32, shadowColor: Colors.onSurface, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 8 },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 48 },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 24 },
 });

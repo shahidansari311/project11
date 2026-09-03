@@ -59,6 +59,10 @@ export default function RootLayout() {
                 name="property/[id]"
                 options={{ animation: "fade", gestureEnabled: true }}
               />
+              <Stack.Screen
+                name="portfolio/[id]"
+                options={{ animation: "fade", gestureEnabled: true }}
+              />
             </Stack>
           </FavoritesProvider>
         </ToastProvider>

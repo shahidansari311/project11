@@ -1,22 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { View } from "react-native";
 import { useRouter } from "expo-router";
-import { Colors } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 
-import AuthLayout from "@/components/AuthLayout";
 import LoginPage from "@/pages/Login";
 import OtpPage from "@/pages/Otp";
-import RegisterPage from "@/pages/Register";
 import SplashScreen from "@/pages/Splash";
 
 let hasAppLaunched = false;
 
 export default function AuthScreen() {
   const router = useRouter();
-  const [activePage, setActivePage] = useState<"login" | "otp" | "register">("login");
+  const [activePage, setActivePage] = useState<"login" | "otp">("login");
   const [phoneForOtp, setPhoneForOtp] = useState<string>("");
-  const [regToken, setRegToken] = useState<string>("");
   const { isGuest, isLoading } = useAuth();
   const [isSplashFinished, setIsSplashFinished] = useState(hasAppLaunched);
 
@@ -49,7 +44,7 @@ export default function AuthScreen() {
   }
 
   return (
-    <AuthLayout>
+    <>
       {activePage === "login" && (
         <LoginPage 
           onSendOtp={(phone) => {
@@ -62,18 +57,11 @@ export default function AuthScreen() {
         <OtpPage
           phone={phoneForOtp}
           onRegisterRequired={(token) => {
-            setRegToken(token);
-            setActivePage("register");
+            router.push({ pathname: "/register", params: { token } });
           }}
           onGoBack={() => setActivePage("login")}
         />
       )}
-      {activePage === "register" && (
-        <RegisterPage 
-          registrationToken={regToken}
-          onGoBackToLogin={() => setActivePage("login")} 
-        />
-      )}
-    </AuthLayout>
+    </>
   );
 }

@@ -195,14 +195,14 @@ export default function InvestNowPanel({
             <Text style={styles.investBtnText}>{statusLabel()}</Text>
           ) : (
             <>
-              <Text style={styles.investBtnText}>
+              <Text style={[styles.investBtnText, isExpanded && { color: Colors.onSurface }]}>
                 {isExpanded ? "Close" : "Invest Now"}
               </Text>
-              <View style={styles.investBtnIcon}>
+              <View style={[styles.investBtnIcon, isExpanded && { backgroundColor: Colors.surfaceContainerHighest }]}>
                 <Ionicons
                   name={isExpanded ? "chevron-up" : "arrow-forward"}
                   size={13}
-                  color="#fff"
+                  color={isExpanded ? Colors.onSurface : "#fff"}
                 />
               </View>
             </>
@@ -370,15 +370,17 @@ export default function InvestNowPanel({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.surfaceContainerLowest,
     marginHorizontal: 16,
-    borderRadius: 28,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
     overflow: "hidden",
     shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
 
   // ── CTA row ──
@@ -386,54 +388,54 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
   priceBlock: { flex: 1 },
   priceLabel: {
     fontSize: 9,
     fontWeight: "700",
-    color: "rgba(255,255,255,0.75)",
+    color: Colors.outline,
     letterSpacing: 0.6,
   },
   priceAmount: {
     fontSize: 20,
     fontWeight: "800",
-    color: Colors.onPrimary,
+    color: Colors.primary,
     letterSpacing: -0.3,
   },
   priceSubtext: {
     fontSize: 10,
-    color: "rgba(255,255,255,0.65)",
+    color: Colors.onSurfaceVariant,
     marginTop: 2,
   },
   investBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: Colors.onPrimary,
-    paddingHorizontal: 18,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
   },
   investBtnActive: {
-    backgroundColor: "rgba(255,255,255,0.15)",
+    backgroundColor: Colors.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
+    borderColor: Colors.outlineVariant,
   },
   investBtnDisabled: {
-    backgroundColor: "rgba(255,255,255,0.15)",
+    backgroundColor: Colors.surfaceContainerHighest,
   },
   investBtnText: {
     fontSize: 13,
     fontWeight: "800",
-    color: Colors.primary,
+    color: Colors.onPrimary,
   },
   investBtnIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.primary,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -442,27 +444,27 @@ const styles = StyleSheet.create({
   successBanner: {
     marginHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    backgroundColor: Colors.primaryContainer,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderColor: Colors.primary,
   },
   successText: {
     fontSize: 13,
-    color: Colors.onPrimary,
+    color: Colors.onPrimaryContainer,
     lineHeight: 20,
     fontWeight: "500",
   },
 
   // ── Expanded Panel ──
   expandedPanel: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   panelDivider: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: Colors.divider,
     marginBottom: 16,
   },
 
@@ -475,28 +477,28 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.8)",
+    color: Colors.onSurfaceVariant,
     fontWeight: "500",
   },
   progressHighlight: {
-    color: Colors.onPrimary,
+    color: Colors.primary,
     fontWeight: "700",
   },
   progressBarTrack: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: Colors.surfaceContainerHighest,
     overflow: "hidden",
     marginBottom: 6,
   },
   progressBarFill: {
     height: "100%",
-    backgroundColor: Colors.onPrimary,
+    backgroundColor: Colors.primary,
     borderRadius: 3,
   },
   progressSubtext: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.6)",
+    color: Colors.outline,
   },
 
   // ── Unit Stepper ──
@@ -504,7 +506,7 @@ const styles = StyleSheet.create({
   selectorLabel: {
     fontSize: 9,
     fontWeight: "700",
-    color: "rgba(255,255,255,0.7)",
+    color: Colors.outline,
     letterSpacing: 0.6,
     marginBottom: 10,
   },
@@ -518,26 +520,26 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    backgroundColor: Colors.surfaceContainerHigh,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
+    borderColor: Colors.outlineVariant,
   },
   stepperBtnDisabled: {
     opacity: 0.4,
   },
   stepperInput: {
     flex: 1,
-    height: 48,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 14,
-    color: Colors.onPrimary,
-    fontSize: 24,
+    height: 44,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: 12,
+    color: Colors.onSurface,
+    fontSize: 20,
     fontWeight: "800",
     textAlign: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
+    borderColor: Colors.outlineVariant,
   },
   quickPicks: {
     flexDirection: "row",
@@ -545,35 +547,34 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   quickPickChip: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceContainerLowest,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: Colors.outlineVariant,
   },
   quickPickChipActive: {
-    backgroundColor: Colors.onPrimary,
-    borderColor: Colors.onPrimary,
+    backgroundColor: Colors.primaryContainer,
+    borderColor: Colors.primary,
   },
   quickPickText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.8)",
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.onSurfaceVariant,
   },
   quickPickTextActive: {
     color: Colors.primary,
+    fontWeight: "700",
   },
 
   // ── Summary card ──
   summaryCard: {
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: Colors.surfaceContainerHighest,
     borderRadius: 16,
-    padding: 14,
+    padding: 12,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    gap: 8,
+    gap: 6,
   },
   summaryRow: {
     flexDirection: "row",
@@ -582,28 +583,28 @@ const styles = StyleSheet.create({
   },
   summaryTotalRow: {
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.2)",
+    borderTopColor: Colors.divider,
     paddingTop: 8,
     marginTop: 4,
   },
   summaryKey: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.75)",
+    fontSize: 12,
+    color: Colors.onSurfaceVariant,
     fontWeight: "500",
   },
   summaryVal: {
     fontSize: 13,
-    color: Colors.onPrimary,
+    color: Colors.onSurface,
     fontWeight: "700",
   },
   summaryTotalKey: {
-    fontSize: 14,
-    color: Colors.onPrimary,
+    fontSize: 13,
+    color: Colors.onSurface,
     fontWeight: "700",
   },
   summaryTotalVal: {
-    fontSize: 18,
-    color: Colors.onPrimary,
+    fontSize: 16,
+    color: Colors.primary,
     fontWeight: "800",
     letterSpacing: -0.3,
   },
@@ -613,21 +614,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.onPrimary,
-    borderRadius: 20,
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
     paddingVertical: 14,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   payNowBtnDisabled: { opacity: 0.6 },
   payNowText: {
     fontSize: 15,
-    fontWeight: "800",
-    color: Colors.primary,
+    fontWeight: "700",
+    color: Colors.onPrimary,
     letterSpacing: -0.2,
   },
   disclaimer: {
     fontSize: 10,
-    color: "rgba(255,255,255,0.55)",
+    color: Colors.outline,
     textAlign: "center",
     lineHeight: 14,
   },

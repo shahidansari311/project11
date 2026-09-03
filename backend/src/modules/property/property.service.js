@@ -15,7 +15,7 @@ async function syncLatestPriceToProperty(propertyId) {
     where: { propertyId },
     orderBy: { date: "desc" }
   });
-  
+   
   if (latestHistory) {
     const propertyModel = getPropertyModel();
     const property = await propertyModel.findUnique({ where: { id: propertyId } });

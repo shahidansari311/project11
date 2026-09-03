@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   // ── Scroll Content (Padding at bottom for Floating TabBar) ──
   scrollContent: {
     paddingTop: 2,
-    paddingBottom: 24,
+    paddingBottom: 110,
   },
   headerWrapper: {
     marginBottom: 2,

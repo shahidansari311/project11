@@ -1,9 +1,10 @@
 const { verifyToken } = require("../utils/jwt.util");
+const { extractTokenFromRequest } = require("../utils/cookie.util");
 const { errorResponse } = require("../utils/apiResponse");
 
 function verifyAuth(req, res, next) {
-  const authHeader = req.headers.authorization; // "Bearer <token>"
-  const token = authHeader && authHeader.split(" ")[1];
+  // Support token from either Authorization header (Bearer) or HttpOnly secure cookie
+  const token = extractTokenFromRequest(req);
 
   if (!token) {
     return errorResponse(res, 401, "Token missing");

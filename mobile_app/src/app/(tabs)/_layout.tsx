@@ -48,13 +48,8 @@ export default function TabsLayout() {
     router.replace("/");
   }, [router]);
 
-  // Strictly enforce that guests cannot access ANY tab screens.
-  // If they somehow navigate back via hardware button, kick them out immediately.
-  React.useEffect(() => {
-    if (isGuest) {
-      router.replace("/");
-    }
-  }, [isGuest, router]);
+  // Guests are allowed to browse the home screen.
+  // Certain features like Portfolio or Profile will prompt them to log in when interacted with.
 
   return (
     <SafeAreaView style={styles.root} edges={["top"]}>
@@ -71,9 +66,10 @@ export default function TabsLayout() {
       {/* ── Tab Content — only this area swaps ── */}
       <View style={styles.content}>
         <Stack screenOptions={{ headerShown: false, animation: "none" }}>
-          <Stack.Screen name="portfolio" />
           <Stack.Screen name="home" />
           <Stack.Screen name="saved" />
+          <Stack.Screen name="explore" />
+          <Stack.Screen name="portfolio" />
           <Stack.Screen name="profile" />
         </Stack>
       </View>

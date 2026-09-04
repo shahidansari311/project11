@@ -24,18 +24,18 @@ interface VisualTab {
 
 const VISUAL_TABS: VisualTab[] = [
   {
-    id: "portfolio",
-    label: "Portfolio",
-    icon: "business-outline",
-    activeIcon: "business",
-    routeName: "portfolio",
+    id: "home",
+    label: "Home",
+    icon: "home-outline",
+    activeIcon: "home",
+    routeName: "home",
   },
   {
     id: "explore",
     label: "Explore",
     icon: "search-outline",
     activeIcon: "search",
-    routeName: "home",
+    routeName: "explore",
   },
   {
     id: "saved",
@@ -43,6 +43,13 @@ const VISUAL_TABS: VisualTab[] = [
     icon: "heart-outline",
     activeIcon: "heart",
     routeName: "saved",
+  },
+  {
+    id: "portfolio",
+    label: "Portfolio",
+    icon: "business-outline",
+    activeIcon: "business",
+    routeName: "portfolio",
   },
   {
     id: "profile",

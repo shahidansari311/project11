@@ -195,14 +195,14 @@ export default function InvestNowPanel({
             <Text style={styles.investBtnText}>{statusLabel()}</Text>
           ) : (
             <>
-              <Text style={[styles.investBtnText, isExpanded && { color: Colors.onSurface }]}>
+              <Text style={[styles.investBtnText, isExpanded && { color: "#ffffff" }]}>
                 {isExpanded ? "Close" : "Invest Now"}
               </Text>
-              <View style={[styles.investBtnIcon, isExpanded && { backgroundColor: Colors.surfaceContainerHighest }]}>
+              <View style={[styles.investBtnIcon, isExpanded && { backgroundColor: Colors.error }]}>
                 <Ionicons
-                  name={isExpanded ? "chevron-up" : "arrow-forward"}
-                  size={13}
-                  color={isExpanded ? Colors.onSurface : "#fff"}
+                  name={isExpanded ? "close" : "arrow-forward"}
+                  size={14}
+                  color="#ffffff"
                 />
               </View>
             </>
@@ -370,7 +370,7 @@ export default function InvestNowPanel({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.surfaceContainerLowest,
+    backgroundColor: Colors.primary,
     marginHorizontal: 16,
     borderRadius: 24,
     borderWidth: 1,
@@ -389,53 +389,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   priceBlock: { flex: 1 },
   priceLabel: {
     fontSize: 9,
     fontWeight: "700",
-    color: Colors.outline,
+    color: "rgba(255,255,255,0.7)",
     letterSpacing: 0.6,
   },
   priceAmount: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "800",
-    color: Colors.primary,
+    color: "#ffffff",
     letterSpacing: -0.3,
   },
   priceSubtext: {
     fontSize: 10,
-    color: Colors.onSurfaceVariant,
+    color: "rgba(255,255,255,0.8)",
     marginTop: 2,
   },
   investBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 20,
   },
   investBtnActive: {
-    backgroundColor: Colors.surfaceContainerHigh,
+    backgroundColor: "rgba(255,255,255,0.2)",
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
+    borderColor: "rgba(255,255,255,0.3)",
   },
   investBtnDisabled: {
-    backgroundColor: Colors.surfaceContainerHighest,
+    backgroundColor: "rgba(255,255,255,0.3)",
   },
   investBtnText: {
     fontSize: 13,
     fontWeight: "800",
-    color: Colors.onPrimary,
+    color: Colors.primary,
   },
   investBtnIcon: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -460,16 +460,16 @@ const styles = StyleSheet.create({
   // ── Expanded Panel ──
   expandedPanel: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 12,
   },
   panelDivider: {
     height: 1,
-    backgroundColor: Colors.divider,
-    marginBottom: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    marginBottom: 12,
   },
 
   // ── Progress bar ──
-  progressSection: { marginBottom: 18 },
+  progressSection: { marginBottom: 12 },
   progressLabelRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -477,69 +477,69 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 12,
-    color: Colors.onSurfaceVariant,
+    color: "rgba(255,255,255,0.8)",
     fontWeight: "500",
   },
   progressHighlight: {
-    color: Colors.primary,
+    color: "#ffffff",
     fontWeight: "700",
   },
   progressBarTrack: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.surfaceContainerHighest,
+    backgroundColor: "rgba(255,255,255,0.2)",
     overflow: "hidden",
     marginBottom: 6,
   },
   progressBarFill: {
     height: "100%",
-    backgroundColor: Colors.primary,
+    backgroundColor: "#ffffff",
     borderRadius: 3,
   },
   progressSubtext: {
     fontSize: 11,
-    color: Colors.outline,
+    color: "rgba(255,255,255,0.6)",
   },
 
   // ── Unit Stepper ──
-  unitSelector: { marginBottom: 16 },
+  unitSelector: { marginBottom: 12 },
   selectorLabel: {
     fontSize: 9,
     fontWeight: "700",
-    color: Colors.outline,
+    color: "rgba(255,255,255,0.7)",
     letterSpacing: 0.6,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   stepperRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   stepperBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.surfaceContainerHigh,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
+    borderColor: "rgba(255,255,255,0.3)",
   },
   stepperBtnDisabled: {
     opacity: 0.4,
   },
   stepperInput: {
     flex: 1,
-    height: 44,
-    backgroundColor: Colors.surfaceContainerLowest,
-    borderRadius: 12,
-    color: Colors.onSurface,
-    fontSize: 20,
+    height: 36,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 10,
+    color: "#ffffff",
+    fontSize: 18,
     fontWeight: "800",
     textAlign: "center",
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
+    borderColor: "rgba(255,255,255,0.3)",
   },
   quickPicks: {
     flexDirection: "row",
@@ -550,18 +550,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-    backgroundColor: Colors.surfaceContainerLowest,
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: Colors.outlineVariant,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   quickPickChipActive: {
-    backgroundColor: Colors.primaryContainer,
-    borderColor: Colors.primary,
+    backgroundColor: "#ffffff",
+    borderColor: "#ffffff",
   },
   quickPickText: {
     fontSize: 12,
     fontWeight: "600",
-    color: Colors.onSurfaceVariant,
+    color: "rgba(255,255,255,0.7)",
   },
   quickPickTextActive: {
     color: Colors.primary,
@@ -570,11 +570,11 @@ const styles = StyleSheet.create({
 
   // ── Summary card ──
   summaryCard: {
-    backgroundColor: Colors.surfaceContainerHighest,
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 16,
-    padding: 12,
-    marginBottom: 14,
-    gap: 6,
+    padding: 10,
+    marginBottom: 12,
+    gap: 4,
   },
   summaryRow: {
     flexDirection: "row",
@@ -583,28 +583,28 @@ const styles = StyleSheet.create({
   },
   summaryTotalRow: {
     borderTopWidth: 1,
-    borderTopColor: Colors.divider,
-    paddingTop: 8,
+    borderTopColor: "rgba(255,255,255,0.2)",
+    paddingTop: 6,
     marginTop: 4,
   },
   summaryKey: {
     fontSize: 12,
-    color: Colors.onSurfaceVariant,
+    color: "rgba(255,255,255,0.8)",
     fontWeight: "500",
   },
   summaryVal: {
     fontSize: 13,
-    color: Colors.onSurface,
+    color: "#ffffff",
     fontWeight: "700",
   },
   summaryTotalKey: {
     fontSize: 13,
-    color: Colors.onSurface,
+    color: "#ffffff",
     fontWeight: "700",
   },
   summaryTotalVal: {
     fontSize: 16,
-    color: Colors.primary,
+    color: "#ffffff",
     fontWeight: "800",
     letterSpacing: -0.3,
   },
@@ -614,21 +614,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.primary,
+    backgroundColor: "#ffffff",
     borderRadius: 16,
-    paddingVertical: 14,
+    paddingVertical: 10,
     marginBottom: 8,
   },
   payNowBtnDisabled: { opacity: 0.6 },
   payNowText: {
     fontSize: 15,
     fontWeight: "700",
-    color: Colors.onPrimary,
+    color: Colors.primary,
     letterSpacing: -0.2,
   },
   disclaimer: {
     fontSize: 10,
-    color: Colors.outline,
+    color: "rgba(255,255,255,0.6)",
     textAlign: "center",
     lineHeight: 14,
   },

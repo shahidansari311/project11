@@ -299,18 +299,57 @@ export default function ProfilePage() {
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.listItem} 
+            </View>
+          </View>
+
+          {/* Legal */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Legal</Text>
+            <View style={styles.card}>
+              <TouchableOpacity
+                style={[styles.listItem, styles.listItemBorder]}
                 activeOpacity={0.7}
-                onPress={() => Alert.alert("Coming Soon", "Privacy Policy and Terms of Service will be available soon.")}
+                onPress={() => Alert.alert("Coming Soon", "Sample Investor Agreement will be available soon.")}
               >
                 <View style={styles.listItemLeft}>
-                  <Ionicons
-                    name="shield-checkmark"
-                    size={22}
-                    color={Colors.primary}
-                  />
-                  <Text style={styles.listItemText}>Privacy & Terms</Text>
+                  <Ionicons name="document-text" size={22} color={Colors.primary} />
+                  <Text style={styles.listItemText}>Sample Investor Agreement</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.listItem, styles.listItemBorder]}
+                activeOpacity={0.7}
+                onPress={() => Alert.alert("Coming Soon", "Privacy Policy will be available soon.")}
+              >
+                <View style={styles.listItemLeft}>
+                  <Ionicons name="document-text" size={22} color={Colors.primary} />
+                  <Text style={styles.listItemText}>Privacy Policy</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.listItem, styles.listItemBorder]}
+                activeOpacity={0.7}
+                onPress={() => Alert.alert("Coming Soon", "Terms and Conditions will be available soon.")}
+              >
+                <View style={styles.listItemLeft}>
+                  <Ionicons name="document-text" size={22} color={Colors.primary} />
+                  <Text style={styles.listItemText}>Terms and Conditions</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.listItem}
+                activeOpacity={0.7}
+                onPress={() => Alert.alert("Coming Soon", "Refund and Cancellation Policy will be available soon.")}
+              >
+                <View style={styles.listItemLeft}>
+                  <Ionicons name="document-text" size={22} color={Colors.primary} />
+                  <Text style={styles.listItemText}>Refund and Cancellation Policy</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
               </TouchableOpacity>

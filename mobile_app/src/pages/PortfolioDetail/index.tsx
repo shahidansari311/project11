@@ -208,13 +208,8 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
       });
     }
 
-    // 3. If there are no updates yet, add a "Current" point to draw a flat line
-    if (chartData.length === 1) {
-      chartData.push({
-        value: investment.unitPriceAtTime,
-        label: "Current"
-      });
-    }
+    // We no longer add an artificial 'Current' point to draw a flat line.
+    // If the value hasn't changed, we simply won't draw the graph.
   }
 
   const minInvestedValue = Math.min(...chartData.map(d => d.value));
@@ -356,7 +351,7 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
         {/* Graph */}
         <View style={styles.chartCard}>
           <Text style={styles.sectionTitle}>Portfolio Value Trend</Text>
-          {chartData.length >= 2 ? (
+          {chartData.length >= 2 && new Set(chartData.map(d => d.value)).size > 1 ? (
              <LineChart
                data={chartData}
                width={width - 120}
@@ -423,7 +418,11 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
           ) : (
             <View style={styles.noDataBox}>
               <Ionicons name="bar-chart-outline" size={32} color={Colors.outlineVariant} />
-              <Text style={styles.noDataText}>Not enough data to show trend</Text>
+              <Text style={styles.noDataText}>
+                {chartData.length > 1 
+                  ? "Value has remained stable since investment" 
+                  : "Not enough data to show trend"}
+              </Text>
             </View>
           )}
         </View>

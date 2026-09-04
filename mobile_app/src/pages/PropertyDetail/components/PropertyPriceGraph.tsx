@@ -125,23 +125,69 @@ export default function PropertyPriceGraph({
     );
   }
 
-  if (validHistory.length === 1) {
-    return (
-      <View style={styles.container}>
-        <Header />
-        <View style={styles.emptyState}>
-          <Text style={styles.singlePrice}>{formatPrice(validHistory[0].parsedPrice)}</Text>
-          <Text style={styles.emptySubtext}>Recorded on {formatDate(validHistory[0].date || validHistory[0].createdAt) || "an unknown date"}</Text>
-          <Text style={[styles.emptySubtext, { marginTop: 2 }]}>The trend line appears once a second price is added</Text>
-        </View>
-      </View>
-    );
-  }
-
   const prices = validHistory.map((item) => item.parsedPrice);
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
   const displayPrice = currentPrice ?? validHistory[validHistory.length - 1].parsedPrice;
+  const hasPriceChange = minPrice !== maxPrice;
+
+  // Single value or no price changes
+  if (validHistory.length === 1 || !hasPriceChange) {
+    return (
+      <View style={styles.container}>
+        <Header />
+        <View style={styles.emptyState}>
+          <Text style={styles.singlePrice}>{formatPrice(displayPrice)}</Text>
+          <Text style={styles.emptySubtext}>
+            {validHistory.length > 1 
+              ? "Price has remained stable over time." 
+              : `Recorded on ${formatDate(validHistory[0].date || validHistory[0].createdAt) || "an unknown date"}`}
+          </Text>
+          <Text style={[styles.emptySubtext, { marginTop: 2 }]}>
+            The trend line appears once a different price is recorded
+          </Text>
+        </View>
+        
+        {validHistory.length > 1 && (
+          <View style={styles.tableContainer}>
+            <Text style={styles.tableTitle}>History Log</Text>
+            <View style={styles.tableHeader}>
+              <Text style={styles.tableHeaderCell}>Date</Text>
+              <Text style={[styles.tableHeaderCell, { textAlign: "right" }]}>Price</Text>
+            </View>
+            {[...validHistory].reverse().map((item, index, arr) => {
+              const prevItem = arr[index + 1];
+              const diff = prevItem ? item.parsedPrice - prevItem.parsedPrice : null;
+              const diffColor = COLORS.slateLight;
+
+              return (
+                <View key={item.id || index} style={styles.tableRow}>
+                  <View>
+                    <Text style={styles.tableCellDate}>
+                      {formatDate(item.date || item.createdAt)}
+                    </Text>
+                    {!!item.remark && (
+                      <Text style={styles.tableCellRemark}>{item.remark}</Text>
+                    )}
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={styles.tableCellPrice}>
+                      {formatPrice(item.parsedPrice)}
+                    </Text>
+                    {diff === 0 && (
+                      <Text style={[styles.tableCellDiff, { color: diffColor, marginTop: 2 }]}>
+                        No change
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
+  }
 
   // Calculate dynamic padding to give space below the graph line and above it
   const priceRange = maxPrice - minPrice;

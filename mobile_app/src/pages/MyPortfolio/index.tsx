@@ -224,7 +224,7 @@ export default function MyPortfolioPage() {
             <View style={styles.divider} />
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Pending Value</Text>
-              <Text style={[styles.statValue, { color: "#B8860B" }]}>
+              <Text style={[styles.statValue, { color: "#f6b71aff" }]}>
                 {formatCurrency(pendingValue)}
               </Text>
             </View>

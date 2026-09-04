@@ -180,21 +180,61 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
 
   const img = investment.property?.images?.[0] ?? PLACEHOLDER_IMAGE;
 
-  // Process chart data if price history exists
-  const chartData = property?.priceHistory?.map(ph => ({
-    value: ph.price * investment.units,
-    label: new Date(ph.date).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })
-  })) || [{ value: investment.totalAmount, label: "Current" }];
+  // Process chart data to show the user's investment value over time
+  const chartData = [];
+  if (investment && property) {
+    const totalUnits = property.totalUnits || 1;
+    const investDate = new Date(investment.createdAt).getTime();
+
+    // 1. Initial Investment Point
+    chartData.push({
+      value: investment.unitPriceAtTime,
+      label: new Date(investment.createdAt).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })
+    });
+
+    // 2. Add history points that occurred AFTER the investment
+    if (property.priceHistory) {
+      property.priceHistory.forEach(ph => {
+        const phDate = new Date(ph.date).getTime();
+        // Allow a tiny threshold to avoid duplicating the exact same second if backend created them simultaneously,
+        // but typically phDate will be strictly greater when the price is updated later.
+        if (phDate > investDate + 1000) {
+          const perUnitPrice = ph.price / totalUnits;
+          chartData.push({
+            value: perUnitPrice,
+            label: new Date(ph.date).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })
+          });
+        }
+      });
+    }
+
+    // 3. If there are no updates yet, add a "Current" point to draw a flat line
+    if (chartData.length === 1) {
+      chartData.push({
+        value: investment.unitPriceAtTime,
+        label: "Current"
+      });
+    }
+  }
 
   const minInvestedValue = Math.min(...chartData.map(d => d.value));
-  const yAxisOffset = Math.max(0, Math.floor(minInvestedValue * 0.85));
+  // Lower the Y-axis offset slightly so the graph doesn't start exactly at the bottom line.
+  const yAxisOffset = Math.max(0, Math.floor(minInvestedValue * 0.9));
 
   const formatYLabel = (val: string) => {
-    const num = Number(val);
+    // We display the exact value (per-unit price) on the axis.
+    let num = Number(val);
+    
+    // Fallback: If GiftedCharts is passing an un-offsetted value (e.g. 0 instead of 50), add the offset back.
+    // If it's already offsetted, this step is skipped.
+    if (num < yAxisOffset && num < 10) {
+       num += yAxisOffset;
+    }
+    
     if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)}Cr`;
     if (num >= 100000) return `₹${(num / 100000).toFixed(1)}L`;
     if (num >= 1000) return `₹${(num / 1000).toFixed(1)}K`;
-    return `₹${num}`;
+    return `₹${Number.isInteger(num) ? num : num.toFixed(1)}`;
   };
 
   const currentPrice = property?.perUnitPrice || investment.unitPriceAtTime;
@@ -276,8 +316,20 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
           </View>
         </View>
 
-        {/* Snapshot */}
-        <View style={styles.snapshotCard}>
+        {investment.status === "REJECTED" ? (
+          <View style={styles.rejectedCard}>
+            <View style={styles.rejectedHeader}>
+              <Ionicons name="close-circle" size={24} color={Colors.error} />
+              <Text style={styles.rejectedTitle}>Investment Rejected</Text>
+            </View>
+            <Text style={styles.rejectedReason}>
+              {investment.adminRemark || "Your investment request was rejected by the admin."}
+            </Text>
+          </View>
+        ) : (
+          <>
+            {/* Snapshot */}
+            <View style={styles.snapshotCard}>
           <Text style={styles.sectionTitle}>Snapshot</Text>
           <View style={styles.snapshotGrid}>
             <View style={styles.snapshotItem}>
@@ -304,13 +356,14 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
         {/* Graph */}
         <View style={styles.chartCard}>
           <Text style={styles.sectionTitle}>Portfolio Value Trend</Text>
-          {property?.priceHistory && property.priceHistory.length > 1 ? (
+          {chartData.length >= 2 ? (
              <LineChart
                data={chartData}
-               width={width - 110}
+               width={width - 120}
                height={200}
-               spacing={55}
-               initialSpacing={15}
+               spacing={45}
+               initialSpacing={20}
+               endSpacing={40}
                color1={Colors.primary}
                textColor1={Colors.onSurface}
                dataPointsColor1={Colors.primary}
@@ -320,7 +373,9 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
                yAxisColor={Colors.outlineVariant}
                xAxisColor={Colors.outlineVariant}
                yAxisTextStyle={{ color: Colors.outline, fontSize: 10 }}
-               xAxisLabelTextStyle={{ color: Colors.outline, fontSize: 10, width: 40 }}
+               xAxisLabelTextStyle={{ color: Colors.outline, fontSize: 10, width: 60, marginLeft: -10, transform: [{ rotate: '-60deg' }] }}
+               xAxisLabelsVerticalShift={40}
+               xAxisLabelsHeight={50}
                isAnimated
                thickness={3}
                curved
@@ -330,8 +385,8 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
                endFillColor={Colors.primary}
                endOpacity={0.05}
                yAxisOffset={yAxisOffset}
-               formatYLabel={formatYLabel}
-               yAxisLabelWidth={45}
+               hideYAxisText
+               yAxisLabelWidth={0}
                pointerConfig={{
                  pointerStripUptoDataPoint: true,
                  pointerStripColor: Colors.primary,
@@ -342,8 +397,11 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
                  pointerLabelWidth: 100,
                  pointerLabelHeight: 40,
                  activatePointersOnLongPress: false,
+                 persistPointer: true,
                  autoAdjustPointerLabelPosition: true,
                  pointerLabelComponent: (items: any) => {
+                   // Calculate the total investment value to display in the tooltip
+                   const totalValue = items[0].value * investment.units;
                    return (
                      <View
                        style={{
@@ -355,7 +413,7 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
                          alignItems: 'center',
                        }}>
                        <Text style={{color: Colors.onSurface, fontSize: 12, fontWeight: '700'}}>
-                         {formatCurrency(items[0].value)}
+                         {formatCurrency(totalValue)}
                        </Text>
                      </View>
                    );
@@ -404,6 +462,8 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
             </View>
           )}
         </View>
+          </>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -606,5 +666,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: Colors.primary,
+  },
+  rejectedCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.error,
+  },
+  rejectedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  rejectedTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.error,
+    marginLeft: 8,
+  },
+  rejectedReason: {
+    fontSize: 14,
+    color: Colors.onSurfaceVariant,
+    lineHeight: 20,
   }
 });

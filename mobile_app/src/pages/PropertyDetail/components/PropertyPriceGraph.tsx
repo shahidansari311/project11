@@ -193,12 +193,14 @@ export default function PropertyPriceGraph({
           endFillColor={COLORS.navy}
           endOpacity={0.0}
           initialSpacing={16}
-          endSpacing={8}
+          endSpacing={30}
           spacing={calculatedSpacing}
           yAxisColor="transparent"
           xAxisColor="transparent"
           yAxisTextStyle={styles.axisText}
-          xAxisLabelTextStyle={styles.axisText}
+          xAxisLabelTextStyle={[styles.axisText, { width: 60, marginLeft: -10, transform: [{ rotate: '-60deg' }] }]}
+          xAxisLabelsVerticalShift={40}
+          xAxisLabelsHeight={50}
           rulesType="dashed"
           rulesColor={COLORS.hairline}
           maxValue={maxValue}
@@ -218,6 +220,7 @@ export default function PropertyPriceGraph({
             pointerLabelWidth: 168,
             pointerLabelHeight: 80,
             activatePointersOnLongPress: false,
+            persistPointer: true,
             autoAdjustPointerLabelPosition: true,
             pointerLabelComponent: (items: any) => {
               if (!items || !items.length) return null;

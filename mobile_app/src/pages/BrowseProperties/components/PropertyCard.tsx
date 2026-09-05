@@ -5,7 +5,7 @@
  * 100% preserved logic, zero breaking changes.
  */
 
-import React, { memo, useState } from "react";
+import { memo, useState } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { Colors } from "@/constants/colors";
 import { Property, PLACEHOLDER_IMAGE } from "../data";
+import { formatLocationText } from "@/utils/formatLocation";
 import FavoriteButton from "@/components/ui/FavoriteButton";
 
 interface PropertyCardProps {
@@ -135,7 +136,7 @@ export default memo(function PropertyCard({
         <View style={styles.locationRow}>
           <Ionicons name="location-sharp" size={12} color={Colors.primary} />
           <Text style={styles.locationText} numberOfLines={1}>
-            {property.location}
+            {formatLocationText(property.location)}
           </Text>
         </View>
 

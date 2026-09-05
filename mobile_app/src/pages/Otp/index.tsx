@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -116,8 +116,12 @@ export default function OtpPage({ phone, onRegisterRequired, onGoBack }: OtpPage
         await SecureStore.setItemAsync("access_token", token);
         await SecureStore.setItemAsync("refresh_token", refreshToken);
         refreshFavorites();
-        await refreshAuth();
-        router.replace("/(tabs)/home" as any);
+        const profile = await refreshAuth();
+        if (profile?.role === "BUILDER") {
+          router.replace("/(tabs)/builder-live" as any);
+        } else {
+          router.replace("/(tabs)/home" as any);
+        }
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Invalid OTP";

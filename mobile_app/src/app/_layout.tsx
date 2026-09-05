@@ -9,7 +9,7 @@ import "../../global.css";
 
 export default function RootLayout() {
   const appState = useRef(AppState.currentState);
-  const backgroundTimer = useRef<NodeJS.Timeout | null>(null);
+  const backgroundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState: AppStateStatus) => {

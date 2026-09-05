@@ -134,9 +134,9 @@ async function getInvestmentsByProperty(req, res, next) {
     const { propertyId } = req.params;
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const { status } = req.query;
+    const { status, search } = req.query;
 
-    const result = await investmentService.getInvestmentsByProperty(propertyId, { page, limit, status });
+    const result = await investmentService.getInvestmentsByProperty(propertyId, { page, limit, status, search });
     return successResponse(res, 200, result, "Property investments retrieved successfully.");
   } catch (err) {
     next(err);
@@ -151,9 +151,9 @@ async function getInvestmentsByUser(req, res, next) {
     const { userId } = req.params;
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const { status } = req.query;
+    const { status, search } = req.query;
 
-    const result = await investmentService.getInvestmentsByUser(userId, { page, limit, status });
+    const result = await investmentService.getInvestmentsByUser(userId, { page, limit, status, search });
     return successResponse(res, 200, result, "User investments retrieved successfully.");
   } catch (err) {
     next(err);

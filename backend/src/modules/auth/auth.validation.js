@@ -88,17 +88,23 @@ const registerSchema = z.object({
       required_error: "Registration token is missing.",
       invalid_type_error: "Registration token must be text."
     }).min(1, "Registration token is required"),
+    googleIdToken: z.string().optional(),
     fullName: z.string({
-      required_error: "Please provide a full name.",
       invalid_type_error: "Full name must be text."
-    }).min(2, "Full name must be at least 2 characters").max(100).regex(/^[a-zA-Z\s]+$/, "Full name can only contain letters and spaces"),
+    }).min(2, "Full name must be at least 2 characters").max(100).regex(/^[a-zA-Z\s]+$/, "Full name can only contain letters and spaces").optional(),
     email: z.string({
       invalid_type_error: "Email must be text."
-    }).email("Invalid email address").optional().or(z.literal("")),
+    }).email("Invalid email address").optional(),
     profileImage: z.string({
       invalid_type_error: "Profile image must be text."
     }).url("Invalid image URL").optional().or(z.literal("")),
     createdBy: z.string().optional(),
+  }).refine((data) => {
+    if (data.googleIdToken) return true;
+    return !!data.fullName && !!data.email;
+  }, {
+    message: "Full name and email are required if not using Google Sign-In",
+    path: ["fullName"]
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({}).passthrough().optional()

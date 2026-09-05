@@ -5,7 +5,7 @@
  * Extracted into smaller, modular components.
  */
 
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -37,14 +37,18 @@ import PropertyHighlights from "./components/PropertyHighlights";
 import PropertyFinancials from "./components/PropertyFinancials";
 import PropertyPriceGraph from "./components/PropertyPriceGraph";
 import InvestNowPanel from "./components/InvestNowPanel";
+import BuilderManagementPanel from "./components/BuilderManagementPanel";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function PropertyDetailPage({ id }: { id: string }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const scrollY = React.useRef(new Animated.Value(0)).current;
-  const scrollViewRef = React.useRef<any>(null);
+  const { userProfile } = useAuth();
+  const isBuilder = userProfile?.role === "BUILDER";
+  const isOwner = isBuilder && property?.builderId === userProfile?.id;
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<any>(null);
 
   // Card starts at y=280 in scroll content (HERO=300, marginTop=-20).
   // Stop card top just below floating header bottom (46px from scroll top) + 16px buffer.
@@ -73,9 +77,9 @@ export default function PropertyDetailPage({ id }: { id: string }) {
     }
   };
 
-  const loadInvestmentInfo = useCallback(async () => {
+  const loadInvestmentInfo = useCallback(async (isRefresh = false) => {
     try {
-      setInvestInfoLoading(true);
+      if (!isRefresh) setInvestInfoLoading(true);
       const res = await investmentService.getPropertyInvestmentInfo(id);
       if (res?.data) setInvestmentInfo(res.data);
     } catch (e) {
@@ -100,14 +104,18 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   }, [id]);
 
   const fetchData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setIsRefreshing(true);
     await Promise.all([
       checkAuthStatus(),
       loadProperty(isRefresh),
-      loadInvestmentInfo()
+      loadInvestmentInfo(isRefresh)
     ]);
-    if (isRefresh) setIsRefreshing(false);
   }, [loadProperty, loadInvestmentInfo]);
+
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await fetchData(true);
+    setIsRefreshing(false);
+  }, [fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -230,21 +238,25 @@ export default function PropertyDetailPage({ id }: { id: string }) {
         </View>
       </Animated.ScrollView>
 
-      {/* ── Floating InvestNow Panel ── */}
+      {/* ── Floating Panel ── */}
       <View
         style={[
           styles.investPanelContainer,
           { bottom: Math.max(insets.bottom + 10, 16) },
         ]}
       >
-        <InvestNowPanel
-          propertyId={id}
-          investmentInfo={investmentInfo}
-          isLoading={investInfoLoading}
-          isGuest={isGuest}
-          onRequireLogin={() => setShowLoginPrompt(true)}
-          onSuccess={loadInvestmentInfo}
-        />
+        {isOwner ? (
+          <BuilderManagementPanel property={property} onUpdate={() => fetchData(true)} />
+        ) : (
+          <InvestNowPanel
+            propertyId={id}
+            investmentInfo={investmentInfo}
+            isLoading={investInfoLoading}
+            isGuest={isGuest}
+            onRequireLogin={() => setShowLoginPrompt(true)}
+            onSuccess={loadInvestmentInfo}
+          />
+        )}
       </View>
 
       {/* ── Login Prompt Modal ── */}

@@ -1,4 +1,3 @@
-import React from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
 import { UserProfile } from "@/services/auth.service";
 import { Colors } from "@/constants/colors";
@@ -9,8 +8,21 @@ interface UserDetailsCardProps {
 }
 
 export default function UserDetailsCard({ user }: UserDetailsCardProps) {
-  if (!user) return null;
-
+  if (!user) {
+    return (
+      <View style={styles.card}>
+        <View style={styles.content}>
+          <View style={[styles.placeholder, { backgroundColor: Colors.surfaceContainerHighest }]}>
+            <Ionicons name="person" size={24} color={Colors.onSurfaceVariant} />
+          </View>
+          <View style={styles.infoContainer}>
+            <View style={{ width: 120, height: 18, backgroundColor: Colors.surfaceContainerHighest, borderRadius: 4, marginBottom: 8 }} />
+            <View style={{ width: 100, height: 14, backgroundColor: Colors.surfaceContainerHighest, borderRadius: 4 }} />
+          </View>
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={styles.card}>
       <View style={styles.content}>

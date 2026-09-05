@@ -69,7 +69,19 @@ async function getAllProperties(req, res, next) {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const { status, category, search, minPrice, maxPrice, location, area, minArea, maxArea } = req.query;
+    let { status, category, search, minPrice, maxPrice, location, area, minArea, maxArea } = req.query;
+
+    // Security: Restrict public API to only show approved listings
+    const allowedStatuses = ["AVAILABLE", "SOLD", "COMING_SOON"];
+    if (status) {
+      if (!allowedStatuses.includes(status)) {
+        // If they ask for something like DRAFT, fallback to AVAILABLE
+        status = "AVAILABLE";
+      }
+    } else {
+      // By default, show all approved statuses
+      status = allowedStatuses;
+    }
 
     const result = await propertyService.getAllProperties({ page, limit, status, category, search, minPrice, maxPrice, location, area, minArea, maxArea });
     return successResponse(res, 200, result, "Properties retrieved successfully");
@@ -181,7 +193,64 @@ async function getPropertyInvestmentInfo(req, res, next) {
   }
 }
 
+async function builderUpdateStatus(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    // Check ownership
+    const property = await propertyService.getPropertyById(id);
+    if (!property) return errorResponse(res, 404, "Property not found");
+    if (property.builderId !== req.user.id && req.user.role !== "admin") {
+      return errorResponse(res, 403, "You do not have permission to update this property");
+    }
+
+    const updated = await propertyService.updateProperty(id, { status });
+    return successResponse(res, 200, updated, `Property marked as ${status}`);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function builderAddPriceHistory(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { price } = req.body;
+    
+    const property = await propertyService.getPropertyById(id);
+    if (!property) return errorResponse(res, 404, "Property not found");
+    if (property.builderId !== req.user.id && req.user.role !== "admin") {
+      return errorResponse(res, 403, "You do not have permission to update this property");
+    }
+
+    const result = await propertyService.addPriceHistory(id, { price });
+    return successResponse(res, 201, result, "Price history added successfully");
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function builderDeleteProperty(req, res, next) {
+  try {
+    const { id } = req.params;
+    
+    const property = await propertyService.getPropertyById(id);
+    if (!property) return errorResponse(res, 404, "Property not found");
+    if (property.builderId !== req.user.id && req.user.role !== "admin") {
+      return errorResponse(res, 403, "You do not have permission to delete this property");
+    }
+
+    const result = await propertyService.deleteProperty(id);
+    return successResponse(res, 200, null, result.message);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
+  builderUpdateStatus,
+  builderAddPriceHistory,
+  builderDeleteProperty,
   createProperty,
   updateProperty,
   deleteProperty,
@@ -194,3 +263,87 @@ module.exports = {
   deletePriceHistory,
   getPropertyInvestmentInfo,
 };
+
+async function getBuilderSubmissions(req, res, next) {
+  try {
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    
+    const result = await propertyService.getAllProperties({
+      page,
+      limit,
+      status: req.query.status, // Can be PENDING_APPROVAL, AVAILABLE, etc.
+      onlyBuilderSubmissions: true,
+      excludeRejected: false
+    });
+    
+    // Filter out properties that don't have a builder (only submissions)
+    // Actually it's better to add builderId: { not: null } in service, but we can just filter here or let service handle it.
+    // For simplicity, assuming service allows filtering by builderId in the future, 
+    // but for now let's just return all properties if we don't have a specific builder filter.
+    
+    return successResponse(res, 200, result, "Builder submissions retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function verifyProperty(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { status, adminRemark } = req.body; // status should be 'AVAILABLE' or 'REJECTED'
+    
+    if (!['AVAILABLE', 'REJECTED'].includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid status for verification" });
+    }
+    
+    const updatedProperty = await propertyService.updatePropertyStatus(id, status, adminRemark);
+    return successResponse(res, 200, updatedProperty, `Property ${status.toLowerCase()} successfully`);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function builderAddProperty(req, res, next) {
+  try {
+    const propertyData = req.body;
+    
+    // Override status to PENDING_APPROVAL unless it's a DRAFT.
+    // This prevents builders from publishing properties directly as AVAILABLE.
+    if (propertyData.status !== "DRAFT") {
+      propertyData.status = "PENDING_APPROVAL";
+    }
+    
+    propertyData.builderId = req.user.id;
+    
+    const newProperty = await propertyService.createProperty(propertyData);
+    return successResponse(res, 201, newProperty, "Property submitted for verification successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function builderListProperties(req, res, next) {
+  try {
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const status = req.query.status;
+    
+    const result = await propertyService.getAllProperties({
+      page,
+      limit,
+      status,
+      builderId: req.user.id,
+      excludeRejected: false
+    });
+    
+    return successResponse(res, 200, result, "Builder properties retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports.getBuilderSubmissions = getBuilderSubmissions;
+module.exports.verifyProperty = verifyProperty;
+module.exports.builderAddProperty = builderAddProperty;
+module.exports.builderListProperties = builderListProperties;

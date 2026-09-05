@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager, TouchableOpacity, Text, ActivityIndicator, Alert, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
@@ -222,31 +222,7 @@ export default function DocumentUploadPage() {
   const isAadharUploadHidden = aadharStatus === "PENDING" || aadharStatus === "APPROVED";
   const isPanUploadHidden = panStatus === "PENDING" || panStatus === "APPROVED";
 
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.contentContainer}>
-          <View style={styles.header}>
-            <Skeleton width={32} height={32} borderRadius={16} />
-            <Skeleton width={120} height={24} />
-            <View style={{ width: 32 }} />
-          </View>
 
-          <Skeleton width="100%" height={100} borderRadius={16} style={{ marginBottom: 24 }} />
-
-          <View style={styles.formSection}>
-            <Skeleton width="100%" height={48} borderRadius={24} style={{ marginBottom: 24 }} />
-
-            <Skeleton width={150} height={16} style={{ marginBottom: 12 }} />
-            <Skeleton width="100%" height={160} borderRadius={16} style={{ marginBottom: 24 }} />
-
-            <Skeleton width={150} height={16} style={{ marginBottom: 12 }} />
-            <Skeleton width="100%" height={160} borderRadius={16} />
-          </View>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <ScrollView 

@@ -252,12 +252,23 @@ async function rejectInvestment(adminId, investmentId, remark) {
 /**
  * Admin: list all investments with optional filters (status, propertyId, userId, pagination).
  */
-async function getAllInvestments({ page = 1, limit = 20, status, propertyId, userId } = {}) {
+async function getAllInvestments({ page = 1, limit = 20, status, search, propertyId, userId } = {}) {
   const skip  = (page - 1) * limit;
   const where = {};
-  if (status)     where.status     = status;
+  
+  if (status && status !== "ALL") where.status = status;
   if (propertyId) where.propertyId = propertyId;
   if (userId)     where.userId     = userId;
+
+  if (search && search.trim() !== "") {
+    where.user = {
+      OR: [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ],
+    };
+  }
 
   const [investments, total] = await Promise.all([
     getInvestmentModel().findMany({
@@ -267,14 +278,45 @@ async function getAllInvestments({ page = 1, limit = 20, status, propertyId, use
       take: limit,
       include: {
         property: { select: { id: true, title: true, location: true, category: true } },
-        user:     { select: { id: true, fullName: true, phone: true, email: true } },
+        user: { 
+          select: { 
+            id: true, 
+            fullName: true, 
+            phone: true, 
+            email: true, 
+            profileUrl: true,
+            documents: { select: { documentType: true, status: true } }
+          } 
+        },
       },
     }),
     getInvestmentModel().count({ where }),
   ]);
 
+  // Compute isVerified
+  const formattedInvestments = investments.map(inv => {
+    let isVerified = false;
+    if (inv.user && inv.user.documents) {
+      const hasAadhar = inv.user.documents.some(d => d.documentType === 'AADHAAR' && d.status === 'APPROVED');
+      const hasPan = inv.user.documents.some(d => d.documentType === 'PAN' && d.status === 'APPROVED');
+      isVerified = hasAadhar && hasPan;
+    }
+    
+    // Clean up documents from response and shape the user object properly
+    const { documents, ...userWithoutDocs } = inv.user || {};
+    
+    return {
+      ...inv,
+      user: {
+        ...userWithoutDocs,
+        profileImage: userWithoutDocs.profileUrl,
+        isVerified
+      }
+    };
+  });
+
   return {
-    investments,
+    investments: formattedInvestments,
     pagination: {
       total,
       page,
@@ -304,15 +346,15 @@ async function getInvestmentById(investmentId) {
 /**
  * Admin: get all investments for a specific property.
  */
-async function getInvestmentsByProperty(propertyId, { page = 1, limit = 20, status } = {}) {
-  return getAllInvestments({ page, limit, status, propertyId });
+async function getInvestmentsByProperty(propertyId, { page = 1, limit = 20, status, search } = {}) {
+  return getAllInvestments({ page, limit, status, search, propertyId });
 }
 
 /**
  * Admin: get all investments by a specific user.
  */
-async function getInvestmentsByUser(userId, { page = 1, limit = 20, status } = {}) {
-  return getAllInvestments({ page, limit, status, userId });
+async function getInvestmentsByUser(userId, { page = 1, limit = 20, status, search } = {}) {
+  return getAllInvestments({ page, limit, status, search, userId });
 }
 
 /**

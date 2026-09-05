@@ -4,7 +4,6 @@
  * Renders pill-shaped buttons for each category with subtle soft fills.
  */
 
-import React from "react";
 import {
   View,
   Text,

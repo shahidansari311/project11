@@ -18,9 +18,16 @@ model User {
   createdby_admin      Boolean        @default(false)
   profileUrl           String?
   favoriteProperties   String[]       @default([])
+  role                 UserRole       @default(USER)
   sessions             Session[]
   documents            UserDocument[]
   investments          Investment[]
+  builderProperties    Property[]     @relation("BuilderProperties")
+}
+
+enum UserRole {
+  USER
+  BUILDER
 }
 
 model Admin {
@@ -60,6 +67,7 @@ model Property {
   description     String
   images          String[]
   location        String
+  mapLocation     Json?
   status          PropertyStatus         @default(AVAILABLE)
   targetReturn    Float
   minInvestment   Float
@@ -73,6 +81,8 @@ model Property {
   youtubeVideoUrl String?
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
+  builderId       String?
+  builder         User?                  @relation("BuilderProperties", fields: [builderId], references: [id])
   priceHistory    PropertyPriceHistory[]
   investments     Investment[]
 }
@@ -112,6 +122,10 @@ enum PropertyStatus {
   SOLD
   UNDER_REVIEW
   COMING_SOON
+  PENDING_APPROVAL
+  REJECTED
+  DRAFT
+  UNAVAILABLE
 }
 
 enum PropertyCategory {

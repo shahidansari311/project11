@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -20,8 +20,8 @@ export interface ActiveFilters {
   maxPrice?: number;
   minArea?: number;
   maxArea?: number;
-  location?: string;
-  status?: string;
+  location?: string[];
+  status?: string[];
 }
 
 export interface FilterData {
@@ -171,8 +171,8 @@ export default function FilterModal({
 
   const renderSelectFilter = (
     options: string[] | undefined,
-    currentValue: string | undefined,
-    onSelect: (val: string) => void
+    currentValues: string[] | undefined,
+    onToggle: (val: string) => void
   ) => {
     if (!options || options.length === 0) {
       return <Text style={styles.emptyText}>No options available.</Text>;
@@ -181,12 +181,12 @@ export default function FilterModal({
     return (
       <ScrollView contentContainerStyle={styles.chipGrid}>
         {options.map((opt) => {
-          const isActive = currentValue === opt;
+          const isActive = currentValues?.includes(opt) || false;
           return (
             <TouchableOpacity
               key={opt}
               style={[styles.chip, isActive && styles.chipActive]}
-              onPress={() => onSelect(opt)}
+              onPress={() => onToggle(opt)}
             >
               <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
                 {opt.replace(/_/g, " ")}
@@ -203,15 +203,23 @@ export default function FilterModal({
       case "Price":
         return renderPriceFilter();
       case "Location":
-        return renderSelectFilter(filterData?.locations, localFilters.location, (val) =>
-          setLocalFilters({ ...localFilters, location: val })
-        );
+        return renderSelectFilter(filterData?.locations, localFilters.location, (val) => {
+          const prev = localFilters.location || [];
+          setLocalFilters({
+            ...localFilters,
+            location: prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val],
+          });
+        });
       case "Area":
         return renderAreaFilter();
       case "Status":
-        return renderSelectFilter(filterData?.statuses, localFilters.status, (val) =>
-          setLocalFilters({ ...localFilters, status: val })
-        );
+        return renderSelectFilter(filterData?.statuses, localFilters.status, (val) => {
+          const prev = localFilters.status || [];
+          setLocalFilters({
+            ...localFilters,
+            status: prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val],
+          });
+        });
       default:
         return null;
     }

@@ -1,4 +1,3 @@
-import React from "react";
 import { View, StyleSheet, Dimensions } from "react-native";
 import { Colors } from "@/constants/colors";
 import Skeleton from "@/components/ui/Skeleton";

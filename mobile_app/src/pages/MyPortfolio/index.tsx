@@ -5,7 +5,7 @@
  * status badges, amount, and per-unit details.
  */
 
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -22,9 +22,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { investmentService } from "@/services/investment.service";
+import { propertyService } from "@/services/property.service";
 import { Investment, InvestmentStatus, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
+import PortfolioValuationGraph from "./components/PortfolioValuationGraph";
 import { useAuth } from "../../contexts/AuthContext";
 import { useRouter, useFocusEffect } from "expo-router";
+import { formatLocationText } from "@/utils/formatLocation";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-IN", {
@@ -53,7 +56,7 @@ const STATUS_CONFIG: Record<
 
 // ── Skeleton Loader ──
 const PortfolioSkeleton = ({ insets }: { insets: any }) => {
-  const anim = React.useRef(new Animated.Value(0.4)).current;
+  const anim = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
     Animated.loop(
@@ -153,7 +156,35 @@ export default function MyPortfolioPage() {
     try {
       const res = await investmentService.getMyInvestments({ limit: 100 });
       if (res?.data?.investments) {
-        setInvestments(res.data.investments);
+        const rawInvestments = res.data.investments;
+        
+        // Fetch property details to get priceHistory
+        const uniquePropertyIds = Array.from(new Set(rawInvestments.map((i) => i.propertyId)));
+        const propertyResponses = await Promise.all(
+          uniquePropertyIds.map((id) => propertyService.getPropertyById(id).catch(() => null))
+        );
+        
+        const propertyDetailsMap: any = {};
+        propertyResponses.forEach((propRes) => {
+          if (propRes?.data) {
+            propertyDetailsMap[propRes.data.id] = propRes.data;
+          }
+        });
+        
+        const enhancedInvestments = rawInvestments.map(inv => {
+          if (inv.property && propertyDetailsMap[inv.propertyId]) {
+            return {
+              ...inv,
+              property: {
+                ...inv.property,
+                priceHistory: propertyDetailsMap[inv.propertyId].priceHistory
+              }
+            };
+          }
+          return inv;
+        });
+
+        setInvestments(enhancedInvestments);
       }
     } catch (err: any) {
       // Silently fail on background refresh
@@ -309,7 +340,7 @@ export default function MyPortfolioPage() {
                     </Text>
                     <Text style={styles.propLocation} numberOfLines={1}>
                       <Ionicons name="location-outline" size={11} color={Colors.outline} />
-                      {" "}{inv.property?.location ?? "—"}
+                      {" "}{formatLocationText(inv.property?.location)}
                     </Text>
                     {/* Status badge */}
                     <View style={[styles.statusBadge, { backgroundColor: cfg.bg }]}>
@@ -336,6 +367,8 @@ export default function MyPortfolioPage() {
                     </Text>
                   </View>
                 </View>
+
+
 
                 {/* Date + admin remark */}
                 <View style={styles.cardFooter}>

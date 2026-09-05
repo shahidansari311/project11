@@ -11,7 +11,7 @@
  * Animation: smooth height expand with spring easing.
  */
 
-import React, { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -195,16 +195,16 @@ export default function InvestNowPanel({
             <Text style={styles.investBtnText}>{statusLabel()}</Text>
           ) : (
             <>
-              <Text style={[styles.investBtnText, isExpanded && { color: "#ffffff" }]}>
-                {isExpanded ? "Close" : "Invest Now"}
-              </Text>
-              <View style={[styles.investBtnIcon, isExpanded && { backgroundColor: Colors.error }]}>
-                <Ionicons
-                  name={isExpanded ? "close" : "arrow-forward"}
-                  size={14}
-                  color="#ffffff"
-                />
-              </View>
+              {!isExpanded && (
+                <Text style={styles.investBtnText}>Invest Now</Text>
+              )}
+              {!isExpanded ? (
+                <View style={styles.investBtnIcon}>
+                  <Ionicons name="arrow-forward" size={14} color="#ffffff" />
+                </View>
+              ) : (
+                <Ionicons name="close" size={20} color={Colors.primary} />
+              )}
             </>
           )}
         </TouchableOpacity>
@@ -258,7 +258,7 @@ export default function InvestNowPanel({
                 disabled={units <= 1}
                 activeOpacity={0.7}
               >
-                <Ionicons name="remove" size={18} color={units <= 1 ? Colors.outlineVariant : Colors.primary} />
+                <Ionicons name="remove" size={18} color={units <= 1 ? "rgba(255,255,255,0.4)" : "#ffffff"} />
               </TouchableOpacity>
 
               <TextInput
@@ -280,7 +280,7 @@ export default function InvestNowPanel({
                 <Ionicons
                   name="add"
                   size={18}
-                  color={units >= remainingUnits ? Colors.outlineVariant : Colors.primary}
+                  color={units >= remainingUnits ? "rgba(255,255,255,0.4)" : "#ffffff"}
                 />
               </TouchableOpacity>
             </View>
@@ -419,9 +419,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   investBtnActive: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+    backgroundColor: "#ffffff",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 0,
   },
   investBtnDisabled: {
     backgroundColor: "rgba(255,255,255,0.3)",
@@ -517,9 +523,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   stepperBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
@@ -532,10 +538,11 @@ const styles = StyleSheet.create({
   stepperInput: {
     flex: 1,
     height: 36,
+    padding: 0,
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 10,
     color: "#ffffff",
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "800",
     textAlign: "center",
     borderWidth: 1,

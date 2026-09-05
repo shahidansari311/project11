@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -221,16 +221,18 @@ export default function ProfilePage() {
           ) : (
             <>
               <Text style={styles.userName}>{userProfile?.fullName || "Guest"}</Text>
-              <Text style={styles.userRole}>Accredited Investor</Text>
+              <Text style={styles.userRole}>{userProfile?.role === "BUILDER" ? "Builder" : "Accredited Investor"}</Text>
             </>
           )}
         </View>
 
         {/* ── Content Area ── */}
         <View style={styles.contentArea}>
-          {/* Portfolio Management */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Portfolio Management</Text>
+          {userProfile?.role !== "BUILDER" && (
+            <>
+              {/* Portfolio Management */}
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Portfolio Management</Text>
             <View style={styles.card}>
               <TouchableOpacity
                 style={[styles.listItem, styles.listItemBorder]}
@@ -256,17 +258,76 @@ export default function ProfilePage() {
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
               </TouchableOpacity>
             </View>
-          </View>
+              </View>
+            </>
+          )}
+
+
+          {userProfile?.role === "BUILDER" && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Builder Management</Text>
+              <View style={styles.card}>
+                <TouchableOpacity
+                  style={[styles.listItem, styles.listItemBorder]}
+                  activeOpacity={0.7}
+                  onPress={() => router.navigate("/(tabs)/builder-live" as any)}
+                >
+                  <View style={styles.listItemLeft}>
+                    <Ionicons name="business" size={22} color={Colors.primary} />
+                    <Text style={styles.listItemText}>My Live Listings</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.listItem, styles.listItemBorder]}
+                  activeOpacity={0.7}
+                  onPress={() => router.navigate("/(tabs)/builder-pending" as any)}
+                >
+                  <View style={styles.listItemLeft}>
+                    <Ionicons name="time" size={22} color={Colors.primary} />
+                    <Text style={styles.listItemText}>Pending Approvals</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.listItem, styles.listItemBorder]} 
+                  activeOpacity={0.7}
+                  onPress={() => Alert.alert("Coming Soon", "Property Inquiries will be available soon.")}
+                >
+                  <View style={styles.listItemLeft}>
+                    <Ionicons name="chatbubbles" size={22} color={Colors.primary} />
+                    <Text style={styles.listItemText}>Property Inquiries</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.listItem} 
+                  activeOpacity={0.7}
+                  onPress={() => router.push("/help" as any)}
+                >
+                  <View style={styles.listItemLeft}>
+                    <Ionicons name="help-buoy" size={22} color={Colors.primary} />
+                    <Text style={styles.listItemText}>Help & Support</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {/* Account & Documents */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Account & Documents</Text>
-            <View style={styles.card}>
-              <TouchableOpacity
-                style={[styles.listItem, styles.listItemBorder]}
-                activeOpacity={0.7}
-                onPress={() => router.push("/profile/document-upload" as any)}
-              >
+          {userProfile?.role !== "BUILDER" && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Account & Documents</Text>
+              <View style={styles.card}>
+                <TouchableOpacity
+                  style={[styles.listItem, styles.listItemBorder]}
+                  activeOpacity={0.7}
+                  onPress={() => router.push("/document-upload" as any)}
+                >
                 <View style={styles.listItemLeft}>
                   <Ionicons
                     name="document-text"
@@ -284,9 +345,9 @@ export default function ProfilePage() {
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={[styles.listItem, styles.listItemBorder]} 
+                style={styles.listItem} 
                 activeOpacity={0.7}
-                onPress={() => router.push("/profile/help" as any)}
+                onPress={() => router.push("/help" as any)}
               >
                 <View style={styles.listItemLeft}>
                   <Ionicons
@@ -301,22 +362,25 @@ export default function ProfilePage() {
 
             </View>
           </View>
+          )}
 
           {/* Legal */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Legal</Text>
             <View style={styles.card}>
-              <TouchableOpacity
-                style={[styles.listItem, styles.listItemBorder]}
-                activeOpacity={0.7}
-                onPress={() => Alert.alert("Coming Soon", "Sample Investor Agreement will be available soon.")}
-              >
-                <View style={styles.listItemLeft}>
-                  <Ionicons name="document-text" size={22} color={Colors.primary} />
-                  <Text style={styles.listItemText}>Sample Investor Agreement</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
-              </TouchableOpacity>
+              {userProfile?.role !== "BUILDER" && (
+                <TouchableOpacity
+                  style={[styles.listItem, styles.listItemBorder]}
+                  activeOpacity={0.7}
+                  onPress={() => Alert.alert("Coming Soon", "Sample Investor Agreement will be available soon.")}
+                >
+                  <View style={styles.listItemLeft}>
+                    <Ionicons name="document-text" size={22} color={Colors.primary} />
+                    <Text style={styles.listItemText}>Sample Investor Agreement</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={[styles.listItem, styles.listItemBorder]}
@@ -331,7 +395,7 @@ export default function ProfilePage() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.listItem, styles.listItemBorder]}
+                style={[styles.listItem, userProfile?.role !== "BUILDER" && styles.listItemBorder]}
                 activeOpacity={0.7}
                 onPress={() => Alert.alert("Coming Soon", "Terms and Conditions will be available soon.")}
               >
@@ -342,17 +406,19 @@ export default function ProfilePage() {
                 <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.listItem}
-                activeOpacity={0.7}
-                onPress={() => Alert.alert("Coming Soon", "Refund and Cancellation Policy will be available soon.")}
-              >
-                <View style={styles.listItemLeft}>
-                  <Ionicons name="document-text" size={22} color={Colors.primary} />
-                  <Text style={styles.listItemText}>Refund and Cancellation Policy</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
-              </TouchableOpacity>
+              {userProfile?.role !== "BUILDER" && (
+                <TouchableOpacity
+                  style={styles.listItem}
+                  activeOpacity={0.7}
+                  onPress={() => Alert.alert("Coming Soon", "Refund and Cancellation Policy will be available soon.")}
+                >
+                  <View style={styles.listItemLeft}>
+                    <Ionicons name="document-text" size={22} color={Colors.primary} />
+                    <Text style={styles.listItemText}>Refund and Cancellation Policy</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.outlineVariant} />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 

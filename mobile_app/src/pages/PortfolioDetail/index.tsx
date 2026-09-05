@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -20,9 +20,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { investmentService } from "@/services/investment.service";
 import { propertyService } from "@/services/property.service";
 import { Investment, Property, PLACEHOLDER_IMAGE } from "../BrowseProperties/data";
-import { LineChart } from "react-native-gifted-charts";
+import PortfolioValuationGraph from "../MyPortfolio/components/PortfolioValuationGraph";
 import Skeleton from "@/components/ui/Skeleton";
 import ActionModal from "@/components/ActionModal";
+import { formatLocationText } from "@/utils/formatLocation";
 
 const { width } = Dimensions.get("window");
 
@@ -180,61 +181,8 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
 
   const img = investment.property?.images?.[0] ?? PLACEHOLDER_IMAGE;
 
-  // Process chart data to show the user's investment value over time
-  const chartData = [];
-  if (investment && property) {
-    const totalUnits = property.totalUnits || 1;
-    const investDate = new Date(investment.createdAt).getTime();
-
-    // 1. Initial Investment Point
-    chartData.push({
-      value: investment.unitPriceAtTime,
-      label: new Date(investment.createdAt).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })
-    });
-
-    // 2. Add history points that occurred AFTER the investment
-    if (property.priceHistory) {
-      property.priceHistory.forEach(ph => {
-        const phDate = new Date(ph.date).getTime();
-        // Allow a tiny threshold to avoid duplicating the exact same second if backend created them simultaneously,
-        // but typically phDate will be strictly greater when the price is updated later.
-        if (phDate > investDate + 1000) {
-          const perUnitPrice = ph.price / totalUnits;
-          chartData.push({
-            value: perUnitPrice,
-            label: new Date(ph.date).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })
-          });
-        }
-      });
-    }
-
-    // We no longer add an artificial 'Current' point to draw a flat line.
-    // If the value hasn't changed, we simply won't draw the graph.
-  }
-
-  const minInvestedValue = Math.min(...chartData.map(d => d.value));
-  // Lower the Y-axis offset slightly so the graph doesn't start exactly at the bottom line.
-  const yAxisOffset = Math.max(0, Math.floor(minInvestedValue * 0.9));
-
-  const formatYLabel = (val: string) => {
-    // We display the exact value (per-unit price) on the axis.
-    let num = Number(val);
-    
-    // Fallback: If GiftedCharts is passing an un-offsetted value (e.g. 0 instead of 50), add the offset back.
-    // If it's already offsetted, this step is skipped.
-    if (num < yAxisOffset && num < 10) {
-       num += yAxisOffset;
-    }
-    
-    if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)}Cr`;
-    if (num >= 100000) return `₹${(num / 100000).toFixed(1)}L`;
-    if (num >= 1000) return `₹${(num / 1000).toFixed(1)}K`;
-    return `₹${Number.isInteger(num) ? num : num.toFixed(1)}`;
-  };
-
   const currentPrice = property?.perUnitPrice || investment.unitPriceAtTime;
-  const priceDiff = currentPrice - investment.unitPriceAtTime;
-  const isPositive = priceDiff >= 0;
+  const isPositive = currentPrice >= investment.unitPriceAtTime;
 
   const handleDownloadAgreement = () => {
     if (investment.status === "PENDING") {
@@ -306,7 +254,7 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
             </Text>
             <Text style={styles.heroLocation}>
               <Ionicons name="location-outline" size={14} color="#fff" />{" "}
-              {investment.property?.location ?? "—"}
+              {formatLocationText(investment.property?.location)}
             </Text>
           </View>
         </View>
@@ -350,80 +298,16 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
 
         {/* Graph */}
         <View style={styles.chartCard}>
-          <Text style={styles.sectionTitle}>Portfolio Value Trend</Text>
-          {chartData.length >= 2 && new Set(chartData.map(d => d.value)).size > 1 ? (
-             <LineChart
-               data={chartData}
-               width={width - 120}
-               height={200}
-               spacing={45}
-               initialSpacing={20}
-               endSpacing={40}
-               color1={Colors.primary}
-               textColor1={Colors.onSurface}
-               dataPointsColor1={Colors.primary}
-               dataPointsRadius1={4}
-               textFontSize={10}
-               hideRules
-               yAxisColor={Colors.outlineVariant}
-               xAxisColor={Colors.outlineVariant}
-               yAxisTextStyle={{ color: Colors.outline, fontSize: 10 }}
-               xAxisLabelTextStyle={{ color: Colors.outline, fontSize: 10, width: 60, marginLeft: -10, transform: [{ rotate: '-60deg' }] }}
-               xAxisLabelsVerticalShift={40}
-               xAxisLabelsHeight={50}
-               isAnimated
-               thickness={3}
-               curved
-               areaChart
-               startFillColor={Colors.primary}
-               startOpacity={0.3}
-               endFillColor={Colors.primary}
-               endOpacity={0.05}
-               yAxisOffset={yAxisOffset}
-               hideYAxisText
-               yAxisLabelWidth={0}
-               pointerConfig={{
-                 pointerStripUptoDataPoint: true,
-                 pointerStripColor: Colors.primary,
-                 pointerStripWidth: 2,
-                 strokeDashArray: [2, 5],
-                 pointerColor: Colors.primary,
-                 radius: 4,
-                 pointerLabelWidth: 100,
-                 pointerLabelHeight: 40,
-                 activatePointersOnLongPress: false,
-                 persistPointer: true,
-                 autoAdjustPointerLabelPosition: true,
-                 pointerLabelComponent: (items: any) => {
-                   // Calculate the total investment value to display in the tooltip
-                   const totalValue = items[0].value * investment.units;
-                   return (
-                     <View
-                       style={{
-                         height: 40,
-                         width: 100,
-                         backgroundColor: Colors.surfaceContainerHighest,
-                         borderRadius: 8,
-                         justifyContent: 'center',
-                         alignItems: 'center',
-                       }}>
-                       <Text style={{color: Colors.onSurface, fontSize: 12, fontWeight: '700'}}>
-                         {formatCurrency(totalValue)}
-                       </Text>
-                     </View>
-                   );
-                 },
-               }}
-             />
+          {property?.priceHistory && property.priceHistory.length >= 2 ? (
+            <PortfolioValuationGraph priceHistory={property.priceHistory as any} units={investment.units} />
           ) : (
-            <View style={styles.noDataBox}>
-              <Ionicons name="bar-chart-outline" size={32} color={Colors.outlineVariant} />
-              <Text style={styles.noDataText}>
-                {chartData.length > 1 
-                  ? "Value has remained stable since investment" 
-                  : "Not enough data to show trend"}
-              </Text>
-            </View>
+            <>
+              <Text style={styles.sectionTitle}>Portfolio Value Trend</Text>
+              <View style={styles.noDataBox}>
+                <Ionicons name="bar-chart-outline" size={32} color={Colors.outlineVariant} />
+                <Text style={styles.noDataText}>Not enough data to show trend</Text>
+              </View>
+            </>
           )}
         </View>
 

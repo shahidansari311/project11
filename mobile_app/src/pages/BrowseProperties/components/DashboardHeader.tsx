@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';

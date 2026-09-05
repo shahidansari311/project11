@@ -4,13 +4,13 @@
  * Clean, borderless header with brand typography and sleek profile avatar badge.
  */
 
-import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Colors } from "@/constants/colors";
 
 interface AppHeaderProps {
+  role?: string;
   isGuest?: boolean;
   userProfileUrl?: string | null;
   onLoginPress?: () => void;
@@ -22,6 +22,7 @@ export default function AppHeader({
   userProfileUrl,
   onLoginPress,
   onProfilePress,
+  role
 }: AppHeaderProps) {
   return (
     <View style={styles.container}>
@@ -45,7 +46,7 @@ export default function AppHeader({
           <Text style={styles.loginButtonText}>Sign In</Text>
           <Ionicons name="arrow-forward" size={14} color={Colors.onPrimary} />
         </TouchableOpacity>
-      ) : (
+      ) : role === "BUILDER" ? (
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onProfilePress}
@@ -67,7 +68,7 @@ export default function AppHeader({
             </View>
           )}
         </TouchableOpacity>
-      )}
+      ) : <View style={{width: 40}} />}
     </View>
   );
 }

@@ -10,6 +10,7 @@ const { adminCreateUserSchema, adminUpdateUserSchema } = require("../modules/aut
 const authController         = require("../modules/auth/auth.controller");
 
 const propertyRoutes   = require("../modules/property/property.routes");
+const builderPropertyRoutes = require("../modules/property/builder.routes");
 const uploadRoutes     = require("../modules/upload/upload.routes");
 const documentRoutes   = require("../modules/document/document.routes");
 const favoriteRoutes   = require("../modules/favorite/favorite.routes");
@@ -28,8 +29,11 @@ router.use("/", documentRoutes);
 // Mount property routes — all protected as admin-only
 router.use("/admin/property", verifyAuth, requireRole("admin"), propertyRoutes);
 
+// Mount builder property routes
+router.use("/builder/property", verifyAuth, requireRole("builder"), builderPropertyRoutes);
+
 // Mount investment routes — user and admin separately
-router.use("/user",          verifyAuth, requireRole("user"),  investmentUserRouter);
+router.use("/user",          verifyAuth, requireRole("user", "builder"),  investmentUserRouter);
 router.use("/admin/investments", verifyAuth, requireRole("admin"), investmentAdminRouter);
 
 const { imageUpload } = require("../config/multer.config");
@@ -43,6 +47,7 @@ router.put("/admin/users/:id", verifyAuth, requireRole("admin"), imageUpload.sin
 router.patch("/admin/users/:id", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(adminUpdateUserSchema), authController.updateUserByAdmin);
 router.delete("/admin/users/:id", verifyAuth, requireRole("admin"), authController.deleteUserByAdmin);
 
+
 const propertyController = require("../modules/property/property.controller");
 
 // Public property routes (No authentication required)
@@ -53,12 +58,12 @@ router.get("/public/property/:id",               propertyController.getPropertyB
 router.get("/public/property/:id/investment-info", propertyController.getPropertyInvestmentInfo);
 
 // User property routes (protected for registered users)
-router.get("/user/property",                     verifyAuth, requireRole("user"), propertyController.getAllProperties);
-router.get("/user/property/:id",                 verifyAuth, requireRole("user"), propertyController.getPropertyById);
-router.get("/user/property/:id/investment-info", verifyAuth, requireRole("user"), propertyController.getPropertyInvestmentInfo);
+router.get("/user/property",                     verifyAuth, requireRole("user", "builder"), propertyController.getAllProperties);
+router.get("/user/property/:id",                 verifyAuth, requireRole("user", "builder"), propertyController.getPropertyById);
+router.get("/user/property/:id/investment-info", verifyAuth, requireRole("user", "builder"), propertyController.getPropertyInvestmentInfo);
 
-router.get("/user/profile", verifyAuth, requireRole("user"), authController.getProfile);
-router.use("/user/favorites", verifyAuth, requireRole("user"), favoriteRoutes);
+router.get("/user/profile", verifyAuth, requireRole("user", "builder"), authController.getProfile);
+router.use("/user/favorites", verifyAuth, requireRole("user", "builder"), favoriteRoutes);
 
 router.get("/admin/dashboard", verifyAuth, requireRole("admin"), (req, res) => {
   return successResponse(res, 200, { id: req.user.id }, "Admin dashboard data");

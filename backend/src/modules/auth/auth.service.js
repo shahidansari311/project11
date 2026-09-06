@@ -62,7 +62,7 @@ async function verifyOtpUser(phone, otp, deviceFingerprint) {
   }
 
   // Existing user, log them in
-  const token = signToken({ id: user.id, role: "user" });
+  const token = signToken({ id: user.id, role: user.role.toLowerCase() });
   const refreshToken = generateRefreshToken();
   
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -78,7 +78,12 @@ async function verifyOtpUser(phone, otp, deviceFingerprint) {
   return { token, refreshToken, isNewUser: false };
 }
 
-async function registerUser(registrationToken, { fullName, email, profileUrl, createdBy }, deviceFingerprint) {
+const { OAuth2Client } = require('google-auth-library');
+// Replace with the actual client ID when available
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'TODO_GOOGLE_CLIENT_ID';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+async function registerUser(registrationToken, { googleIdToken, fullName, email, profileUrl, createdBy }, deviceFingerprint) {
   let decoded;
   try {
     decoded = jwt.verify(registrationToken, JWT_SECRET);
@@ -97,22 +102,44 @@ async function registerUser(registrationToken, { fullName, email, profileUrl, cr
   if (user) {
     throw new AppError("User already registered. Please login.", 400);
   }
+  
+  let finalFullName = fullName;
+  let finalEmail = email;
+  let finalProfileUrl = profileUrl;
 
-  const emailToSave = email ? email : null;
-  const imageToSave = profileUrl ? profileUrl : null;
+  // If googleIdToken is provided, verify it and override details
+  if (googleIdToken) {
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: googleIdToken,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      
+      finalFullName = payload.name || finalFullName;
+      finalEmail = payload.email || finalEmail;
+      if (payload.picture) finalProfileUrl = payload.picture;
+    } catch (error) {
+      console.error("Google Token Verification Failed:", error);
+      throw new AppError("Invalid Google ID token.", 401);
+    }
+  }
+
+  const emailToSave = finalEmail ? finalEmail : null;
+  const imageToSave = finalProfileUrl ? finalProfileUrl : null;
   const createdByToSave = createdBy === true || createdBy === "true";
 
   user = await prisma.user.create({
     data: {
       phone,
-      fullName,
+      fullName: finalFullName,
       email: emailToSave,
       profileUrl: imageToSave,
       createdby_admin: createdByToSave
     }
   });
 
-  const token = signToken({ id: user.id, role: "user" });
+  const token = signToken({ id: user.id, role: user.role.toLowerCase() });
   const refreshToken = generateRefreshToken();
   
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -150,7 +177,7 @@ async function refreshUserToken(oldRefreshToken, deviceFingerprint) {
   // Delete old session (rotation)
   await prisma.session.delete({ where: { id: session.id } });
 
-  const token = signToken({ id: session.userId, role: "user" });
+  const token = signToken({ id: session.userId, role: session.user.role.toLowerCase() });
   const newRefreshToken = generateRefreshToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -358,7 +385,7 @@ async function resendOtpAdmin(phone) {
   return { success: true, message: "OTP resent successfully to Admin" };
 }
 
-async function getAllUsers({ page = 1, limit = 20, search = "" } = {}) {
+async function getAllUsers({ page = 1, limit = 20, search = "", role = undefined } = {}) {
   const skip = (page - 1) * limit;
 
   // Build search filter — matches name OR email, case-insensitive
@@ -371,6 +398,10 @@ async function getAllUsers({ page = 1, limit = 20, search = "" } = {}) {
       }
     : {};
 
+  if (role) {
+    where.role = role;
+  }
+
   // Run count and data fetch in parallel for efficiency
   const [users, total] = await Promise.all([
     prisma.user.findMany({
@@ -381,6 +412,7 @@ async function getAllUsers({ page = 1, limit = 20, search = "" } = {}) {
         fullName: true,
         email: true,
         profileUrl: true,
+        role: true,
         createdby_admin: true,
         hasPurchasedProperty: true,
         createdAt: true,
@@ -406,7 +438,7 @@ async function getAllUsers({ page = 1, limit = 20, search = "" } = {}) {
   };
 }
 
-async function createUserByAdmin({ fullName, phone, email, profileUrl }) {
+async function createUserByAdmin({ fullName, phone, email, profileUrl, role = "USER" }) {
   // Check if user with phone already exists
   const existingUser = await prisma.user.findUnique({ where: { phone } });
   if (existingUser) {
@@ -430,6 +462,7 @@ async function createUserByAdmin({ fullName, phone, email, profileUrl }) {
       fullName,
       email: emailToSave,
       profileUrl: imageToSave,
+      role,
       createdby_admin: true
     }
   });
@@ -440,6 +473,7 @@ async function createUserByAdmin({ fullName, phone, email, profileUrl }) {
     fullName: newUser.fullName,
     email: newUser.email,
     profileUrl: newUser.profileUrl,
+    role: newUser.role,
     createdby_admin: newUser.createdby_admin,
     hasPurchasedProperty: newUser.hasPurchasedProperty,
     createdAt: newUser.createdAt,
@@ -458,6 +492,7 @@ async function getUserById(userId) {
       profileUrl: true,
       createdby_admin: true,
       hasPurchasedProperty: true,
+      role: true,
       createdAt: true,
       updatedAt: true,
       documents: true,

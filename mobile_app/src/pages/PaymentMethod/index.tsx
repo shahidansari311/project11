@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -20,6 +20,7 @@ export default function PaymentMethodPage() {
 
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showKycModal, setShowKycModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [activeTab, setActiveTab] = useState<"razorpay" | "bank">(
@@ -61,8 +62,8 @@ export default function PaymentMethodPage() {
         // Show KYC warning popup
         setShowKycModal(true);
       } else {
-        // Navigate directly to portfolio
-        router.replace("/(tabs)/portfolio");
+        // Show success popup
+        setShowSuccessModal(true);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Failed to submit investment. Please try again.";
@@ -279,6 +280,37 @@ export default function PaymentMethodPage() {
               activeOpacity={0.8}
             >
               <Text style={[styles.modalButtonText, { color: Colors.primary }]}>Do it Later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={[styles.modalIconCircle, { backgroundColor: Colors.primary }]}>
+              <Ionicons name="checkmark-circle" size={32} color={Colors.onPrimary} />
+            </View>
+            
+            <Text style={styles.modalTitle}>Payment Successful!</Text>
+            <Text style={styles.modalMessage}>
+              Your investment request has been processed successfully. You can now view your new investment in your portfolio.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowSuccessModal(false);
+                router.replace("/(tabs)/portfolio");
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalButtonText}>Go to Portfolio</Text>
             </TouchableOpacity>
           </View>
         </View>

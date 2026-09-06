@@ -252,12 +252,23 @@ async function rejectInvestment(adminId, investmentId, remark) {
 /**
  * Admin: list all investments with optional filters (status, propertyId, userId, pagination).
  */
-async function getAllInvestments({ page = 1, limit = 20, status, propertyId, userId } = {}) {
+async function getAllInvestments({ page = 1, limit = 20, status, search, propertyId, userId } = {}) {
   const skip  = (page - 1) * limit;
   const where = {};
-  if (status)     where.status     = status;
+  
+  if (status && status !== "ALL") where.status = status;
   if (propertyId) where.propertyId = propertyId;
   if (userId)     where.userId     = userId;
+
+  if (search && search.trim() !== "") {
+    where.user = {
+      OR: [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ],
+    };
+  }
 
   const [investments, total] = await Promise.all([
     getInvestmentModel().findMany({
@@ -267,14 +278,45 @@ async function getAllInvestments({ page = 1, limit = 20, status, propertyId, use
       take: limit,
       include: {
         property: { select: { id: true, title: true, location: true, category: true } },
-        user:     { select: { id: true, fullName: true, phone: true, email: true } },
+        user: { 
+          select: { 
+            id: true, 
+            fullName: true, 
+            phone: true, 
+            email: true, 
+            profileUrl: true,
+            documents: { select: { documentType: true, status: true } }
+          } 
+        },
       },
     }),
     getInvestmentModel().count({ where }),
   ]);
 
+  // Compute isVerified
+  const formattedInvestments = investments.map(inv => {
+    let isVerified = false;
+    if (inv.user && inv.user.documents) {
+      const hasAadhar = inv.user.documents.some(d => d.documentType === 'AADHAAR' && d.status === 'APPROVED');
+      const hasPan = inv.user.documents.some(d => d.documentType === 'PAN' && d.status === 'APPROVED');
+      isVerified = hasAadhar && hasPan;
+    }
+    
+    // Clean up documents from response and shape the user object properly
+    const { documents, ...userWithoutDocs } = inv.user || {};
+    
+    return {
+      ...inv,
+      user: {
+        ...userWithoutDocs,
+        profileImage: userWithoutDocs.profileUrl,
+        isVerified
+      }
+    };
+  });
+
   return {
-    investments,
+    investments: formattedInvestments,
     pagination: {
       total,
       page,
@@ -304,22 +346,27 @@ async function getInvestmentById(investmentId) {
 /**
  * Admin: get all investments for a specific property.
  */
-async function getInvestmentsByProperty(propertyId, { page = 1, limit = 20, status } = {}) {
-  return getAllInvestments({ page, limit, status, propertyId });
+async function getInvestmentsByProperty(propertyId, { page = 1, limit = 20, status, search } = {}) {
+  return getAllInvestments({ page, limit, status, search, propertyId });
 }
 
 /**
  * Admin: get all investments by a specific user.
  */
-async function getInvestmentsByUser(userId, { page = 1, limit = 20, status } = {}) {
-  return getAllInvestments({ page, limit, status, userId });
+async function getInvestmentsByUser(userId, { page = 1, limit = 20, status, search } = {}) {
+  return getAllInvestments({ page, limit, status, search, userId });
 }
 
 /**
  * Admin: dashboard statistics across all investments.
  */
 async function getInvestmentStats() {
-  const [total, pending, approved, rejected, cancelled, valueAgg, pendingValueAgg] =
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+
+  const [total, pending, approved, rejected, cancelled, valueAgg, pendingValueAgg, recentInvestments] =
     await Promise.all([
       getInvestmentModel().count(),
       getInvestmentModel().count({ where: { status: "PENDING" } }),
@@ -334,15 +381,45 @@ async function getInvestmentStats() {
         where:    { status: "PENDING" },
         _sum:     { totalAmount: true },
       }),
+      getInvestmentModel().findMany({
+        where: { createdAt: { gte: sixMonthsAgo } },
+        select: { status: true, totalAmount: true, createdAt: true }
+      })
     ]);
 
-  // Count properties that are fully sold out (purchasedUnits >= totalUnits)
-  const soldOutProperties = await getPropertyModel().count({
-    where: {
-      totalUnits:     { gt: 0 },
-      purchasedUnits: { gte: prisma.property.fields?.totalUnits ?? 0 },
-    },
-  });
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const trendsMap = new Map();
+  
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    trendsMap.set(key, {
+      month: monthNames[d.getMonth()],
+      year: d.getFullYear(),
+      approvedAmount: 0,
+      pendingAmount: 0,
+      approvedCount: 0,
+      pendingCount: 0
+    });
+  }
+
+  for (const inv of recentInvestments) {
+    const d = new Date(inv.createdAt);
+    const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    if (trendsMap.has(key)) {
+      const stats = trendsMap.get(key);
+      if (inv.status === "APPROVED") {
+        stats.approvedAmount += inv.totalAmount || 0;
+        stats.approvedCount += 1;
+      } else if (inv.status === "PENDING") {
+        stats.pendingAmount += inv.totalAmount || 0;
+        stats.pendingCount += 1;
+      }
+    }
+  }
+
+  const monthlyTrends = Array.from(trendsMap.values());
 
   return {
     totalInvestments:     total,
@@ -352,6 +429,7 @@ async function getInvestmentStats() {
     cancelledInvestments: cancelled,
     totalValueApproved:   valueAgg._sum.totalAmount    || 0,
     totalValuePending:    pendingValueAgg._sum.totalAmount || 0,
+    monthlyTrends
   };
 }
 

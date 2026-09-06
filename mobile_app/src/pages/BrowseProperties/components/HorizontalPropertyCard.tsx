@@ -1,10 +1,10 @@
-import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Property, PLACEHOLDER_IMAGE } from "../data";
 import { Colors } from "@/constants/colors";
+import { formatLocationText } from "@/utils/formatLocation";
 import FavoriteButton from "@/components/ui/FavoriteButton";
 
 interface HorizontalPropertyCardProps {
@@ -87,7 +87,7 @@ export default function HorizontalPropertyCard({
         <View style={styles.locationRow}>
           <Ionicons name="location" size={14} color={Colors.primary} />
           <Text style={styles.locationText} numberOfLines={1}>
-            {property.location}
+            {formatLocationText(property.location)}
           </Text>
         </View>
       </View>

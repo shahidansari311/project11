@@ -48,6 +48,7 @@ async function createProperty({
   totalSize,
   category,
   youtubeVideoUrl,
+  builderId,
 }) {
   const propertyModel = getPropertyModel();
 
@@ -61,12 +62,21 @@ async function createProperty({
   const totalUnits = Math.max(1, Math.floor(areaFloat));
   const perUnitPrice = totalPrice / totalUnits;
 
+  let finalLocationStr = location;
+  let finalMapLocation = null;
+
+  if (typeof location === "object" && location !== null) {
+    finalLocationStr = location.address || location.placeName || location.city || "Unknown Location";
+    finalMapLocation = location;
+  }
+
   const property = await propertyModel.create({
     data: {
       title,
       description,
       images,       // String[] — array of image URLs
-      location,
+      location: finalLocationStr,
+      mapLocation: finalMapLocation,
       status:         status ?? "AVAILABLE",
       targetReturn,
       minInvestment:  perUnitPrice,  // auto: 1 unit price
@@ -78,6 +88,7 @@ async function createProperty({
       purchasedUnits: 0,
       category,
       youtubeVideoUrl,
+      builderId,
       priceHistory: {
         create: {
           price: totalPrice,
@@ -115,6 +126,15 @@ async function updateProperty(id, data) {
       throw new Error("totalSize must be a positive numeric area");
     }
     data.totalSize = parsed;
+  }
+
+  if (data.location !== undefined) {
+    if (typeof data.location === "object" && data.location !== null) {
+      data.mapLocation = data.location;
+      data.location = data.location.address || data.location.placeName || data.location.city || "Unknown Location";
+    } else if (data.location === null) {
+      data.mapLocation = null;
+    }
   }
 
   // Recompute unit fields when price or area changes
@@ -162,18 +182,28 @@ async function deleteProperty(id) {
   return { success: true, message: "Property deleted successfully" };
 }
 
-async function getAllProperties({ page = 1, limit = 20, status, category, search = "", minPrice, maxPrice, location, area, minArea, maxArea } = {}) {
-  const skip = (page - 1) * limit;
+async function getAllProperties({ page = 1, limit = 10, status, category, search = "", minPrice, maxPrice, location, area, minArea, maxArea, builderId, onlyBuilderSubmissions = false, excludeRejected = true } = {}) {
   const propertyModel = getPropertyModel();
+  const skip = (page - 1) * limit;
 
+  // Build filter object
   const where = {};
-  if (status) where.status = status;
+  if (status) {
+    if (Array.isArray(status)) {
+      where.status = { in: status };
+    } else {
+      where.status = status;
+    }
+  }
+  // If not explicitly asking for rejected, and no status specified, hide rejected
+  else if (excludeRejected) where.status = { not: "REJECTED" };
+
   if (category) where.category = category;
   if (location) where.location = location;
   if (area) where.totalSize = area;
-  
-  // Note: if totalSize is a String, doing gte/lte on it will be alphabetical.
-  // Ideally it should be numeric, but we will add the filter if minArea or maxArea is provided.
+  if (builderId) where.builderId = builderId;
+  else if (onlyBuilderSubmissions) where.builderId = { not: null };
+
   if (minArea !== undefined || maxArea !== undefined) {
     where.totalSize = {};
     if (minArea !== undefined) where.totalSize.gte = String(minArea);
@@ -209,8 +239,13 @@ async function getAllProperties({ page = 1, limit = 20, status, category, search
     propertyModel.count({ where }),
   ]);
 
+  const mappedProperties = properties.map(p => ({
+    ...p,
+    location: p.mapLocation || p.location
+  }));
+
   return {
-    properties,
+    properties: mappedProperties,
     pagination: {
       total,
       page,
@@ -432,3 +467,22 @@ module.exports = {
   deletePriceHistory,
   getPropertyInvestmentInfo,
 };
+
+/**
+ * Update property status (e.g. approve or reject)
+ */
+async function updatePropertyStatus(id, status, adminRemark = null) {
+  const propertyModel = getPropertyModel();
+  
+  const property = await propertyModel.findUnique({ where: { id } });
+  if (!property) throw new Error("Property not found");
+  
+  const updatedProperty = await propertyModel.update({
+    where: { id },
+    data: { status }
+  });
+  
+  return updatedProperty;
+}
+
+module.exports.updatePropertyStatus = updatePropertyStatus;

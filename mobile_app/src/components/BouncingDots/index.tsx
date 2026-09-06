@@ -46,7 +46,7 @@
 // });
 
 
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { View, Text, Animated, StyleSheet } from "react-native";
 import { Colors } from "@/constants/colors";
 

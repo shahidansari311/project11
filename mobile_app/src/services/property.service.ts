@@ -22,20 +22,27 @@ export const propertyService = {
   async getProperties(params?: {
     page?: number;
     limit?: number;
-    status?: string;
+    status?: string | string[];
     category?: string;
     search?: string;
-    location?: string;
+    location?: string | string[];
     area?: string;
     minPrice?: number;
     maxPrice?: number;
     minArea?: number;
     maxArea?: number;
   }): Promise<PropertyListResponse> {
-    const cleanParams = { ...params };
+    const cleanParams: any = { ...params };
     // Remove empty search query
     if (cleanParams.search !== undefined && cleanParams.search.trim() === "") {
       delete cleanParams.search;
+    }
+    
+    if (Array.isArray(cleanParams.status)) {
+      cleanParams.status = cleanParams.status.join(",");
+    }
+    if (Array.isArray(cleanParams.location)) {
+      cleanParams.location = cleanParams.location.join(",");
     }
     
     // Use GET /public/property with query params and a cache-buster
@@ -47,6 +54,26 @@ export const propertyService = {
 
   async getPropertyById(id: string): Promise<{ data: Property; message: string }> {
     const response = await api.get(`/public/property/${id}`);
+    return response.data;
+  },
+
+  async getBuilderProperties(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<PropertyListResponse> {
+    const response = await api.get("/builder/property/builder/list", { 
+      params: { ...params, _t: Date.now() } 
+    });
+    return response.data;
+  },
+
+  async addBuilderProperty(data: FormData): Promise<{ data: Property; message: string }> {
+    const response = await api.post("/builder/property/builder/add", data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   }
 };

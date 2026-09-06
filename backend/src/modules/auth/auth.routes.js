@@ -3,7 +3,7 @@ const router = express.Router();
 const authController = require("./auth.controller");
 const { loginLimiter } = require("../../middlewares/rateLimiter.middleware");
 const { validate } = require("../../middlewares/validate.middleware");
-const { sendOtpSchema, verifyOtpSchema, refreshTokenSchema, profileSchema, profileImageSchema, registerSchema } = require("./auth.validation");
+const { sendOtpSchema, verifyOtpSchema, refreshTokenSchema, profileSchema, profileImageSchema, registerSchema, adminCreateUserSchema } = require("./auth.validation");
 const { verifyAuth } = require("../../middlewares/auth.middleware");
 const { requireRole } = require("../../middlewares/role.middleware");
 
@@ -17,9 +17,10 @@ router.post("/user/cancel-otp",   loginLimiter, validate(sendOtpSchema), authCon
 router.post("/user/verify-otp",   loginLimiter, validate(verifyOtpSchema), authController.userVerifyOtp);
 router.post("/user/register",     loginLimiter, imageUpload.single("profileImage"), uploadProfileImage, validate(registerSchema), authController.userRegister);
 router.post("/user/refresh-token",loginLimiter, validate(refreshTokenSchema), authController.refreshUserToken);
-router.post("/user/profile",      verifyAuth, requireRole("user"), imageUpload.single("profileImage"), uploadProfileImage, validate(profileSchema), authController.updateProfile);
-router.post("/user/profile-image",verifyAuth, requireRole("user"), imageUpload.single("profileImage"), uploadProfileImage, validate(profileImageSchema), authController.updateProfileImage);
-router.post("/user/logout",       verifyAuth, requireRole("user"), authController.userLogout);
+router.get("/user/profile",       verifyAuth, requireRole("user", "builder"), authController.getProfile);
+router.post("/user/profile",      verifyAuth, requireRole("user", "builder"), imageUpload.single("profileImage"), uploadProfileImage, validate(profileSchema), authController.updateProfile);
+router.post("/user/profile-image",verifyAuth, requireRole("user", "builder"), imageUpload.single("profileImage"), uploadProfileImage, validate(profileImageSchema), authController.updateProfileImage);
+router.post("/user/logout",       verifyAuth, requireRole("user", "builder"), authController.userLogout);
 
 // Admin routes
 router.post("/admin/send-otp", loginLimiter, validate(sendOtpSchema), authController.adminSendOtp);
@@ -28,5 +29,8 @@ router.post("/admin/cancel-otp", loginLimiter, validate(sendOtpSchema), authCont
 router.post("/admin/verify-otp", loginLimiter, validate(verifyOtpSchema), authController.adminVerifyOtp);
 router.post("/admin/refresh-token", loginLimiter, validate(refreshTokenSchema), authController.refreshAdminToken);
 router.post("/admin/logout", verifyAuth, requireRole("admin"), authController.adminLogout);
+
+router.get("/admin/builders", verifyAuth, requireRole("admin"), authController.getAllBuilders);
+router.post("/admin/builders", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(adminCreateUserSchema), authController.createBuilderByAdmin);
 
 module.exports = router;

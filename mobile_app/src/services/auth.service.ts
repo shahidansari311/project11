@@ -14,6 +14,7 @@ export interface UserProfile {
   profileUrl: string | null;
   createdby_admin: boolean;
   hasPurchasedProperty: boolean;
+  role: "USER" | "BUILDER";
   createdAt: string;
   updatedAt: string;
   documents?: UserDocument[];

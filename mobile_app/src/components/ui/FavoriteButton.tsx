@@ -1,4 +1,4 @@
-import React from "react";
+import { useRef } from "react";
 import { TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
@@ -15,7 +15,7 @@ interface FavoriteButtonProps {
 export default function FavoriteButton({ propertyId, size = 24, style, isGuest, onRequireLogin }: FavoriteButtonProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const favorited = isFavorite(propertyId);
-  const scale = React.useRef(new Animated.Value(1)).current;
+  const scale = useRef(new Animated.Value(1)).current;
 
   const handlePress = () => {
     if (isGuest && onRequireLogin) {

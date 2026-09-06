@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import BouncingDots from "@/components/BouncingDots";
 import api from "@/utils/api";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { otpSchema } from "@/utils/validationSchemas";
 
 const OTP_LENGTH = 6;
 
@@ -100,8 +101,9 @@ export default function OtpPage({ phone, onRegisterRequired, onGoBack }: OtpPage
 
   const handleVerifyOtp = useCallback(async () => {
     const fullOtp = otp.join("");
-    if (fullOtp.length < 6) {
-      setOtpError("Please enter all 6 digits.");
+    const result = otpSchema.safeParse(fullOtp);
+    if (!result.success) {
+      setOtpError(result.error.issues[0].message);
       return;
     }
 
@@ -116,8 +118,12 @@ export default function OtpPage({ phone, onRegisterRequired, onGoBack }: OtpPage
         await SecureStore.setItemAsync("access_token", token);
         await SecureStore.setItemAsync("refresh_token", refreshToken);
         refreshFavorites();
-        await refreshAuth();
-        router.replace("/(tabs)/home" as any);
+        const profile = await refreshAuth();
+        if (profile?.role === "BUILDER") {
+          router.replace("/(tabs)/builder-live" as any);
+        } else {
+          router.replace("/(tabs)/home" as any);
+        }
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Invalid OTP";

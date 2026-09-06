@@ -1,4 +1,3 @@
-import React from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import RegisterPage from "@/pages/Register";
 

@@ -12,12 +12,12 @@ function validate(schema) {
       });
 
       // Update the request with validated (and potentially transformed/trimmed) data
-      if (validData.headers) {
+      if (validData.headers !== undefined) {
         req.headers = Object.assign(req.headers, validData.headers);
       }
-      req.body = validData.body;
-      req.query = validData.query;
-      req.params = validData.params;
+      if (validData.body !== undefined) req.body = validData.body;
+      if (validData.query !== undefined) req.query = validData.query;
+      if (validData.params !== undefined) req.params = validData.params;
 
       next();
     } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,8 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
-  TouchableOpacity
+  TouchableOpacity,
+  ScrollView
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -86,7 +87,7 @@ export default function SavedPropertiesPage() {
           data={[1, 2, 3, 4, 5, 6]}
           keyExtractor={(i) => i.toString()}
           renderItem={renderSkeleton}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[styles.listContainer]}
         />
       </View>
     );
@@ -112,14 +113,21 @@ export default function SavedPropertiesPage() {
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Saved Properties</Text>
-        <Text style={styles.headerSubtitle}>
-          {properties.length} {properties.length === 1 ? "property" : "properties"}
-        </Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.headerTitle}>Saved Properties</Text>
+            <Text style={styles.headerSubtitle}>
+              {properties.length} {properties.length === 1 ? "property" : "properties"}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {properties.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <ScrollView 
+          contentContainerStyle={styles.emptyContainer}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+        >
           <Ionicons name="heart-dislike-outline" size={64} color={Colors.outlineVariant} />
           <Text style={styles.emptyTitle}>No saved properties</Text>
           <Text style={styles.emptySubtitle}>Tap the heart icon on any property to save it here.</Text>
@@ -130,7 +138,7 @@ export default function SavedPropertiesPage() {
           >
             <Text style={styles.exploreButtonText}>Explore Properties</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       ) : (
         <FlatList
           data={properties}
@@ -138,6 +146,10 @@ export default function SavedPropertiesPage() {
           renderItem={renderPropertyItem}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
           refreshControl={
             <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
           }
@@ -163,9 +175,22 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.surfaceContainer,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  refreshBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.secondaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 22,

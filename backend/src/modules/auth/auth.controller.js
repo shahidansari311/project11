@@ -33,14 +33,17 @@ async function userVerifyOtp(req, res, next) {
 
 async function userRegister(req, res, next) {
   try {
-    const { registrationToken, fullName, email, profileImage, createdBy } = req.body;
+    const { registrationToken, googleIdToken, fullName, email, profileImage, createdBy } = req.body;
     const deviceFingerprint = req.headers["x-device-id"] || "unknown-device";
 
-    if (!registrationToken || !fullName) {
-      return errorResponse(res, 400, "Registration token and full name are required");
+    if (!registrationToken) {
+      return errorResponse(res, 400, "Registration token is required");
+    }
+    if (!googleIdToken && (!fullName || !email)) {
+      return errorResponse(res, 400, "Full name and email are required if not using Google Sign-In");
     }
 
-    const result = await authService.registerUser(registrationToken, { fullName, email, profileUrl: profileImage, createdBy }, deviceFingerprint);
+    const result = await authService.registerUser(registrationToken, { googleIdToken, fullName, email, profileUrl: profileImage, createdBy }, deviceFingerprint);
     if (result.token) {
       setAuthCookies(res, { token: result.token, refreshToken: result.refreshToken });
     }
@@ -150,7 +153,7 @@ async function getAllUsers(req, res, next) {
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const search = (req.query.search || "").trim();
 
-    const result = await authService.getAllUsers({ page, limit, search });
+    const result = await authService.getAllUsers({ page, limit, search, role: "USER" });
     return successResponse(res, 200, result, "Users retrieved successfully");
   } catch (error) {
     next(error);
@@ -296,3 +299,35 @@ module.exports = {
   updateUserByAdmin,
   deleteUserByAdmin
 };
+
+async function getAllBuilders(req, res, next) {
+  try {
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = (req.query.search || "").trim();
+
+    const result = await authService.getAllUsers({ page, limit, search, role: "BUILDER" });
+    return successResponse(res, 200, result, "Builders retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function createBuilderByAdmin(req, res, next) {
+  try {
+    const { fullName, phone, email, profileImage } = req.body;
+    const newUser = await authService.createUserByAdmin({ 
+      fullName, 
+      phone, 
+      email, 
+      profileUrl: profileImage,
+      role: "BUILDER"
+    });
+    return successResponse(res, 201, newUser, "Builder created successfully by Admin");
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports.getAllBuilders = getAllBuilders;
+module.exports.createBuilderByAdmin = createBuilderByAdmin;

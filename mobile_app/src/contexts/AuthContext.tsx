@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import * as SecureStore from "expo-secure-store";
 import { authService, UserProfile } from "../services/auth.service";
 
@@ -6,14 +6,14 @@ interface AuthContextType {
   isGuest: boolean;
   userProfile: UserProfile | null;
   isLoading: boolean;
-  refreshAuth: () => Promise<void>;
+  refreshAuth: () => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   isGuest: true,
   userProfile: null,
   isLoading: true,
-  refreshAuth: async () => {},
+  refreshAuth: async () => null,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -30,17 +30,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!token) {
         setIsGuest(true);
         setUserProfile(null);
-        return;
+        return null;
       }
       setIsGuest(false);
 
       const res = await authService.getProfile();
       if (res && res.data) {
         setUserProfile(res.data);
+        return res.data;
       }
+      return null;
     } catch (e) {
       setIsGuest(true);
       setUserProfile(null);
+      return null;
     } finally {
       setIsLoading(false);
     }

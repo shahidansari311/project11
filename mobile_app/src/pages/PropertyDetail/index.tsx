@@ -5,7 +5,7 @@
  * Extracted into smaller, modular components.
  */
 
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -16,12 +16,15 @@ import {
   StatusBar,
   Animated,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
+import { useAuth } from "../../contexts/AuthContext";
 
 import { propertyService } from "../../services/property.service";
 import { investmentService } from "../../services/investment.service";
@@ -37,14 +40,17 @@ import PropertyHighlights from "./components/PropertyHighlights";
 import PropertyFinancials from "./components/PropertyFinancials";
 import PropertyPriceGraph from "./components/PropertyPriceGraph";
 import InvestNowPanel from "./components/InvestNowPanel";
+import BuilderActionPanel from "./components/BuilderActionPanel";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function PropertyDetailPage({ id }: { id: string }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const scrollY = React.useRef(new Animated.Value(0)).current;
-  const scrollViewRef = React.useRef<any>(null);
+  const { userProfile } = useAuth();
+  const isBuilder = userProfile?.role === "BUILDER";
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<any>(null);
 
   // Card starts at y=280 in scroll content (HERO=300, marginTop=-20).
   // Stop card top just below floating header bottom (46px from scroll top) + 16px buffer.
@@ -54,7 +60,23 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   // Inner card height: fills screen from max-scroll position down to bottom
   const CARD_HEIGHT = SCREEN_HEIGHT - insets.top - 62;
 
+  const innerScrollRef = useRef<ScrollView>(null);
+  const [sectionLayouts, setSectionLayouts] = useState({
+    overview: 0,
+    financials: 0,
+    trends: 0,
+  });
+
+  const handleTabPress = (tab: "overview" | "financials" | "trends") => {
+    setActiveTab(tab);
+    if (innerScrollRef.current && sectionLayouts[tab] !== undefined) {
+      innerScrollRef.current.scrollTo({ y: sectionLayouts[tab], animated: true });
+    }
+  };
+
   const [property, setProperty] = useState<Property | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "financials" | "trends">("overview");
+  const [userUnitsOwned, setUserUnitsOwned] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -73,9 +95,9 @@ export default function PropertyDetailPage({ id }: { id: string }) {
     }
   };
 
-  const loadInvestmentInfo = useCallback(async () => {
+  const loadInvestmentInfo = useCallback(async (isRefresh = false) => {
     try {
-      setInvestInfoLoading(true);
+      if (!isRefresh) setInvestInfoLoading(true);
       const res = await investmentService.getPropertyInvestmentInfo(id);
       if (res?.data) setInvestmentInfo(res.data);
     } catch (e) {
@@ -92,6 +114,17 @@ export default function PropertyDetailPage({ id }: { id: string }) {
       if (res && res.data) {
         setProperty(res.data);
       }
+      // Also fetch user investment if logged in
+      const token = await SecureStore.getItemAsync("refresh_token");
+      if (token) {
+        const invRes = await investmentService.getMyInvestments({ status: "APPROVED", limit: 100 });
+        if (invRes?.data?.investments) {
+          const owned = invRes.data.investments
+            .filter(i => i.propertyId === id)
+            .reduce((sum, i) => sum + i.units, 0);
+          setUserUnitsOwned(owned);
+        }
+      }
     } catch (error) {
       console.error("Failed to fetch property details:", error);
     } finally {
@@ -100,14 +133,18 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   }, [id]);
 
   const fetchData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setIsRefreshing(true);
     await Promise.all([
       checkAuthStatus(),
       loadProperty(isRefresh),
-      loadInvestmentInfo()
+      loadInvestmentInfo(isRefresh)
     ]);
-    if (isRefresh) setIsRefreshing(false);
   }, [loadProperty, loadInvestmentInfo]);
+
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await fetchData(true);
+    setIsRefreshing(false);
+  }, [fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -132,8 +169,12 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   const images = property.images?.length > 0 ? property.images : [PLACEHOLDER_IMAGE];
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: Colors.surface }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={[styles.root, { paddingTop: insets.top }]}>
+        <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       {/* ── Floating Header — back button only ── */}
       <View style={[styles.floatingHeader, { top: insets.top + 6 }]} pointerEvents="box-none">
@@ -213,38 +254,87 @@ export default function PropertyDetailPage({ id }: { id: string }) {
           <View style={styles.cardHandle} />
 
           {/* Sticky property title — stays visible while details scroll */}
-          <PropertyTitle property={property} />
+          <PropertyTitle property={property} userUnitsOwned={userUnitsOwned} />
+          
+          {/* ── Custom Tab Bar (Sticky) ── */}
+          <View style={styles.tabBar}>
+            {(['overview', 'financials', 'trends'] as const).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
+                onPress={() => handleTabPress(tab)}
+              >
+                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           {/* Inner independently-scrollable content */}
           <ScrollView
+            ref={innerScrollRef}
             nestedScrollEnabled={true}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              const y = e.nativeEvent.contentOffset.y;
+              // Add a small offset (50) to make the transition feel more natural before perfectly hitting the section
+              if (y >= sectionLayouts.trends - 50) {
+                if (activeTab !== 'trends') setActiveTab('trends');
+              } else if (y >= sectionLayouts.financials - 50) {
+                if (activeTab !== 'financials') setActiveTab('financials');
+              } else {
+                if (activeTab !== 'overview') setActiveTab('overview');
+              }
+            }}
           >
-            <PropertyHighlights property={property} />
 
-            <PropertyFinancials property={property} />
-
-            <PropertyPriceGraph priceHistory={property.priceHistory} />
+            {/* ── Sections ── */}
+            <View onLayout={(e) => {
+              const y = e.nativeEvent.layout.y;
+              setSectionLayouts(prev => ({ ...prev, overview: y }));
+            }}>
+              <PropertyHighlights property={property} />
+            </View>
+            
+            <View onLayout={(e) => {
+              const y = e.nativeEvent.layout.y;
+              setSectionLayouts(prev => ({ ...prev, financials: y }));
+            }}>
+              <PropertyFinancials property={property} />
+            </View>
+            
+            <View onLayout={(e) => {
+              const y = e.nativeEvent.layout.y;
+              setSectionLayouts(prev => ({ ...prev, trends: y }));
+            }}>
+              <PropertyPriceGraph priceHistory={property.priceHistory} />
+            </View>
           </ScrollView>
         </View>
       </Animated.ScrollView>
 
-      {/* ── Floating InvestNow Panel ── */}
+      {/* ── Docked Bottom Panel ── */}
       <View
         style={[
           styles.investPanelContainer,
-          { bottom: Math.max(insets.bottom + 10, 16) },
+          { paddingBottom: Math.max(insets.bottom + 10, 16), paddingTop: 10 },
         ]}
       >
-        <InvestNowPanel
-          propertyId={id}
-          investmentInfo={investmentInfo}
-          isLoading={investInfoLoading}
-          isGuest={isGuest}
-          onRequireLogin={() => setShowLoginPrompt(true)}
-          onSuccess={loadInvestmentInfo}
-        />
+        {isBuilder ? (
+          <BuilderActionPanel property={property} onUpdate={() => fetchData(true)} />
+        ) : (
+          <InvestNowPanel
+            propertyId={id}
+            investmentInfo={investmentInfo}
+            isLoading={investInfoLoading}
+            isGuest={isGuest}
+            onRequireLogin={() => setShowLoginPrompt(true)}
+            onSuccess={loadInvestmentInfo}
+          />
+        )}
       </View>
 
       {/* ── Login Prompt Modal ── */}
@@ -275,7 +365,8 @@ export default function PropertyDetailPage({ id }: { id: string }) {
           </View>
         )}
       />
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -350,9 +441,7 @@ const styles = StyleSheet.create({
   },
   // ── Invest Now Panel ──
   investPanelContainer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
+    backgroundColor: "transparent",
   },
   // ── Like button on hero image ──
   heroLikeBtn: {
@@ -405,5 +494,66 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.5)', 
     textShadowOffset: { width: 0, height: 1 }, 
     textShadowRadius: 4,
-  }
+  },
+  ownershipBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#ECFDF5",
+    marginHorizontal: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
+    marginBottom: 8,
+    marginTop: -4,
+  },
+  ownershipLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  ownershipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#059669",
+  },
+  ownershipBtn: {
+    backgroundColor: "#059669",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  ownershipBtnText: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  tabBar: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.outlineVariant,
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  tabItemActive: {
+    borderBottomColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.outline,
+  },
+  tabTextActive: {
+    color: Colors.primary,
+    fontWeight: "800",
+  },
 });

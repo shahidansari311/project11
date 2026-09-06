@@ -1,12 +1,23 @@
 export type PropertyStatus = "AVAILABLE" | "SOLD" | "UNDER_REVIEW" | "COMING_SOON";
 export type PropertyCategory = "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "LAND";
 
+export interface LocationObject {
+  latitude: number;
+  longitude: number;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+  placeName?: string;
+}
+
 export interface Property {
   id: string;
   title: string;
   description: string;
   images: string[];
-  location: string;
+  location: string | LocationObject;
   status: PropertyStatus;
   targetReturn: number;
   minInvestment: number;
@@ -37,7 +48,7 @@ export interface Investment {
   adminRemark?: string;
   createdAt: string;
   updatedAt: string;
-  property?: Pick<Property, "id" | "title" | "location" | "category" | "status" | "images">;
+  property?: Pick<Property, "id" | "title" | "location" | "category" | "status" | "images"> & { priceHistory?: { id: string; price: number; date: string }[] };
   user?: { id: string; fullName?: string; phone: string; email?: string };
 }
 

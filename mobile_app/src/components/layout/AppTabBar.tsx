@@ -6,7 +6,6 @@
  * "Explore" maps to the "home" screen; "Profile" maps to the "profile" screen.
  */
 
-import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -60,14 +59,53 @@ const VISUAL_TABS: VisualTab[] = [
   },
 ];
 
+const BUILDER_TABS: VisualTab[] = [
+  {
+    id: "builder-live",
+    label: "Live",
+    icon: "home-outline",
+    activeIcon: "home",
+    routeName: "builder-live",
+  },
+  {
+    id: "builder-add",
+    label: "Add",
+    icon: "add-circle-outline",
+    activeIcon: "add-circle",
+    routeName: "builder-add",
+  },
+  {
+    id: "builder-pending",
+    label: "Pending",
+    icon: "time-outline",
+    activeIcon: "time",
+    routeName: "builder-pending",
+  },
+  {
+    id: "builder-rejected",
+    label: "Rejected",
+    icon: "close-circle-outline",
+    activeIcon: "close-circle",
+    routeName: "builder-rejected",
+  },
+  {
+    id: "builder-drafts",
+    label: "Drafts",
+    icon: "document-text-outline",
+    activeIcon: "document-text",
+    routeName: "builder-drafts",
+  }
+];
+
 interface AppTabBarProps {
   /** Current active route name from the Tabs navigator (e.g. "home" or "profile"). */
   activeRouteName: string;
   userProfileUrl?: string | null;
+  role?: string;
   onTabPress: (routeName: string) => void;
 }
 
-export default function AppTabBar({ activeRouteName, userProfileUrl, onTabPress }: AppTabBarProps) {
+export default function AppTabBar({ activeRouteName, userProfileUrl, role, onTabPress }: AppTabBarProps) {
   const insets = useSafeAreaInsets();
 
   const handlePress = (tab: VisualTab) => {
@@ -83,7 +121,7 @@ export default function AppTabBar({ activeRouteName, userProfileUrl, onTabPress 
       styles.container,
       { bottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) }
     ]}>
-      {VISUAL_TABS.map((tab) => {
+      {(role === "BUILDER" ? BUILDER_TABS : VISUAL_TABS).map((tab) => {
         const isActive = tab.routeName === activeRouteName;
         return (
           <TouchableOpacity
@@ -110,6 +148,8 @@ export default function AppTabBar({ activeRouteName, userProfileUrl, onTabPress 
               />
             )}
             <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
               style={[
                 styles.tabLabel,
                 isActive ? styles.tabLabelActive : styles.tabLabelInactive,

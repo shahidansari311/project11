@@ -1,6 +1,6 @@
 const { z } = require("zod");
 
-const VALID_STATUSES   = ["AVAILABLE", "SOLD", "UNDER_REVIEW", "COMING_SOON"];
+const VALID_STATUSES   = ["AVAILABLE", "SOLD", "UNDER_REVIEW", "COMING_SOON", "PENDING_APPROVAL", "REJECTED", "DRAFT"];
 const VALID_CATEGORIES = ["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "LAND"];
 
 const createPropertySchema = z.object({
@@ -25,13 +25,22 @@ const createPropertySchema = z.object({
       .array(z.string().url("One of the image links is invalid. Please make sure they are correct URLs."))
       .min(1, "Please upload at least one image for the property."),
 
-    location: z
-      .string({ 
+    location: z.union([
+      z.string({ 
         required_error: "Please specify the location.",
-        invalid_type_error: "The location must be text."
+        invalid_type_error: "The location must be text or a valid location object."
+      }).trim().min(2, "The location name is too short."),
+      z.object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        address: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        country: z.string().optional(),
+        postalCode: z.string().optional(),
+        placeName: z.string().optional()
       })
-      .trim()
-      .min(2, "The location name is too short."),
+    ]),
 
     status: z
       .enum(VALID_STATUSES, {
@@ -78,7 +87,19 @@ const updatePropertySchema = z.object({
     title: z.string().trim().min(3, "Title must be at least 3 characters").optional(),
     description: z.string().trim().min(10, "Description must be at least 10 characters").optional(),
     images: z.array(z.string().url("Each image must be a valid URL")).min(1, "At least one image URL is required").optional(),
-    location: z.string().trim().min(2, "Location must be at least 2 characters").optional(),
+    location: z.union([
+      z.string().trim().min(2, "The location name is too short."),
+      z.object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        address: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        country: z.string().optional(),
+        postalCode: z.string().optional(),
+        placeName: z.string().optional()
+      })
+    ]).optional(),
     status: z.enum(VALID_STATUSES, {
       errorMap: () => ({ message: `Status must be one of: ${VALID_STATUSES.join(", ")}` }),
     }).optional(),
@@ -130,10 +151,18 @@ const updatePriceHistorySchema = z.object({
   params: z.object({ historyId: z.string().optional() }).passthrough().optional(),
 });
 
+const verifyPropertySchema = z.object({
+  body: z.object({
+    status: z.enum(["AVAILABLE", "REJECTED"]),
+    adminRemark: z.string().optional()
+  })
+});
+
 module.exports = {
   createPropertySchema,
   updatePropertySchema,
   queryPropertySchema,
   addPriceHistorySchema,
   updatePriceHistorySchema,
-};
+  verifyPropertySchema,
+  };

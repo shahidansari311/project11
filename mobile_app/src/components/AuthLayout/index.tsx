@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Keyboard
+  Keyboard,
+  FlatList
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +20,13 @@ import { Colors } from "@/constants/colors";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const BRAND_NAME = "Silver Real Estate";
+
+const HERO_IMAGES = [
+  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=1200&auto=format&fit=crop",
+];
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -29,6 +37,31 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
   const arrowAnim = useRef(new Animated.Value(0)).current;
   const heroHeight = useRef(new Animated.Value(SCREEN_HEIGHT * 0.7)).current;
+  
+  const flatListRef = useRef<FlatList>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval>;
+    const startTimer = () => {
+      timer = setInterval(() => {
+        setActiveIndex((prev) => {
+          const nextIndex = (prev + 1) % HERO_IMAGES.length;
+          flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+          return nextIndex;
+        });
+      }, 4000);
+    };
+    
+    startTimer();
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleScrollEnd = (e: any) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const index = Math.round(x / SCREEN_WIDTH);
+    setActiveIndex(index);
+  };
 
   useEffect(() => {
     Animated.loop(
@@ -80,10 +113,22 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
       {/* Hero Image */}
       <Animated.View style={[styles.heroContainer, { height: heroHeight }]}>
-        <Image 
-          source={{ uri: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop" }} 
-          style={styles.heroImage} 
-          resizeMode="cover" 
+        <FlatList
+          ref={flatListRef}
+          data={HERO_IMAGES}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          scrollEnabled={true}
+          onMomentumScrollEnd={handleScrollEnd}
+          keyExtractor={(_, index) => index.toString()}
+          renderItem={({ item }) => (
+            <Image 
+              source={{ uri: item }} 
+              style={{ width: SCREEN_WIDTH, height: "100%" }} 
+              resizeMode="cover" 
+            />
+          )}
         />
         <View style={styles.heroOverlay} />
       <View style={styles.brandContainer}>
@@ -102,6 +147,19 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           <Ionicons name="arrow-forward" size={14} color={Colors.onPrimary} style={{ marginLeft: 4 }} />
         </Animated.View>
       </TouchableOpacity>
+
+      {/* Pagination Dots */}
+      <View style={styles.paginationContainer}>
+        {HERO_IMAGES.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.paginationDot,
+              activeIndex === index && styles.paginationDotActive,
+            ]}
+          />
+        ))}
+      </View>
     </Animated.View>
 
     {/* Content Container */}
@@ -143,6 +201,10 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   skipButtonText: { color: Colors.onPrimary, fontSize: 14, fontWeight: "600", letterSpacing: 0.3 },
+
+  paginationContainer: { position: "absolute", bottom: 48, left: 0, right: 0, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, zIndex: 10 },
+  paginationDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.4)" },
+  paginationDotActive: { width: 16, backgroundColor: "#ffffff" },
 
   scrollView: { flex: 1, backgroundColor: Colors.surfaceContainerLowest, borderTopLeftRadius: 32, borderTopRightRadius: 32, marginTop: -32, shadowColor: Colors.onSurface, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 8 },
   scrollContent: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 24 },

@@ -12,7 +12,7 @@
  *   </SafeAreaView>
  */
 
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { View, StyleSheet, StatusBar } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -58,6 +58,7 @@ export default function TabsLayout() {
       {/* ── Persistent Header — never unmounts ── */}
       <AppHeader
         isGuest={isGuest}
+        role={userProfile?.role}
         userProfileUrl={userProfileUrl}
         onLoginPress={handleLoginPress}
         onProfilePress={handleProfilePress}
@@ -71,6 +72,11 @@ export default function TabsLayout() {
           <Stack.Screen name="explore" />
           <Stack.Screen name="portfolio" />
           <Stack.Screen name="profile" />
+          <Stack.Screen name="builder-live" />
+          <Stack.Screen name="builder-pending" />
+          <Stack.Screen name="builder-drafts" />
+          <Stack.Screen name="builder-rejected" />
+          <Stack.Screen name="builder-add" />
         </Stack>
       </View>
 
@@ -79,6 +85,7 @@ export default function TabsLayout() {
         <AppTabBar
           activeRouteName={activeRouteName}
           userProfileUrl={userProfileUrl}
+          role={userProfile?.role}
           onTabPress={handleTabPress}
         />
       )}

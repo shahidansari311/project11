@@ -11,20 +11,24 @@ async function uploadPropertyImages(req, res, next) {
     
     if (existingImages === "") {
       existingImages = [];
-      req.body.clearImages = true; // Tell the service to NOT auto-merge old images
-    } else {
-      existingImages = existingImages || [];
+      req.body.clearImages = true;
+    } else if (existingImages !== undefined) {
       if (!Array.isArray(existingImages)) {
         existingImages = [existingImages];
       }
     }
     
-    req.body.images = existingImages;
+    if (existingImages !== undefined) {
+      req.body.images = existingImages;
+    }
 
     if (!req.files || req.files.length === 0) {
-      // If no new files were provided, pass control to Zod.
+      // If no new files were provided and no existing images were sent, 
+      // req.body.images remains undefined so Zod can treat it as optional.
       return next(); 
     }
+    
+    existingImages = existingImages || [];
 
     // Process all files in parallel for speed
     const uploadPromises = req.files.map(file => 

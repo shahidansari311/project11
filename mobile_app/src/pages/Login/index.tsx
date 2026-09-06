@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,22 +7,21 @@ import {
   Animated,
   StyleSheet,
 } from "react-native";
-import { z } from "zod";
 import { Colors } from "@/constants/colors";
 import api from "@/utils/api";
+import { phoneSchema } from "@/utils/validationSchemas";
 
 import AuthLayout from "@/components/AuthLayout";
 import BouncingDots from "@/components/BouncingDots";
 
-const loginPhoneSchema = z.string().trim().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian mobile number.");
-
 interface LoginPageProps {
+  initialPhone?: string;
   onSendOtp: (phone: string) => void;
 }
 
-export default function LoginPage({ onSendOtp }: LoginPageProps) {
+export default function LoginPage({ initialPhone = "", onSendOtp }: LoginPageProps) {
   const [loading, setLoading] = useState(false);
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(initialPhone);
   const [phoneError, setPhoneError] = useState("");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -41,7 +40,7 @@ export default function LoginPage({ onSendOtp }: LoginPageProps) {
   }, [phoneError]);
 
   const handleSendOtp = useCallback(async () => {
-    const result = loginPhoneSchema.safeParse(phone);
+    const result = phoneSchema.safeParse(phone);
     if (!result.success) {
       setPhoneError(result.error.issues[0].message);
       return;

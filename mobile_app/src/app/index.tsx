@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { View } from "react-native";
+import { Colors } from "@/constants/colors";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -12,41 +14,43 @@ export default function AuthScreen() {
   const router = useRouter();
   const [activePage, setActivePage] = useState<"login" | "otp">("login");
   const [phoneForOtp, setPhoneForOtp] = useState<string>("");
-  const { isGuest, isLoading } = useAuth();
-  const [isSplashFinished, setIsSplashFinished] = useState(hasAppLaunched);
+  const { isGuest, isLoading, userProfile } = useAuth();
+  
+  const hasNavigated = useRef(false);
 
-  // Enforce a minimum display time for the splash screen
   useEffect(() => {
-    if (hasAppLaunched) return;
-
-    const timer = setTimeout(() => {
+    // Wait until Auth Check is done
+    if (!isLoading && !hasNavigated.current) {
       hasAppLaunched = true;
-      setIsSplashFinished(true);
-    }, 2500); // 2.5 seconds
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    // Wait until both Auth Check is done AND Splash Timer has finished
-    if (!isLoading && isSplashFinished) {
       if (!isGuest) {
-        // Logged in -> Route to Main App
-        router.replace("/(tabs)/home" as any);
+        hasNavigated.current = true;
+        // Logged in -> Route to Main App based on role
+        if (userProfile?.role === "BUILDER") {
+          router.replace("/(tabs)/builder-live" as any);
+        } else {
+          router.replace("/(tabs)/home" as any);
+        }
       }
     }
-  }, [isLoading, isGuest, isSplashFinished, router]);
+  }, [isLoading, isGuest, userProfile, router]);
 
   // Show Splash Screen ONLY on first app launch while auth state is resolving
   const isInitialLoading = isLoading && !hasAppLaunched;
   
-  if (isInitialLoading || !isSplashFinished) {
+  if (isInitialLoading) {
     return <SplashScreen />;
+  }
+  
+  if (!isGuest) {
+    // Already logged in, waiting for router.replace to kick in. Return blank screen to avoid flashing login or splash again.
+    return <View style={{ flex: 1, backgroundColor: Colors.surface }} />;
   }
 
   return (
     <>
       {activePage === "login" && (
         <LoginPage 
+          initialPhone={phoneForOtp}
           onSendOtp={(phone) => {
             setPhoneForOtp(phone);
             setActivePage("otp");

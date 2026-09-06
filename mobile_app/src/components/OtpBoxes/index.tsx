@@ -1,11 +1,11 @@
-import React, { memo } from "react";
+import { memo, useState } from "react";
 import { View, TextInput, StyleSheet } from "react-native";
 import { Colors } from "@/constants/colors";
 
 const OTP_LENGTH = 6;
 
 const OtpBoxes = memo(({ values, refs, onChange, onKeyPress, hasError }: any) => {
-  const [focusedIndex, setFocusedIndex] = React.useState<number | null>(null);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
   return (
     <View style={styles.otpBoxContainer}>

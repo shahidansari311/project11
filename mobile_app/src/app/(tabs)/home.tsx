@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { View, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import { useState, useEffect } from "react";
+import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import DashboardHeader from "@/pages/BrowseProperties/components/DashboardHeader";
+import HomePageSkeleton from "@/pages/BrowseProperties/components/HomePageSkeleton";
 import { propertyService } from "@/services/property.service";
 import { Property } from "@/pages/BrowseProperties/data";
 import { Colors } from "@/constants/colors";
@@ -11,6 +12,7 @@ export default function HomeTab() {
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   useEffect(() => {
@@ -34,16 +36,36 @@ export default function HomeTab() {
     };
   }, []);
 
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await propertyService.getProperties({ limit: 15 });
+      if (res?.data?.properties) {
+        setProperties(res.data.properties);
+      }
+    } catch (error) {
+      console.error("Failed to refresh featured properties:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <View style={styles.root}>
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
+        <HomePageSkeleton />
       ) : (
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          }
         >
           <DashboardHeader 
             properties={properties} 
@@ -69,12 +91,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.surface,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   scrollContent: {
-    paddingBottom: 110, // Leave space for bottom tab bar
+    paddingBottom: 110,
   },
 });

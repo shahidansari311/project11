@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -20,8 +20,8 @@ export interface ActiveFilters {
   maxPrice?: number;
   minArea?: number;
   maxArea?: number;
-  location?: string;
-  status?: string;
+  location?: string[];
+  status?: string[];
 }
 
 export interface FilterData {
@@ -171,8 +171,8 @@ export default function FilterModal({
 
   const renderSelectFilter = (
     options: string[] | undefined,
-    currentValue: string | undefined,
-    onSelect: (val: string) => void
+    currentValues: string[] | undefined,
+    onToggle: (val: string) => void
   ) => {
     if (!options || options.length === 0) {
       return <Text style={styles.emptyText}>No options available.</Text>;
@@ -181,12 +181,12 @@ export default function FilterModal({
     return (
       <ScrollView contentContainerStyle={styles.chipGrid}>
         {options.map((opt) => {
-          const isActive = currentValue === opt;
+          const isActive = currentValues?.includes(opt) || false;
           return (
             <TouchableOpacity
               key={opt}
               style={[styles.chip, isActive && styles.chipActive]}
-              onPress={() => onSelect(opt)}
+              onPress={() => onToggle(opt)}
             >
               <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
                 {opt.replace(/_/g, " ")}
@@ -203,15 +203,23 @@ export default function FilterModal({
       case "Price":
         return renderPriceFilter();
       case "Location":
-        return renderSelectFilter(filterData?.locations, localFilters.location, (val) =>
-          setLocalFilters({ ...localFilters, location: val })
-        );
+        return renderSelectFilter(filterData?.locations, localFilters.location, (val) => {
+          const prev = localFilters.location || [];
+          setLocalFilters({
+            ...localFilters,
+            location: prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val],
+          });
+        });
       case "Area":
         return renderAreaFilter();
       case "Status":
-        return renderSelectFilter(filterData?.statuses, localFilters.status, (val) =>
-          setLocalFilters({ ...localFilters, status: val })
-        );
+        return renderSelectFilter(filterData?.statuses, localFilters.status, (val) => {
+          const prev = localFilters.status || [];
+          setLocalFilters({
+            ...localFilters,
+            status: prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val],
+          });
+        });
       default:
         return null;
     }
@@ -268,26 +276,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    minHeight: 300,
     maxHeight: "80%",
-    paddingBottom: 24, // Safe area padding can be added here
+    paddingBottom: 16,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.surfaceContainer,
   },
   title: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "700",
     color: Colors.onSurface,
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   emptyText: {
     color: Colors.outline,
@@ -299,9 +307,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   priceHelp: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.outline,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   priceInputRow: {
     flexDirection: "row",
@@ -312,37 +320,37 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   priceLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: Colors.onSurfaceVariant,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   priceInput: {
     borderWidth: 1,
     borderColor: Colors.outlineVariant,
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 12,
     color: Colors.onSurface,
     backgroundColor: Colors.surfaceContainerLowest,
   },
   priceDash: {
-    fontSize: 20,
+    fontSize: 14,
     color: Colors.outline,
-    marginHorizontal: 12,
-    marginTop: 20,
+    marginHorizontal: 8,
+    marginTop: 18,
   },
   // Selection Chips
   chipGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 8,
   },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: Colors.outlineVariant,
     backgroundColor: Colors.surfaceContainerLowest,
@@ -352,7 +360,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   chipText: {
-    fontSize: 14,
+    fontSize: 11,
     color: Colors.onSurface,
     fontWeight: "500",
   },
@@ -363,32 +371,32 @@ const styles = StyleSheet.create({
   // Footer
   footer: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 12,
   },
   clearBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: Colors.outline,
     alignItems: "center",
   },
   clearBtnText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.onSurface,
   },
   applyBtn: {
     flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
     backgroundColor: Colors.primary,
     alignItems: "center",
   },
   applyBtnText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.onPrimary,
   },

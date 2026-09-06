@@ -5,7 +5,7 @@
  * 100% preserved logic, zero breaking changes.
  */
 
-import React, { memo, useState } from "react";
+import { memo, useState } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { Colors } from "@/constants/colors";
 import { Property, PLACEHOLDER_IMAGE } from "../data";
+import { formatLocationText } from "@/utils/formatLocation";
 import FavoriteButton from "@/components/ui/FavoriteButton";
 
 interface PropertyCardProps {
@@ -36,12 +37,16 @@ const getStatusColor = (status: string) => {
   }
 };
 
-const formatCurrency = (value: number) => {
+const formatCurrency = (value: number, currencySymbol: string = "₹") => {
+  if (!value) return `${currencySymbol}0`;
+  if (value >= 10000000) return `${currencySymbol}${Number((value / 10000000).toFixed(2))} Cr`;
+  if (value >= 100000) return `${currencySymbol}${Number((value / 100000).toFixed(2))} L`;
+  if (value >= 1000) return `${currencySymbol}${Number((value / 1000).toFixed(2))} K`;
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value).replace("₹", currencySymbol);
 };
 
 const IMAGE_WIDTH = 124;
@@ -135,7 +140,7 @@ export default memo(function PropertyCard({
         <View style={styles.locationRow}>
           <Ionicons name="location-sharp" size={12} color={Colors.primary} />
           <Text style={styles.locationText} numberOfLines={1}>
-            {property.location}
+            {formatLocationText(property.location)}
           </Text>
         </View>
 

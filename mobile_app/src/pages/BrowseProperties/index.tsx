@@ -4,7 +4,7 @@
  * Search bar (sticky) → Category filters → Property cards
  */
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -67,7 +67,10 @@ export default function BrowsePropertiesPage() {
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
   
   const hasActiveFilters = useMemo(() => {
-    return Object.values(activeFilters).some(v => v !== undefined && v !== null);
+    return Object.values(activeFilters).some(v => {
+      if (Array.isArray(v)) return v.length > 0;
+      return v !== undefined && v !== null;
+    });
   }, [activeFilters]);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalFilterType, setModalFilterType] = useState<FilterType>(null);
@@ -175,7 +178,8 @@ export default function BrowsePropertiesPage() {
     </View>
   );
 
-  const isLoading = authLoading || isFetchingProperties;
+  // Only show skeletons on initial load when no properties exist
+  const isLoading = (authLoading || isFetchingProperties) && properties.length === 0;
 
   return (
     <View style={styles.root}>
@@ -229,9 +233,9 @@ export default function BrowsePropertiesPage() {
           {DUMMY_FILTERS.map((filter) => {
             let isActive = false;
             if (filter.label === "Price") isActive = !!(activeFilters.minPrice !== undefined || activeFilters.maxPrice !== undefined);
-            if (filter.label === "Location") isActive = !!activeFilters.location;
+            if (filter.label === "Location") isActive = !!(activeFilters.location && activeFilters.location.length > 0);
             if (filter.label === "Area") isActive = !!(activeFilters.minArea !== undefined || activeFilters.maxArea !== undefined);
-            if (filter.label === "Status") isActive = !!activeFilters.status;
+            if (filter.label === "Status") isActive = !!(activeFilters.status && activeFilters.status.length > 0);
 
             return (
               <TouchableOpacity
@@ -283,6 +287,7 @@ export default function BrowsePropertiesPage() {
           initialNumToRender={10}
           maxToRenderPerBatch={10}
           windowSize={5}
+          removeClippedSubviews={true}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={

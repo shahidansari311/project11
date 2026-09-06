@@ -9,7 +9,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000, // 10 seconds API Timeout (Point 15)
+  timeout: 30000, // 30 seconds API Timeout to support slow networks
 });
 
 let isRefreshing = false;
@@ -52,7 +52,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
 // Response Interceptor
@@ -71,11 +71,12 @@ api.interceptors.response.use(
       if (originalRequest._retryCount < MAX_RETRIES) {
         originalRequest._retryCount += 1;
         
-        // Exponential backoff
+        // Exponential backoff: 1s, 2s, 4s
+        const backoffDelay = (2 ** (originalRequest._retryCount - 1)) * RETRY_DELAY_MS;
         return new Promise((resolve) => {
           setTimeout(() => {
             resolve(api(originalRequest));
-          }, RETRY_DELAY_MS * originalRequest._retryCount);
+          }, backoffDelay);
         });
       }
     }

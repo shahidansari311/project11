@@ -1,6 +1,6 @@
 const { z } = require("zod");
 
-const VALID_STATUSES   = ["AVAILABLE", "SOLD", "UNDER_REVIEW", "COMING_SOON", "PENDING_APPROVAL", "REJECTED", "DRAFT", "UNAVAILABLE"];
+const VALID_STATUSES   = ["AVAILABLE", "SOLD", "UNDER_REVIEW", "COMING_SOON", "PENDING_APPROVAL", "REJECTED", "DRAFT"];
 const VALID_CATEGORIES = ["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "LAND"];
 
 const createPropertySchema = z.object({
@@ -158,12 +158,6 @@ const verifyPropertySchema = z.object({
   })
 });
 
-const updatePropertyStatusSchema = z.object({
-  body: z.object({
-    status: z.enum(["AVAILABLE", "UNAVAILABLE"])
-  })
-});
-
 module.exports = {
   createPropertySchema,
   updatePropertySchema,
@@ -171,5 +165,4 @@ module.exports = {
   addPriceHistorySchema,
   updatePriceHistorySchema,
   verifyPropertySchema,
-  updatePropertyStatusSchema,
-};
+  };

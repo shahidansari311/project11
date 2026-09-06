@@ -29,12 +29,17 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useRouter, useFocusEffect } from "expo-router";
 import { formatLocationText } from "@/utils/formatLocation";
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-IN", {
+const formatCurrency = (value: number, currencySymbol: string = "₹") => {
+  if (!value) return `${currencySymbol}0`;
+  if (value >= 10000000) return `${currencySymbol}${Number((value / 10000000).toFixed(2))} Cr`;
+  if (value >= 100000) return `${currencySymbol}${Number((value / 100000).toFixed(2))} L`;
+  if (value >= 1000) return `${currencySymbol}${Number((value / 1000).toFixed(2))} K`;
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value).replace("₹", currencySymbol);
+};
 
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString("en-IN", {
@@ -137,15 +142,6 @@ export default function MyPortfolioPage() {
   const hasPan = panDoc?.status === "APPROVED";
   const isKycVerified = hasAadhar && hasPan;
 
-  let pendingMessage = "Document verification pending";
-  if (!hasAadhar && !hasPan) {
-    pendingMessage = "Aadhar & PAN verification pending";
-  } else if (!hasAadhar) {
-    pendingMessage = "Aadhar verification pending";
-  } else if (!hasPan) {
-    pendingMessage = "PAN verification pending";
-  }
-
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -177,7 +173,8 @@ export default function MyPortfolioPage() {
               ...inv,
               property: {
                 ...inv.property,
-                priceHistory: propertyDetailsMap[inv.propertyId].priceHistory
+                priceHistory: propertyDetailsMap[inv.propertyId].priceHistory,
+                totalUnits: propertyDetailsMap[inv.propertyId].totalUnits
               }
             };
           }
@@ -372,19 +369,28 @@ export default function MyPortfolioPage() {
 
                 {/* Date + admin remark */}
                 <View style={styles.cardFooter}>
-                  <Text style={styles.dateText}>{formatDate(inv.createdAt)}</Text>
-                  {inv.adminRemark && (
-                    <Text style={styles.remarkText}>
-                      Admin note: {inv.adminRemark}
-                    </Text>
-                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dateText}>{formatDate(inv.createdAt)}</Text>
+                    {inv.adminRemark && (
+                      <Text style={styles.remarkText}>
+                        Admin note: {inv.adminRemark}
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.viewPropBtn}
+                    onPress={() => router.push(`/property/${inv.propertyId}` as any)}
+                  >
+                    <Text style={styles.viewPropBtnText}>View Property</Text>
+                    <Ionicons name="arrow-forward" size={12} color="#059669" />
+                  </TouchableOpacity>
                 </View>
 
                 {/* KYC Banner */}
                 {!isKycVerified ? (
                   <View style={styles.kycWarningBadge}>
                     <Ionicons name="warning" size={14} color="#B8860B" />
-                    <Text style={styles.kycWarningText}>{pendingMessage}</Text>
+                    <Text style={styles.kycWarningText}>Document verification pending</Text>
                   </View>
                 ) : (
                   <View style={styles.kycSuccessBadge}>
@@ -633,6 +639,23 @@ const styles = StyleSheet.create({
   // Footer
   cardFooter: {
     marginBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  viewPropBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    gap: 4,
+  },
+  viewPropBtnText: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#059669",
   },
   dateText: {
     fontSize: 11,

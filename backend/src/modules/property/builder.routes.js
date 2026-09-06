@@ -7,7 +7,10 @@ const { uploadPropertyImages } = require("../../middlewares/upload.middleware");
 const { imageUpload } = require("../../config/multer.config");
 
 router.post("/builder/add", imageUpload.array("images", 10), uploadPropertyImages, validate(createPropertySchema), propertyController.builderAddProperty);
+router.patch("/builder/:id", imageUpload.array("images", 10), uploadPropertyImages, propertyController.builderUpdateProperty);
 router.get("/builder/list", propertyController.builderListProperties);
-router.post("/:id/price-history", validate(addPriceHistorySchema), propertyController.addPriceHistory); // We'll just reuse the admin one, but wait, admin one doesn't check ownership. We'll handle that on frontend/controller for now.
+router.post("/builder/:id/price-history", validate(addPriceHistorySchema), propertyController.builderAddPriceHistory); 
+router.delete("/builder/:id/image", propertyController.builderRemovePropertyImage);
+router.delete("/builder/:id", propertyController.builderDeleteProperty);
 
 module.exports = router;

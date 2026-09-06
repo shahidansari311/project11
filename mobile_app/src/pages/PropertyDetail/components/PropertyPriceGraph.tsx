@@ -22,14 +22,17 @@ export interface PriceTrendChartProps {
 }
 
 const formatCurrency = (val: number, currencySymbol: string = "₹") => {
-  if (val === null || val === undefined || isNaN(val)) return "N/A";
-  if (val === 0) return `${currencySymbol}0`;
+  if (!val) return `${currencySymbol}0`;
   const absVal = Math.abs(val);
   const sign = val < 0 ? "-" : "";
-  if (absVal >= 10000000) return `${sign}${currencySymbol}${(absVal / 10000000).toFixed(2)}Cr`;
-  if (absVal >= 100000) return `${sign}${currencySymbol}${(absVal / 100000).toFixed(1)}L`;
-  if (absVal >= 1000) return `${sign}${currencySymbol}${(absVal / 1000).toFixed(1)}k`;
-  return `${sign}${currencySymbol}${absVal.toFixed(0)}`;
+  if (absVal >= 10000000) return `${sign}${currencySymbol}${Number((absVal / 10000000).toFixed(2))} Cr`;
+  if (absVal >= 100000) return `${sign}${currencySymbol}${Number((absVal / 100000).toFixed(2))} L`;
+  if (absVal >= 1000) return `${sign}${currencySymbol}${Number((absVal / 1000).toFixed(2))} K`;
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(val).replace("₹", currencySymbol);
 };
 
 const formatDate = (dateStr: string | undefined, format: "short" | "long" = "short") => {
@@ -260,7 +263,17 @@ export default function PropertyPriceGraph({
                 </G>
               ))}
 
-              {/* Area & Path */}
+              {/* X Axis Line */}
+          <Line
+            x1={chartData.padding.left}
+            y1={chartData.height - chartData.padding.bottom}
+            x2={chartData.width - chartData.padding.right}
+            y2={chartData.height - chartData.padding.bottom}
+            stroke="#E2E8F0"
+            strokeWidth="1"
+          />
+
+          {/* Area & Path */}
               <Path d={chartData.areaD} fill="url(#grad)" />
               <Path d={chartData.pathD} fill="none" stroke="#1E3A8A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
@@ -268,7 +281,10 @@ export default function PropertyPriceGraph({
               {chartData.points.map((pt) => {
                 const isHovered = hoveredPoint?.id === pt.id;
                 return (
-                  <G key={pt.id}>
+                  <G key={pt.id} onPress={() => setHoveredPoint(isHovered ? null : pt)}>
+                    {/* Invisible Hit Area for easier tapping */}
+                    <Circle cx={pt.x} cy={pt.y} r="25" fill="transparent" />
+                    
                     {isHovered && (
                       <Circle cx={pt.x} cy={pt.y} r="9" fill={pt.isDrop ? "#EF4444" : "#1E3A8A"} fillOpacity="0.18" />
                     )}

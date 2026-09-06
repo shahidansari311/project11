@@ -7,14 +7,12 @@ import {
   Animated,
   StyleSheet,
 } from "react-native";
-import { z } from "zod";
 import { Colors } from "@/constants/colors";
 import api from "@/utils/api";
+import { phoneSchema } from "@/utils/validationSchemas";
 
 import AuthLayout from "@/components/AuthLayout";
 import BouncingDots from "@/components/BouncingDots";
-
-const loginPhoneSchema = z.string().trim().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian mobile number.");
 
 interface LoginPageProps {
   initialPhone?: string;
@@ -42,7 +40,7 @@ export default function LoginPage({ initialPhone = "", onSendOtp }: LoginPagePro
   }, [phoneError]);
 
   const handleSendOtp = useCallback(async () => {
-    const result = loginPhoneSchema.safeParse(phone);
+    const result = phoneSchema.safeParse(phone);
     if (!result.success) {
       setPhoneError(result.error.issues[0].message);
       return;

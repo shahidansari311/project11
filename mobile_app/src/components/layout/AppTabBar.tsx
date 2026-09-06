@@ -68,18 +68,18 @@ const BUILDER_TABS: VisualTab[] = [
     routeName: "builder-live",
   },
   {
+    id: "builder-add",
+    label: "Add",
+    icon: "add-circle-outline",
+    activeIcon: "add-circle",
+    routeName: "builder-add",
+  },
+  {
     id: "builder-pending",
     label: "Pending",
     icon: "time-outline",
     activeIcon: "time",
     routeName: "builder-pending",
-  },
-  {
-    id: "builder-drafts",
-    label: "Drafts",
-    icon: "document-text-outline",
-    activeIcon: "document-text",
-    routeName: "builder-drafts",
   },
   {
     id: "builder-rejected",
@@ -89,11 +89,11 @@ const BUILDER_TABS: VisualTab[] = [
     routeName: "builder-rejected",
   },
   {
-    id: "builder-add",
-    label: "Add Property",
-    icon: "add-circle-outline",
-    activeIcon: "add-circle",
-    routeName: "builder-add",
+    id: "builder-drafts",
+    label: "Drafts",
+    icon: "document-text-outline",
+    activeIcon: "document-text",
+    routeName: "builder-drafts",
   }
 ];
 
@@ -148,6 +148,8 @@ export default function AppTabBar({ activeRouteName, userProfileUrl, role, onTab
               />
             )}
             <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
               style={[
                 styles.tabLabel,
                 isActive ? styles.tabLabelActive : styles.tabLabelInactive,

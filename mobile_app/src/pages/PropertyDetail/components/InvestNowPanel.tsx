@@ -29,11 +29,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { InvestmentInfo } from "../../BrowseProperties/data";
 import { investmentService } from "../../../services/investment.service";
+import { investUnitsSchema } from "@/utils/validationSchemas";
 
 // Enable LayoutAnimation on Android
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-IN", {
@@ -133,7 +131,8 @@ export default function InvestNowPanel({
       onRequireLogin();
       return;
     }
-    if (units < 1 || units > remainingUnits) {
+    const result = investUnitsSchema.safeParse(units);
+    if (!result.success || units > remainingUnits) {
       Alert.alert("Invalid units", `Please select between 1 and ${remainingUnits} units.`);
       return;
     }

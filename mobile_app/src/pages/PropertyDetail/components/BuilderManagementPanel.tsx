@@ -6,34 +6,6 @@ import api from "../../../utils/api";
 
 export default function BuilderManagementPanel({ property, onUpdate }: { property: any, onUpdate: () => void }) {
   const [isLoading, setIsLoading] = useState(false);
-
-  const toggleStatus = async () => {
-    const newStatus = property.status === "UNAVAILABLE" ? "AVAILABLE" : "UNAVAILABLE";
-    
-    Alert.alert(
-      `Mark ${newStatus}?`,
-      `Are you sure you want to mark this property as ${newStatus}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Yes", 
-          onPress: async () => {
-            setIsLoading(true);
-            try {
-              await api.patch(`/property/builder/${property.id}/status`, { status: newStatus });
-              Alert.alert("Success", `Property marked as ${newStatus}`);
-              onUpdate();
-            } catch (error: any) {
-              Alert.alert("Error", error.response?.data?.message || "Failed to update status");
-            } finally {
-              setIsLoading(false);
-            }
-          }
-        }
-      ]
-    );
-  };
-
   const deleteProperty = async () => {
     Alert.alert(
       "Delete Property",
@@ -98,17 +70,7 @@ export default function BuilderManagementPanel({ property, onUpdate }: { propert
           <TouchableOpacity style={[styles.btn, styles.primaryBtn]} onPress={updatePrice}>
             <Ionicons name="pricetag" size={18} color="#fff" />
             <Text style={styles.btnText}>Price</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.btn, property.status === "UNAVAILABLE" ? styles.successBtn : styles.warningBtn]} 
-            onPress={toggleStatus}
-          >
-            <Ionicons name={property.status === "UNAVAILABLE" ? "eye" : "eye-off"} size={18} color="#fff" />
-            <Text style={styles.btnText}>{property.status === "UNAVAILABLE" ? "Available" : "Hide"}</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.btn, styles.dangerBtn]} onPress={deleteProperty}>
+          </TouchableOpacity><TouchableOpacity style={[styles.btn, styles.dangerBtn]} onPress={deleteProperty}>
             <Ionicons name="trash" size={18} color="#fff" />
             <Text style={styles.btnText}>Delete</Text>
           </TouchableOpacity>

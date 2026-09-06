@@ -86,12 +86,17 @@ const PortfolioDetailSkeleton = ({ insets }: { insets: any }) => {
   );
 };
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-IN", {
+const formatCurrency = (value: number, currencySymbol: string = "₹") => {
+  if (!value) return `${currencySymbol}0`;
+  if (value >= 10000000) return `${currencySymbol}${Number((value / 10000000).toFixed(2))} Cr`;
+  if (value >= 100000) return `${currencySymbol}${Number((value / 100000).toFixed(2))} L`;
+  if (value >= 1000) return `${currencySymbol}${Number((value / 1000).toFixed(2))} K`;
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value).replace("₹", currencySymbol);
+};
 
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString("en-IN", {
@@ -273,7 +278,16 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
           <>
             {/* Snapshot */}
             <View style={styles.snapshotCard}>
-          <Text style={styles.sectionTitle}>Snapshot</Text>
+              <View style={styles.snapshotHeader}>
+                <Text style={styles.sectionTitle}>Snapshot</Text>
+                <TouchableOpacity 
+                  style={styles.viewPropBtn}
+                  onPress={() => router.push(`/property/${investment.propertyId}` as any)}
+                >
+                  <Text style={styles.viewPropBtnText}>View Property</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#059669" />
+                </TouchableOpacity>
+              </View>
           <View style={styles.snapshotGrid}>
             <View style={styles.snapshotItem}>
               <Text style={styles.snapshotLabel}>Units Owned</Text>
@@ -299,7 +313,12 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
         {/* Graph */}
         <View style={styles.chartCard}>
           {property?.priceHistory && property.priceHistory.length >= 2 ? (
-            <PortfolioValuationGraph priceHistory={property.priceHistory as any} units={investment.units} />
+            <PortfolioValuationGraph 
+              priceHistory={property.priceHistory as any} 
+              units={investment.units} 
+              totalUnits={property.totalUnits}
+              purchasedAt={investment.createdAt}
+            />
           ) : (
             <>
               <Text style={styles.sectionTitle}>Portfolio Value Trend</Text>
@@ -447,6 +466,26 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: Colors.onSurface,
     marginBottom: 16,
+  },
+  snapshotHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  viewPropBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  viewPropBtnText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#059669",
   },
   snapshotGrid: {
     flexDirection: "row",

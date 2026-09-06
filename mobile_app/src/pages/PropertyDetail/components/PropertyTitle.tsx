@@ -1,14 +1,17 @@
 import { View, Text, StyleSheet, Linking, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 import { Property } from "../../BrowseProperties/data";
 import { formatLocationText, parseLocation } from "@/utils/formatLocation";
 
 interface PropertyTitleProps {
   property: Property;
+  userUnitsOwned?: number;
 }
 
-export default function PropertyTitle({ property }: PropertyTitleProps) {
+export default function PropertyTitle({ property, userUnitsOwned = 0 }: PropertyTitleProps) {
+  const router = useRouter();
   const locationText = formatLocationText(property.location);
 
   const parsedLoc = parseLocation(property.location);
@@ -35,16 +38,29 @@ export default function PropertyTitle({ property }: PropertyTitleProps) {
         <Text style={styles.locationText}>{locationText}</Text>
       </View>
 
-      {hasCoordinates && (
-        <TouchableOpacity 
-          style={styles.mapButton} 
-          onPress={handleOpenMap}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="map-outline" size={14} color={Colors.primary} />
-          <Text style={styles.mapButtonText}>View on Google Maps</Text>
-        </TouchableOpacity>
-      )}
+      <View style={styles.actionRow}>
+        {hasCoordinates && (
+          <TouchableOpacity 
+            style={styles.mapButton} 
+            onPress={handleOpenMap}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="map-outline" size={14} color={Colors.primary} />
+            <Text style={styles.mapButtonText}>View on Google Maps</Text>
+          </TouchableOpacity>
+        )}
+
+        {userUnitsOwned > 0 && (
+          <TouchableOpacity 
+            style={styles.ownershipBadge}
+            onPress={() => router.push("/(tabs)/portfolio")}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="briefcase" size={12} color="#059669" />
+            <Text style={styles.ownershipBadgeText}>You own {userUnitsOwned} units</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -92,20 +108,40 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 20,
   },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
   mapButton: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.surfaceContainer,
-    alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    marginTop: 4,
+    borderRadius: 8,
   },
   mapButtonText: {
     fontSize: 12,
+    fontWeight: "600",
     color: Colors.primary,
     marginLeft: 6,
-    fontWeight: "600",
+  },
+  ownershipBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+  ownershipBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#059669",
+    marginLeft: 4,
   },
 });

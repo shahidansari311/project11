@@ -44,11 +44,12 @@ router.patch("/:id", imageUpload.array("images", 10), uploadPropertyImages, vali
 
 // Builder Property Routes (These should ideally be in a separate router mounted under /builder, but adding here for simplicity since we'll mount them under /builder in index.js or just use them)
 router.post("/builder/add", imageUpload.array("images", 10), uploadPropertyImages, validate(createPropertySchema), propertyController.builderAddProperty);
+router.patch("/builder/:id", imageUpload.array("images", 10), uploadPropertyImages, validate(updatePropertySchema), propertyController.builderUpdateProperty);
 router.get("/builder/list", propertyController.builderListProperties);
 
 // Builder Management Routes
-router.patch("/builder/:id/status", validate(updatePropertyStatusSchema), propertyController.builderUpdateStatus);
 router.post("/builder/:id/price-history", validate(addPriceHistorySchema), propertyController.builderAddPriceHistory);
+router.delete("/builder/:id/image", propertyController.builderRemovePropertyImage);
 router.delete("/builder/:id", propertyController.builderDeleteProperty);
 
 

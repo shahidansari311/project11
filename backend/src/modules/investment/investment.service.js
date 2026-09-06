@@ -361,7 +361,12 @@ async function getInvestmentsByUser(userId, { page = 1, limit = 20, status, sear
  * Admin: dashboard statistics across all investments.
  */
 async function getInvestmentStats() {
-  const [total, pending, approved, rejected, cancelled, valueAgg, pendingValueAgg] =
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+
+  const [total, pending, approved, rejected, cancelled, valueAgg, pendingValueAgg, recentInvestments] =
     await Promise.all([
       getInvestmentModel().count(),
       getInvestmentModel().count({ where: { status: "PENDING" } }),
@@ -376,15 +381,45 @@ async function getInvestmentStats() {
         where:    { status: "PENDING" },
         _sum:     { totalAmount: true },
       }),
+      getInvestmentModel().findMany({
+        where: { createdAt: { gte: sixMonthsAgo } },
+        select: { status: true, totalAmount: true, createdAt: true }
+      })
     ]);
 
-  // Count properties that are fully sold out (purchasedUnits >= totalUnits)
-  const soldOutProperties = await getPropertyModel().count({
-    where: {
-      totalUnits:     { gt: 0 },
-      purchasedUnits: { gte: prisma.property.fields?.totalUnits ?? 0 },
-    },
-  });
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const trendsMap = new Map();
+  
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    trendsMap.set(key, {
+      month: monthNames[d.getMonth()],
+      year: d.getFullYear(),
+      approvedAmount: 0,
+      pendingAmount: 0,
+      approvedCount: 0,
+      pendingCount: 0
+    });
+  }
+
+  for (const inv of recentInvestments) {
+    const d = new Date(inv.createdAt);
+    const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    if (trendsMap.has(key)) {
+      const stats = trendsMap.get(key);
+      if (inv.status === "APPROVED") {
+        stats.approvedAmount += inv.totalAmount || 0;
+        stats.approvedCount += 1;
+      } else if (inv.status === "PENDING") {
+        stats.pendingAmount += inv.totalAmount || 0;
+        stats.pendingCount += 1;
+      }
+    }
+  }
+
+  const monthlyTrends = Array.from(trendsMap.values());
 
   return {
     totalInvestments:     total,
@@ -394,6 +429,7 @@ async function getInvestmentStats() {
     cancelledInvestments: cancelled,
     totalValueApproved:   valueAgg._sum.totalAmount    || 0,
     totalValuePending:    pendingValueAgg._sum.totalAmount || 0,
+    monthlyTrends
   };
 }
 

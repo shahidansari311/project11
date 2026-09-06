@@ -37,12 +37,16 @@ const getStatusColor = (status: string) => {
   }
 };
 
-const formatCurrency = (value: number) => {
+const formatCurrency = (value: number, currencySymbol: string = "₹") => {
+  if (!value) return `${currencySymbol}0`;
+  if (value >= 10000000) return `${currencySymbol}${Number((value / 10000000).toFixed(2))} Cr`;
+  if (value >= 100000) return `${currencySymbol}${Number((value / 100000).toFixed(2))} L`;
+  if (value >= 1000) return `${currencySymbol}${Number((value / 1000).toFixed(2))} K`;
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value).replace("₹", currencySymbol);
 };
 
 const IMAGE_WIDTH = 124;

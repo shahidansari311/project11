@@ -8,17 +8,7 @@ import { Image } from "expo-image";
 import { WebView } from "react-native-webview";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
-import { z } from "zod";
-
-const propertySchema = z.object({
-  title: z.string().trim().min(3, "Title must be at least 3 characters."),
-  description: z.string().trim().min(10, "Description must be at least 10 characters."),
-  totalSize: z.coerce.number().positive("Must be greater than 0."),
-  totalPrice: z.coerce.number().positive("Must be greater than 0."),
-  targetReturn: z.coerce.number().positive("Must be greater than 0.").optional().or(z.literal("")),
-  youtubeVideoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  address: z.string().min(1, "Location is required. Please select on map."),
-});
+import { addPropertySchema } from "@/utils/validationSchemas";
 
 const CATEGORIES = [
   { id: "RESIDENTIAL", label: "Residential" },
@@ -178,7 +168,7 @@ export default function BuilderAddTab() {
 
   const pickImages = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsMultipleSelection: true,
       quality: 0.8,
     });
@@ -190,7 +180,7 @@ export default function BuilderAddTab() {
   };
 
   const validateForm = () => {
-    const result = propertySchema.safeParse(formData);
+    const result = addPropertySchema.safeParse(formData);
     const newErrors: Record<string, string> = {};
     
     if (!result.success) {

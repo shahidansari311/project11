@@ -518,13 +518,14 @@ const styles = StyleSheet.create({
   stepperRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 12,
     marginBottom: 8,
   },
   stepperBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
@@ -535,7 +536,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   stepperInput: {
-    flex: 1,
+    width: 120,
     height: 36,
     padding: 0,
     backgroundColor: "rgba(255,255,255,0.1)",
@@ -551,6 +552,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     flexWrap: "wrap",
+    justifyContent: "center",
   },
   quickPickChip: {
     paddingHorizontal: 12,
@@ -567,7 +569,7 @@ const styles = StyleSheet.create({
   quickPickText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "rgba(255,255,255,0.7)",
+    color: "#ffffff",
   },
   quickPickTextActive: {
     color: Colors.primary,

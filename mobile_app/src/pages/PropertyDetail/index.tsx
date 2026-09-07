@@ -61,16 +61,28 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   const CARD_HEIGHT = SCREEN_HEIGHT - insets.top - 62;
 
   const innerScrollRef = useRef<ScrollView>(null);
+  const isScrollingToTab = useRef(false);
   const [sectionLayouts, setSectionLayouts] = useState({
     overview: 0,
     financials: 0,
     trends: 0,
   });
 
+  const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleTabPress = (tab: "overview" | "financials" | "trends") => {
     setActiveTab(tab);
     if (innerScrollRef.current && sectionLayouts[tab] !== undefined) {
+      isScrollingToTab.current = true;
       innerScrollRef.current.scrollTo({ y: sectionLayouts[tab], animated: true });
+      
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+      
+      scrollTimeout.current = setTimeout(() => {
+        isScrollingToTab.current = false;
+      }, 500);
     }
   };
 
@@ -279,15 +291,17 @@ export default function PropertyDetailPage({ id }: { id: string }) {
             contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
             scrollEventThrottle={16}
             onScroll={(e) => {
+              if (isScrollingToTab.current) return;
               const y = e.nativeEvent.contentOffset.y;
-              // Add a small offset (50) to make the transition feel more natural before perfectly hitting the section
+              
+              let nextTab: "overview" | "financials" | "trends" = "overview";
               if (y >= sectionLayouts.trends - 50) {
-                if (activeTab !== 'trends') setActiveTab('trends');
+                nextTab = 'trends';
               } else if (y >= sectionLayouts.financials - 50) {
-                if (activeTab !== 'financials') setActiveTab('financials');
-              } else {
-                if (activeTab !== 'overview') setActiveTab('overview');
+                nextTab = 'financials';
               }
+              
+              setActiveTab((prev) => prev !== nextTab ? nextTab : prev);
             }}
           >
 

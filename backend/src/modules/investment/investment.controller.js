@@ -1,7 +1,10 @@
 const investmentService = require("./investment.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 
+const { sendPushNotification } = require("../../services/push.service");
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
+
 
 function handleError(res, err, next) {
   const msg = err.message || "";
@@ -27,6 +30,14 @@ async function createInvestment(req, res, next) {
     const userId         = req.user.id;
 
     const investment = await investmentService.createInvestment(userId, propertyId, Number(units));
+    
+    // Send push notification asynchronously
+    sendPushNotification(
+      userId, 
+      "Purchase Pending", 
+      `Your request to purchase ${units} unit(s) has been received and is pending admin approval.`
+    );
+
     return successResponse(res, 201, investment, "Investment created successfully. Awaiting admin approval.");
   } catch (err) {
     handleError(res, err, next);
@@ -169,6 +180,16 @@ async function approveInvestment(req, res, next) {
     const adminId = req.user.id;
 
     const investment = await investmentService.approveInvestment(adminId, id);
+    
+    // Send push notification
+    if (investment && investment.userId) {
+      sendPushNotification(
+        investment.userId,
+        "Investment Approved 🎉",
+        "Your property investment has been approved!"
+      );
+    }
+
     return successResponse(res, 200, investment, "Investment approved successfully.");
   } catch (err) {
     handleError(res, err, next);
@@ -186,6 +207,16 @@ async function rejectInvestment(req, res, next) {
     const { remark } = req.body;
 
     const investment = await investmentService.rejectInvestment(adminId, id, remark);
+
+    // Send push notification
+    if (investment && investment.userId) {
+      sendPushNotification(
+        investment.userId,
+        "Investment Rejected ❌",
+        `Your investment was rejected. Reason: ${remark || 'Not provided'}`
+      );
+    }
+
     return successResponse(res, 200, investment, "Investment rejected successfully.");
   } catch (err) {
     handleError(res, err, next);

@@ -133,7 +133,7 @@ export default function SavedPropertiesPage() {
           <Text style={styles.emptySubtitle}>Tap the heart icon on any property to save it here.</Text>
           <TouchableOpacity
             style={styles.exploreButton}
-            onPress={() => router.navigate("/(tabs)/home")}
+            onPress={() => router.navigate("/(tabs)/explore" as any)}
             activeOpacity={0.8}
           >
             <Text style={styles.exploreButtonText}>Explore Properties</Text>

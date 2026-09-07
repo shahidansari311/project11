@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   ScrollView,
@@ -28,6 +28,7 @@ interface ImageCarouselProps {
   showArrowControls?: boolean;
   sharedTransitionTagBase?: string;
   youtubeVideoUrl?: string;
+  paginationBottomOffset?: number;
 }
 
 /**
@@ -56,16 +57,22 @@ export default function ImageCarousel({
   showArrowControls = true,
   sharedTransitionTagBase,
   youtubeVideoUrl,
+  paginationBottomOffset = 16,
 }: ImageCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
-
-  const displayImages = images && images.length > 0 ? images : [PLACEHOLDER_IMAGE];
+  const normalizedImages = Array.isArray(images) ? images : (typeof images === 'string' ? [images] : []);
+  const displayImages = normalizedImages.length > 0 ? normalizedImages : [PLACEHOLDER_IMAGE];
+  // Memoize image sources to prevent expo-image from re-triggering transition={200} on re-renders
+  const imageSources = useMemo(() => displayImages.map(img => (typeof img === 'string' ? { uri: img } : img)), [JSON.stringify(displayImages)]);
   const hasVideo = !!youtubeVideoUrl;
   // Total slides = images + (1 video slide if present)
   const totalSlides = displayImages.length + (hasVideo ? 1 : 0);
 
+  const isAutoScrolling = useRef(false);
+
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (isAutoScrolling.current) return;
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollPosition / width);
     if (index !== activeIndex && index >= 0 && index < totalSlides) {
@@ -75,14 +82,18 @@ export default function ImageCarousel({
 
   const handleArrowPress = (targetIndex: number) => {
     if (targetIndex >= 0 && targetIndex < totalSlides) {
-      scrollViewRef.current?.scrollTo({ x: targetIndex * width, animated: true });
+      isAutoScrolling.current = true;
       setActiveIndex(targetIndex);
+      scrollViewRef.current?.scrollTo({ x: targetIndex * width, animated: true });
+      setTimeout(() => { isAutoScrolling.current = false; }, 400);
     }
   };
 
   const handleThumbnailPress = (index: number) => {
-    scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
+    isAutoScrolling.current = true;
     setActiveIndex(index);
+    scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
+    setTimeout(() => { isAutoScrolling.current = false; }, 400);
   };
 
   // Check if current slide is the video slide
@@ -108,13 +119,13 @@ export default function ImageCarousel({
               disabled={!onPress}
             >
               <AnimatedImage
-                source={{ uri: img }}
+                source={imageSources[index]}
                 style={{ width, height }}
                 contentFit="cover"
                 transition={200}
                 sharedTransitionTag={
-                  sharedTransitionTagBase && activeIndex === index
-                    ? `${sharedTransitionTagBase}-${index}`
+                  sharedTransitionTagBase && index === 0
+                    ? sharedTransitionTagBase
                     : undefined
                 }
               />
@@ -161,20 +172,22 @@ export default function ImageCarousel({
 
         {/* ── Pagination Dots Indicator ── */}
         {totalSlides > 1 && (
-          <View style={styles.paginationContainer} pointerEvents="none">
-            {Array.from({ length: totalSlides }).map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  activeIndex === index ? styles.activeDot : styles.inactiveDot,
-                  // Make the video dot a different color
-                  hasVideo && index === totalSlides - 1 && activeIndex !== index
-                    ? styles.videoDot
-                    : null,
-                ]}
-              />
-            ))}
+          <View style={[styles.paginationWrapper, { bottom: paginationBottomOffset }]} pointerEvents="none">
+            <View style={styles.paginationContainer}>
+              {Array.from({ length: totalSlides }).map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.dot,
+                    activeIndex === index ? styles.activeDot : styles.inactiveDot,
+                    // Make the video dot a different color
+                    hasVideo && index === totalSlides - 1 && activeIndex !== index
+                      ? styles.videoDot
+                      : null,
+                  ]}
+                />
+              ))}
+            </View>
           </View>
         )}
       </View>
@@ -196,7 +209,7 @@ export default function ImageCarousel({
                 activeIndex === index && styles.thumbnailActive,
               ]}
             >
-              <Image source={{ uri: img }} style={styles.thumbnailImage} contentFit="cover" />
+              <Image source={imageSources[index]} style={styles.thumbnailImage} contentFit="cover" />
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -237,9 +250,12 @@ function YouTubeSlide({
     }).start();
   }, [playing]);
 
-  // Auto-pause when user scrolls away from this slide
+  // Auto-play/pause when user scrolls to/from this slide
   useEffect(() => {
-    if (!isActive && playing) {
+    if (isActive) {
+      setPlaying(true);
+      webViewRef.current?.injectJavaScript(`if(player && player.playVideo) player.playVideo(); true;`);
+    } else {
       setPlaying(false);
       webViewRef.current?.injectJavaScript(`if(player && player.pauseVideo) player.pauseVideo(); true;`);
     }
@@ -267,14 +283,16 @@ function YouTubeSlide({
             width: 100%; 
             height: 100%; 
             overflow: hidden; 
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
           }
           #player-wrapper {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(1.45);
-            width: 100vw;
-            height: 100vh;
+            top: -50%;
+            left: 0;
+            width: 100%;
+            height: 200%;
             pointer-events: none;
           }
         </style>
@@ -298,6 +316,7 @@ function YouTubeSlide({
                 'iv_load_policy': 3,
                 'fs': 0,
                 'disablekb': 1,
+                'enablejsapi': 1,
                 'origin': 'https://silverrealestate.com'
               },
               events: {
@@ -362,8 +381,8 @@ function YouTubeSlide({
 
   return (
     <View style={[{ width, height }, styles.videoSlideContainer]}>
-      {/* Thumbnail cover perfectly hides the giant red YouTube play button before playback */}
-      {!hasStarted && (
+      {/* Thumbnail cover perfectly hides the giant red YouTube play button and all paused UI */}
+      {!playing && (
         <Pressable 
           style={[StyleSheet.absoluteFill, { zIndex: 10, overflow: 'hidden', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }]}
           onPress={togglePlay}
@@ -380,17 +399,19 @@ function YouTubeSlide({
         </Pressable>
       )}
 
-      <WebView
-        ref={webViewRef}
-        source={{ html, baseUrl: 'https://silverrealestate.com/' }}
-        style={{ width, height, backgroundColor: '#000' }}
-        scrollEnabled={false}
-        allowsInlineMediaPlayback={true}
-        mediaPlaybackRequiresUserAction={false}
-        javaScriptEnabled={true}
-        originWhitelist={["*"]}
-        onMessage={handleMessage}
-      />
+      <View pointerEvents="none" style={{ width, height, backgroundColor: '#000' }}>
+        <WebView
+          ref={webViewRef}
+          source={{ html, baseUrl: 'https://silverrealestate.com/' }}
+          style={{ width, height, backgroundColor: '#000' }}
+          scrollEnabled={false}
+          allowsInlineMediaPlayback={true}
+          mediaPlaybackRequiresUserAction={false}
+          javaScriptEnabled={true}
+          originWhitelist={["*"]}
+          onMessage={handleMessage}
+        />
+      </View>
 
       {/* Invisible overlay to toggle play/pause by tapping the video */}
       {hasStarted && (
@@ -465,11 +486,15 @@ const styles = StyleSheet.create({
   rightArrow: {
     right: 14,
   },
-  paginationContainer: {
+  paginationWrapper: {
     position: "absolute",
-    bottom: 42,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 25,
+  },
+  paginationContainer: {
     flexDirection: "row",
-    alignSelf: "center",
     backgroundColor: "rgba(0, 0, 0, 0.55)",
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -477,7 +502,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    zIndex: 25,
   },
   dot: {
     height: 6,

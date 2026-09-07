@@ -174,7 +174,8 @@ export default function MyPortfolioPage() {
               property: {
                 ...inv.property,
                 priceHistory: propertyDetailsMap[inv.propertyId].priceHistory,
-                totalUnits: propertyDetailsMap[inv.propertyId].totalUnits
+                totalUnits: propertyDetailsMap[inv.propertyId].totalUnits,
+                price: propertyDetailsMap[inv.propertyId].price
               }
             };
           }
@@ -339,10 +340,20 @@ export default function MyPortfolioPage() {
                       <Ionicons name="location-outline" size={11} color={Colors.outline} />
                       {" "}{formatLocationText(inv.property?.location)}
                     </Text>
-                    {/* Status badge */}
-                    <View style={[styles.statusBadge, { backgroundColor: cfg.bg }]}>
-                      <Ionicons name={cfg.icon as any} size={11} color={cfg.text} />
-                      <Text style={[styles.statusText, { color: cfg.text }]}>{cfg.label}</Text>
+                    {/* Status badge and View Property button */}
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+                      <View style={[styles.statusBadge, { backgroundColor: cfg.bg, marginTop: 0 }]}>
+                        <Ionicons name={cfg.icon as any} size={11} color={cfg.text} />
+                        <Text style={[styles.statusText, { color: cfg.text }]}>{cfg.label}</Text>
+                      </View>
+                      
+                      <TouchableOpacity 
+                        style={styles.viewPropBtn}
+                        onPress={() => router.push(`/property/${inv.propertyId}` as any)}
+                      >
+                        <Text style={styles.viewPropBtnText}>View Property</Text>
+                        <Ionicons name="arrow-forward" size={12} color="#059669" />
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </View>
@@ -377,13 +388,6 @@ export default function MyPortfolioPage() {
                       </Text>
                     )}
                   </View>
-                  <TouchableOpacity 
-                    style={styles.viewPropBtn}
-                    onPress={() => router.push(`/property/${inv.propertyId}` as any)}
-                  >
-                    <Text style={styles.viewPropBtnText}>View Property</Text>
-                    <Ionicons name="arrow-forward" size={12} color="#059669" />
-                  </TouchableOpacity>
                 </View>
 
                 {/* KYC Banner */}

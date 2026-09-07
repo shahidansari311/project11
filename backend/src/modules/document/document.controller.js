@@ -110,6 +110,16 @@ async function adminVerifyDocument(req, res, next) {
 
     const updatedDoc = await documentService.adminVerifyDocument(id, { status, remark });
 
+    if (updatedDoc && updatedDoc.userId) {
+      const { sendPushNotification } = require("../../services/push.service");
+      const title = status === "VERIFIED" ? "KYC Approved ✅" : "KYC Rejected ❌";
+      const message = status === "VERIFIED" 
+        ? `Your ${updatedDoc.documentType || 'document'} has been verified successfully.`
+        : `Your ${updatedDoc.documentType || 'document'} was rejected. Reason: ${remark || 'Please re-upload.'}`;
+        
+      sendPushNotification(updatedDoc.userId, title, message);
+    }
+
     return successResponse(
       res,
       200,

@@ -21,6 +21,7 @@ router.get("/user/profile",       verifyAuth, requireRole("user", "builder"), au
 router.post("/user/profile",      verifyAuth, requireRole("user", "builder"), imageUpload.single("profileImage"), uploadProfileImage, validate(profileSchema), authController.updateProfile);
 router.post("/user/profile-image",verifyAuth, requireRole("user", "builder"), imageUpload.single("profileImage"), uploadProfileImage, validate(profileImageSchema), authController.updateProfileImage);
 router.post("/user/logout",       verifyAuth, requireRole("user", "builder"), authController.userLogout);
+router.post("/user/push-token",   verifyAuth, requireRole("user", "builder"), authController.updatePushToken);
 
 // Admin routes
 router.post("/admin/send-otp", loginLimiter, validate(sendOtpSchema), authController.adminSendOtp);

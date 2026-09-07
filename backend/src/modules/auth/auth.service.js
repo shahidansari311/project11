@@ -633,6 +633,18 @@ async function logoutAdmin(adminId, refreshToken) {
   return { success: true, message: "Admin logged out successfully" };
 }
 
+async function updateUserPushToken(userId, pushToken) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError("User not found.", 404);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { pushToken }
+  });
+
+  return { success: true };
+}
+
 module.exports = {
   sendOtpUser,
   verifyOtpUser,
@@ -652,5 +664,6 @@ module.exports = {
   resendOtpAdmin,
   cancelOtpAdmin,
   verifyOtpAdmin,
-  refreshAdminToken
+  refreshAdminToken,
+  updateUserPushToken
 };

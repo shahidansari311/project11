@@ -255,6 +255,19 @@ async function updateProfileImage(req, res, next) {
   }
 }
 
+async function updatePushToken(req, res, next) {
+  try {
+    const { pushToken } = req.body;
+    if (!pushToken) {
+      return errorResponse(res, 400, "pushToken is required");
+    }
+    await authService.updateUserPushToken(req.user.id, pushToken);
+    return successResponse(res, 200, null, "Push token saved successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function adminCancelOtp(req, res, next) {
   try {
     const { phone } = req.body;
@@ -297,7 +310,8 @@ module.exports = {
   getUserById,
   createUserByAdmin,
   updateUserByAdmin,
-  deleteUserByAdmin
+  deleteUserByAdmin,
+  updatePushToken
 };
 
 async function getAllBuilders(req, res, next) {

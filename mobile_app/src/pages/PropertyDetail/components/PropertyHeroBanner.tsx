@@ -50,6 +50,7 @@ export default function PropertyHeroBanner({
         sharedTransitionTagBase={`property-image-${property.id}`}
         onPress={onImagePress}
         youtubeVideoUrl={property.youtubeVideoUrl}
+        paginationBottomOffset={36}
       />
 
       {/* Glass Status Badge (Bottom Left) */}

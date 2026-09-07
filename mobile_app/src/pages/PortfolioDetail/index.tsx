@@ -24,6 +24,7 @@ import PortfolioValuationGraph from "../MyPortfolio/components/PortfolioValuatio
 import Skeleton from "@/components/ui/Skeleton";
 import ActionModal from "@/components/ActionModal";
 import { formatLocationText } from "@/utils/formatLocation";
+import ImageCarousel from "@/components/ui/ImageCarousel";
 
 const { width } = Dimensions.get("window");
 
@@ -38,7 +39,16 @@ const PortfolioDetailSkeleton = ({ insets }: { insets: any }) => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Hero Card Skeleton */}
         <View style={styles.heroCard}>
-          <Skeleton width="100%" height="100%" borderRadius={0} />
+          <Skeleton width="100%" height={220} borderRadius={0} />
+          <View style={styles.heroDetailsBlock}>
+            <Skeleton width="70%" height={24} borderRadius={4} style={{ marginBottom: 8 }} />
+            <Skeleton width="40%" height={16} borderRadius={4} style={{ marginBottom: 16 }} />
+            <View style={styles.specsRow}>
+              <Skeleton width={80} height={24} borderRadius={12} />
+              <Skeleton width={80} height={24} borderRadius={12} />
+              <Skeleton width={60} height={24} borderRadius={12} />
+            </View>
+          </View>
         </View>
 
         {/* Snapshot Skeleton */}
@@ -252,15 +262,93 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
       >
         {/* Hero Card */}
         <View style={styles.heroCard}>
-          <Image source={{ uri: img }} style={styles.heroImage} />
-          <View style={styles.heroOverlay}>
-            <Text style={styles.heroTitle} numberOfLines={1}>
-              {investment.property?.title ?? "Property"}
-            </Text>
-            <Text style={styles.heroLocation}>
-              <Ionicons name="location-outline" size={14} color="#fff" />{" "}
-              {formatLocationText(investment.property?.location)}
-            </Text>
+          <ImageCarousel
+            images={property?.images || investment.property?.images || [PLACEHOLDER_IMAGE]}
+            youtubeVideoUrl={property?.youtubeVideoUrl || investment.property?.youtubeVideoUrl}
+            width={width - 32}
+            height={220}
+            showArrowControls={false}
+          />
+          <View style={styles.heroDetailsBlock}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {investment.property?.title ?? "Property"}
+                </Text>
+                <Text style={styles.heroLocation}>
+                  <Ionicons name="location-outline" size={14} color={Colors.outline} />{" "}
+                  {formatLocationText(investment.property?.location)}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={[styles.viewPropBtn, { paddingHorizontal: 12, paddingVertical: 8 }]}
+                onPress={() => router.push(`/property/${investment.propertyId}` as any)}
+              >
+                <Text style={styles.viewPropBtnText}>View Property</Text>
+                <Ionicons name="arrow-forward" size={14} color="#059669" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Specs Row */}
+            {(property?.specs || investment.property?.specs) && (
+              <View style={styles.specsRow}>
+                {(() => {
+                  const specs = property?.specs || investment.property?.specs;
+                  return (
+                    <>
+                      {specs?.propertyType && (
+                        <View style={styles.specBadge}>
+                          <Ionicons name="business" size={12} color={Colors.primary} />
+                          <Text style={styles.specText}>{specs.propertyType}</Text>
+                        </View>
+                      )}
+                      {specs?.size && (
+                        <View style={styles.specBadge}>
+                          <Ionicons name="resize" size={12} color={Colors.primary} />
+                          <Text style={styles.specText}>{specs.size}</Text>
+                        </View>
+                      )}
+                      {specs?.bedrooms !== undefined && (
+                        <View style={styles.specBadge}>
+                          <Ionicons name="bed" size={12} color={Colors.primary} />
+                          <Text style={styles.specText}>{specs.bedrooms} Bed</Text>
+                        </View>
+                      )}
+                      {property?.status && (
+                        <View style={styles.specBadge}>
+                          <Ionicons name="pricetag" size={12} color={Colors.primary} />
+                          <Text style={styles.specText}>{property.status.replace("_", " ")}</Text>
+                        </View>
+                      )}
+                    </>
+                  );
+                })()}
+              </View>
+            )}
+
+            {/* Extended Property Details */}
+            <View style={styles.propDetailsGrid}>
+              <View style={styles.propDetailCell}>
+                <Text style={styles.propDetailLabel}>Total Units</Text>
+                <Text style={styles.propDetailValue}>{property?.totalUnits || investment.property?.totalUnits || 'N/A'}</Text>
+              </View>
+              <View style={styles.propDetailCell}>
+                <Text style={styles.propDetailLabel}>Property Value</Text>
+                <Text style={styles.propDetailValue}>
+                  {(property?.totalPrice || (investment.property as any)?.totalPrice) 
+                    ? formatCurrency(property?.totalPrice || (investment.property as any)?.totalPrice) 
+                    : 'N/A'}
+                </Text>
+              </View>
+              <View style={styles.propDetailCell}>
+                <Text style={styles.propDetailLabel}>My Ownership</Text>
+                <Text style={styles.propDetailValue}>
+                  {(property?.totalUnits || investment.property?.totalUnits)
+                    ? ((investment.units / (property?.totalUnits || investment.property?.totalUnits)) * 100).toFixed(2) + '%'
+                    : 'N/A'}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -279,14 +367,7 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
             {/* Snapshot */}
             <View style={styles.snapshotCard}>
               <View style={styles.snapshotHeader}>
-                <Text style={styles.sectionTitle}>Snapshot</Text>
-                <TouchableOpacity 
-                  style={styles.viewPropBtn}
-                  onPress={() => router.push(`/property/${investment.propertyId}` as any)}
-                >
-                  <Text style={styles.viewPropBtnText}>View Property</Text>
-                  <Ionicons name="arrow-forward" size={14} color="#059669" />
-                </TouchableOpacity>
+                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Snapshot</Text>
               </View>
           <View style={styles.snapshotGrid}>
             <View style={styles.snapshotItem}>
@@ -425,32 +506,74 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     margin: 16,
-    height: 180,
     borderRadius: 20,
     overflow: "hidden",
     backgroundColor: Colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
   },
-  heroImage: {
-    width: "100%",
-    height: "100%",
-  },
-  heroOverlay: {
-    position: "absolute",
-    bottom: 0, left: 0, right: 0,
+  heroDetailsBlock: {
     padding: 16,
-    paddingTop: 40,
-    backgroundColor: 'rgba(0,0,0,0.4)'
+    backgroundColor: Colors.surfaceContainerLowest,
   },
   heroTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#fff",
+    color: Colors.onSurface,
+    marginBottom: 4,
   },
   heroLocation: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.8)",
-    marginTop: 4,
+    fontSize: 13,
+    color: Colors.outline,
     fontWeight: "500",
+    marginBottom: 12,
+  },
+  specsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.surfaceContainerHighest,
+    paddingTop: 12,
+  },
+  specBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.surfaceContainer,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  specText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.onSurfaceVariant,
+  },
+  propDetailsGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.surfaceContainerHighest,
+  },
+  propDetailCell: {
+    flex: 1,
+    alignItems: "center",
+  },
+  propDetailLabel: {
+    fontSize: 10,
+    color: Colors.outline,
+    fontWeight: "600",
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
+  propDetailValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.onSurface,
   },
   snapshotCard: {
     marginHorizontal: 16,
@@ -490,22 +613,29 @@ const styles = StyleSheet.create({
   snapshotGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 16,
+    justifyContent: "space-between",
+    rowGap: 12,
   },
   snapshotItem: {
-    width: "45%",
+    width: "48%",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
   },
   snapshotLabel: {
-    fontSize: 11,
-    color: Colors.outline,
+    fontSize: 10,
+    color: "#6B7280",
     fontWeight: "600",
     textTransform: "uppercase",
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
   snapshotValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "800",
-    color: Colors.onSurface,
+    color: "#111827",
   },
   chartCard: {
     marginHorizontal: 16,

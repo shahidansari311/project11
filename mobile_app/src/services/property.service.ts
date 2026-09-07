@@ -57,6 +57,13 @@ export const propertyService = {
     return response.data;
   },
 
+  async getLocationSuggestions(query: string): Promise<{ data: string[]; message: string }> {
+    const response = await api.get("/public/property/locations/suggestions", {
+      params: { query, _t: Date.now() }
+    });
+    return response.data;
+  },
+
   async getBuilderProperties(params?: {
     page?: number;
     limit?: number;

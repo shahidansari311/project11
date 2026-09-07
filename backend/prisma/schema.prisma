@@ -32,13 +32,16 @@ enum UserRole {
 }
 
 model Admin {
-  id         String    @id @default(cuid())
-  phone      String    @unique
-  otp        String?
-  otp_expiry DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  sessions   Session[]
+  id               String    @id @default(cuid())
+  phone            String    @unique
+  password         String?
+  securityQuestion String?
+  securityAnswer   String?
+  otp              String?
+  otp_expiry       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  sessions         Session[]
 }
 
 model Session {
@@ -150,6 +153,8 @@ model Investment {
   totalAmount     Float            // units × unitPriceAtTime
   status          InvestmentStatus @default(PENDING)
   paymentRef      String?          // future payment gateway reference
+  paymentProofUrl String?          // manual payment proof document URL
+  agreementUrl    String?          // generated PDF agreement URL
   adminRemark     String?          // admin note on approve/reject
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt

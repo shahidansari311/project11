@@ -4,22 +4,23 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import api from '../utils/api';
 
-// Notifications.setNotificationHandler({
-//   handleNotification: async () => ({
-//     shouldShowAlert: true,
-//     shouldPlaySound: true,
-//     shouldSetBadge: true,
-//   }),
-// });
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
-/**
- * Registers the device for push notifications and returns the Expo push token
- */
+export async function sendLocalLoginNotification(name: string, role: string) {
+  // Local notification logic if needed
+}
+
 export async function registerForPushNotificationsAsync(): Promise<string | undefined> {
   let token;
 
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
+    Notifications.setNotificationChannelAsync('default', {
       name: 'default',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
@@ -38,22 +39,20 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
     
     if (finalStatus !== 'granted') {
       console.log('Failed to get push token for push notification!');
-      return;
+      return undefined;
     }
-
+    
     try {
-      // Get projectId from Constants, fallback to manual string if needed
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
-      
-      if (!projectId) {
-         // Usually it will fall back correctly in managed workflow
-         token = (await Notifications.getExpoPushTokenAsync()).data;
-      } else {
-         token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-      }
-      console.log('Expo Push Token:', token);
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ??
+        Constants?.easConfig?.projectId;
+        
+      token = (await Notifications.getExpoPushTokenAsync({
+        projectId,
+      })).data;
+      console.log('Push token:', token);
     } catch (e) {
-      console.error('Error getting push token', e);
+      console.error('Error fetching push token:', e);
     }
   } else {
     console.log('Must use physical device for Push Notifications');
@@ -62,14 +61,11 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
   return token;
 }
 
-/**
- * Sends the push token to the backend
- */
 export async function sendPushTokenToBackend(pushToken: string) {
   try {
-    await api.post('/user/push-token', { pushToken });
-    console.log('Successfully saved push token to backend.');
-  } catch (error) {
-    console.error('Error saving push token to backend:', error);
+    await api.post('/auth/user/push-token', { pushToken });
+    console.log('Push token successfully sent to backend');
+  } catch (e) {
+    console.error('Error sending push token to backend', e);
   }
 }

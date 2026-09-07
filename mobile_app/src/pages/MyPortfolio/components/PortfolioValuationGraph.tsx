@@ -247,15 +247,15 @@ export default function PortfolioValuationGraph({
                   stroke={pt.isDrop ? "#EF4444" : "#1E3A8A"}
                   strokeWidth={isHovered ? "2.5" : "2"}
                 />
-                {/* Only show date labels for first and last to save space */}
                 {(pt.idx === 0 || pt.idx === chartData.points.length - 1) && !isHovered && (
                   <SvgText
                     x={pt.x}
-                    y={chartData.height - 6}
-                    textAnchor={pt.idx === 0 ? "start" : "end"}
+                    y={chartData.height - 2}
+                    textAnchor="end"
                     fill="#9CA3AF"
                     fontSize="8"
                     fontWeight="bold"
+                    transform={`rotate(-45, ${pt.x}, ${chartData.height - 2})`}
                   >
                     {formatDate(pt.date)}
                   </SvgText>

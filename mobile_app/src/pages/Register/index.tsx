@@ -25,7 +25,7 @@ GoogleSignin.configure({
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from 'react-native-svg';
 import { Colors } from "@/constants/colors";
-
+import { sendLocalLoginNotification } from "@/services/push.service";
 import CustomInput from "@/components/CustomInput";
 import BouncingDots from "@/components/BouncingDots";
 import api from "@/utils/api";
@@ -170,7 +170,10 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
 
       // Refresh global favorites context with new token
       refreshFavorites();
-      await refreshAuth();
+      const profile = await refreshAuth();
+      if (profile) {
+        sendLocalLoginNotification(profile.fullName, profile.role);
+      }
 
       router.replace("/(tabs)/home" as any);
     } catch (error: any) {

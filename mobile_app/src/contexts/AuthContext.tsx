@@ -37,18 +37,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const res = await authService.getProfile();
       if (res && res.data) {
         setUserProfile(res.data);
-        
-        // Register for push notifications and send token to backend
-        // try {
-        //   const { registerForPushNotificationsAsync, sendPushTokenToBackend } = require('../services/push.service');
-        //   const token = await registerForPushNotificationsAsync();
-        //   if (token) {
-        //     await sendPushTokenToBackend(token);
-        //   }
-        // } catch (pushErr) {
-        //   console.log('Push notification registration failed', pushErr);
-        // }
-
         return res.data;
       }
       return null;

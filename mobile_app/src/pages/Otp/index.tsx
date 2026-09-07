@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
 import { Ionicons } from "@expo/vector-icons";
+import { sendLocalLoginNotification } from "@/services/push.service";
 
 import AuthLayout from "@/components/AuthLayout";
 import OtpBoxes from "@/components/OtpBoxes";
@@ -119,6 +120,9 @@ export default function OtpPage({ phone, onRegisterRequired, onGoBack }: OtpPage
         await SecureStore.setItemAsync("refresh_token", refreshToken);
         refreshFavorites();
         const profile = await refreshAuth();
+        if (profile) {
+          sendLocalLoginNotification(profile.fullName, profile.role);
+        }
         if (profile?.role === "BUILDER") {
           router.replace("/(tabs)/builder-live" as any);
         } else {

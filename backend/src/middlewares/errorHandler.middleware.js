@@ -17,6 +17,16 @@ function errorHandler(err, req, res, next) {
     message = "Record not found.";
   }
 
+  // Handle Multer upload errors
+  if (err.name === 'MulterError' || err.code === 'LIMIT_FILE_SIZE') {
+    statusCode = 400;
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      message = "File is too large. Please upload a smaller file.";
+    } else {
+      message = err.message || "File upload error.";
+    }
+  }
+
   // Log only actual bugs, not operational user errors like "Wrong password"
   if (!err.isOperational && statusCode === 500) {
     console.error("🔥 Server Error:", err);

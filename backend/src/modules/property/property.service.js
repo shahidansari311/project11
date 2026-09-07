@@ -199,7 +199,17 @@ async function getAllProperties({ page = 1, limit = 10, status, category, search
   else if (excludeRejected) where.status = { not: "REJECTED" };
 
   if (category) where.category = category;
-  if (location) where.location = location;
+  
+  if (location) {
+    const locArr = Array.isArray(location) ? location : [location];
+    where.AND = where.AND || [];
+    where.AND.push({
+      OR: locArr.map(loc => ({
+        location: { contains: loc, mode: 'insensitive' }
+      }))
+    });
+  }
+
   if (area) where.totalSize = area;
   if (builderId) where.builderId = builderId;
   else if (onlyBuilderSubmissions) where.builderId = { not: null };
@@ -216,11 +226,14 @@ async function getAllProperties({ page = 1, limit = 10, status, category, search
     if (maxPrice !== undefined) where.totalPrice.lte = Number(maxPrice);
   }
   if (search && search.trim()) {
-    where.OR = [
-      { title: { contains: search.trim(), mode: "insensitive" } },
-      { location: { contains: search.trim(), mode: "insensitive" } },
-      { description: { contains: search.trim(), mode: "insensitive" } },
-    ];
+    where.AND = where.AND || [];
+    where.AND.push({
+      OR: [
+        { title: { contains: search.trim(), mode: "insensitive" } },
+        { location: { contains: search.trim(), mode: "insensitive" } },
+        { description: { contains: search.trim(), mode: "insensitive" } },
+      ]
+    });
   }
 
   // Run data fetch and count in parallel
@@ -239,10 +252,18 @@ async function getAllProperties({ page = 1, limit = 10, status, category, search
     propertyModel.count({ where }),
   ]);
 
-  const mappedProperties = properties.map(p => ({
-    ...p,
-    location: p.mapLocation || p.location
-  }));
+  const mappedProperties = properties.map(p => {
+    let cleanLocation = p.location;
+    try {
+      const parsed = JSON.parse(p.location);
+      if (parsed && parsed.address) cleanLocation = parsed.address;
+    } catch (e) {}
+
+    return {
+      ...p,
+      location: cleanLocation
+    };
+  });
 
   return {
     properties: mappedProperties,
@@ -255,6 +276,65 @@ async function getAllProperties({ page = 1, limit = 10, status, category, search
       hasPrev: page > 1,
     },
   };
+}
+
+async function getLocationSuggestions(query) {
+  const uniqueLocations = new Set();
+  
+  try {
+    // Fetch from OpenStreetMap Nominatim API for real-world places (India restricted)
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5&countrycodes=in`, {
+      headers: {
+        'User-Agent': 'SilverRealEstateApp/1.0'
+      }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      data.forEach(item => {
+        if (item.address) {
+          const { city, town, village, county, state_district, state } = item.address;
+          const mainName = city || town || village || item.name;
+          const distName = state_district || county;
+          
+          let locName = mainName;
+          if (distName && locName !== distName) locName += `, ${distName}`;
+          if (state && locName !== state) locName += `, ${state}`;
+          
+          if (locName) uniqueLocations.add(locName);
+          else uniqueLocations.add(item.display_name);
+        } else {
+          uniqueLocations.add(item.display_name);
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Nominatim API error:", error);
+  }
+
+  // Fallback to database if external API yields no results or fails
+  if (uniqueLocations.size === 0) {
+    const propertyModel = getPropertyModel();
+    const properties = await propertyModel.findMany({
+      where: {
+        location: { contains: query, mode: "insensitive" },
+        status: { not: "REJECTED" }
+      },
+      select: { location: true },
+      distinct: ['location'],
+      take: 10
+    });
+
+    properties.forEach(p => {
+      let locStr = p.location;
+      try {
+        const parsed = JSON.parse(locStr);
+        if (parsed && parsed.address) locStr = parsed.address;
+      } catch (e) {}
+      if (locStr) uniqueLocations.add(locStr.trim());
+    });
+  }
+
+  return Array.from(uniqueLocations);
 }
 
 async function getPropertyById(id) {
@@ -459,6 +539,7 @@ module.exports = {
   updateProperty,
   deleteProperty,
   getAllProperties,
+  getLocationSuggestions,
   getPropertyById,
   removePropertyImage,
   getPropertyFilters,

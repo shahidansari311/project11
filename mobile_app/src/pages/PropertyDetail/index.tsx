@@ -183,7 +183,8 @@ export default function PropertyDetailPage({ id }: { id: string }) {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: Colors.surface }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : -120}
     >
       <View style={[styles.root, { paddingTop: insets.top }]}>
         <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />

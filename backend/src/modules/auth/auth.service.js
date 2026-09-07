@@ -4,6 +4,7 @@ const { generateOtp } = require("../../utils/generateOtp");
 const { signToken, generateRefreshToken } = require("../../utils/jwt.util");
 const { ADMIN_PHONE, JWT_SECRET } = require("../../config/env");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute
@@ -21,17 +22,17 @@ async function sendOtpUser(phone) {
 
   // Generate cryptographically secure 6-digit OTP
   const otp = generateOtp();
+  const hashedOtp = await bcrypt.hash(otp, 10);
   const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MS); // 5 minutes
 
   // Upsert overwrites/deletes previous OTP with the new one
   await prisma.otpVerification.upsert({
     where: { phone },
-    update: { otp, otp_expiry: otpExpiry },
-    create: { phone, otp, otp_expiry: otpExpiry }
+    update: { otp: hashedOtp, otp_expiry: otpExpiry },
+    create: { phone, otp: hashedOtp, otp_expiry: otpExpiry }
   });
 
   console.log(`📱 [USER SECURE OTP] Mobile: ${phone} | OTP: ${otp} (Valid for 5 mins)`);
-
 
   return { success: true, message: `OTP sent successfully` };
 }
@@ -40,7 +41,8 @@ async function verifyOtpUser(phone, otp, deviceFingerprint) {
   const otpRecord = await prisma.otpVerification.findUnique({ where: { phone } });
   if (!otpRecord) throw new AppError("No OTP request found for this number. Please request OTP first.", 400);
   
-  if (otpRecord.otp !== otp) {
+  const isValid = await bcrypt.compare(otp, otpRecord.otp);
+  if (!isValid) {
     throw new AppError("Invalid OTP.", 401);
   }
   
@@ -193,18 +195,24 @@ async function refreshUserToken(oldRefreshToken, deviceFingerprint) {
   return { token, refreshToken: newRefreshToken };
 }
 
-async function sendOtpAdmin(phone) {
-  // Check if phone matches the fixed Admin phone number
-  const fixedAdminPhone = ADMIN_PHONE || "9876543210";
-  if (phone !== fixedAdminPhone) {
-    throw new AppError("Access denied: Not an authorized Admin mobile number.", 403);
-  }
-
-  let admin = await prisma.admin.findUnique({ where: { phone } });
+async function loginAdminStep1(phone, password) {
+  const admin = await prisma.admin.findUnique({ where: { phone } });
   
   if (!admin) {
-    admin = await prisma.admin.create({ data: { phone } });
-  } else if (admin.otp && admin.updatedAt) {
+    throw new AppError("Invalid credentials.", 401);
+  }
+
+  // Check password
+  if (!admin.password) {
+    throw new AppError("Admin account not configured properly.", 500);
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, admin.password);
+  if (!isPasswordValid) {
+    throw new AppError("Invalid credentials.", 401);
+  }
+
+  if (admin.otp && admin.updatedAt) {
     // Check 1 minute resend cooldown
     const timeSinceLastOtp = Date.now() - new Date(admin.updatedAt).getTime();
     if (timeSinceLastOtp < OTP_RESEND_COOLDOWN_MS) {
@@ -215,12 +223,13 @@ async function sendOtpAdmin(phone) {
 
   // Generate cryptographically secure OTP
   const otp = generateOtp();
+  const hashedOtp = await bcrypt.hash(otp, 10);
   const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MS); // 5 minutes
 
   // Overwrites previous OTP with the newly generated OTP
   await prisma.admin.update({
     where: { id: admin.id },
-    data: { otp, otp_expiry: otpExpiry }
+    data: { otp: hashedOtp, otp_expiry: otpExpiry }
   });
 
   console.log(`\n======================================================`);
@@ -231,15 +240,15 @@ async function sendOtpAdmin(phone) {
 }
 
 async function verifyOtpAdmin(phone, otp, deviceFingerprint) {
-  const fixedAdminPhone = ADMIN_PHONE || "9876543210";
-  if (phone !== fixedAdminPhone) {
-    throw new AppError("Access denied: Not an authorized Admin mobile number.", 403);
-  }
-
   const admin = await prisma.admin.findUnique({ where: { phone } });
-  if (!admin) throw new AppError("Admin not found. Please request OTP first.", 400);
+  if (!admin) throw new AppError("Admin not found. Please login first.", 400);
 
-  if (!admin.otp || admin.otp !== otp) {
+  if (!admin.otp) {
+    throw new AppError("Invalid or expired OTP.", 401);
+  }
+  
+  const isValid = await bcrypt.compare(otp, admin.otp);
+  if (!isValid) {
     throw new AppError("Invalid OTP.", 401);
   }
   
@@ -645,6 +654,49 @@ async function updateUserPushToken(userId, pushToken) {
   return { success: true };
 }
 
+async function getSecurityQuestion(phone) {
+  const admin = await prisma.admin.findUnique({ where: { phone } });
+  if (!admin) throw new AppError("Admin not found.", 404);
+  if (!admin.securityQuestion) throw new AppError("Security question not set.", 400);
+
+  return { question: admin.securityQuestion };
+}
+
+async function verifySecurityAnswer(phone, answer) {
+  const admin = await prisma.admin.findUnique({ where: { phone } });
+  if (!admin) throw new AppError("Admin not found.", 404);
+  if (!admin.securityAnswer) throw new AppError("Security answer not configured.", 400);
+
+  const isValid = await bcrypt.compare(answer.trim().toLowerCase(), admin.securityAnswer);
+  if (!isValid) throw new AppError("Incorrect security answer.", 401);
+
+  // Generate a short-lived token to allow password reset
+  const resetToken = jwt.sign({ phone, type: "password_reset" }, JWT_SECRET, { expiresIn: '15m' });
+  return { resetToken };
+}
+
+async function resetPassword(phone, resetToken, newPassword) {
+  let decoded;
+  try {
+    decoded = jwt.verify(resetToken, JWT_SECRET);
+  } catch (err) {
+    throw new AppError("Invalid or expired reset token.", 401);
+  }
+
+  if (decoded.type !== "password_reset" || decoded.phone !== phone) {
+    throw new AppError("Invalid reset token for this admin.", 401);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  
+  await prisma.admin.update({
+    where: { phone },
+    data: { password: hashedPassword }
+  });
+
+  return { success: true, message: "Password updated successfully" };
+}
+
 module.exports = {
   sendOtpUser,
   verifyOtpUser,
@@ -660,10 +712,13 @@ module.exports = {
   logoutAdmin,
   resendOtpUser,
   cancelOtpUser,
-  sendOtpAdmin,
+  sendOtpAdmin: loginAdminStep1, // renamed internally
   resendOtpAdmin,
   cancelOtpAdmin,
   verifyOtpAdmin,
   refreshAdminToken,
-  updateUserPushToken
+  updateUserPushToken,
+  getSecurityQuestion,
+  verifySecurityAnswer,
+  resetPassword
 };

@@ -415,20 +415,69 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
         <View style={styles.docsCard}>
           <Text style={styles.sectionTitle}>Documents</Text>
           
-          <TouchableOpacity 
-            style={[styles.docRow, (!isKycVerified || investment.status === "PENDING") && styles.docRowDisabled]}
-            activeOpacity={0.7}
-            onPress={handleDownloadAgreement}
-          >
-            <View style={styles.docIconBox}>
-              <Ionicons name="document-text" size={20} color={isKycVerified && investment.status !== "PENDING" ? Colors.primary : Colors.outline} />
-            </View>
-            <View style={styles.docInfo}>
-              <Text style={[styles.docTitle, (!isKycVerified || investment.status === "PENDING") && { color: Colors.outline }]}>Fractional Ownership Agreement</Text>
-              <Text style={styles.docSubtitle}>Signed on {formatDate(investment.createdAt)}</Text>
-            </View>
-            <Ionicons name="download-outline" size={20} color={isKycVerified && investment.status !== "PENDING" ? Colors.primary : Colors.outline} />
-          </TouchableOpacity>
+          {investment.status === "APPROVED" && !investment.agreementUrl ? (
+            <TouchableOpacity 
+              style={[styles.docRow, { backgroundColor: Colors.errorContainer, borderColor: Colors.error, borderWidth: 1 }]}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (!isKycVerified) {
+                  Alert.alert("KYC Required", "Please verify your Aadhar and PAN card before signing the agreement.");
+                  return;
+                }
+                router.push({ 
+                  pathname: "/(tabs)/browse/ViewSignAgreement", 
+                  params: { investmentId: investment.id, propertyId: investment.propertyId } 
+                });
+              }}
+            >
+              <View style={[styles.docIconBox, { backgroundColor: Colors.error }]}>
+                <Ionicons name="create" size={20} color={Colors.onError} />
+              </View>
+              <View style={styles.docInfo}>
+                <Text style={[styles.docTitle, { color: Colors.onErrorContainer }]}>Signature Required</Text>
+                <Text style={{ fontSize: 12, color: Colors.error }}>Tap to sign your agreement</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.error} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={[styles.docRow, (!isKycVerified || investment.status === "PENDING" || !investment.agreementUrl) && styles.docRowDisabled]}
+              activeOpacity={0.7}
+              onPress={handleDownloadAgreement}
+            >
+              <View style={styles.docIconBox}>
+                <Ionicons name="document-text" size={20} color={isKycVerified && investment.status !== "PENDING" && investment.agreementUrl ? Colors.primary : Colors.outline} />
+              </View>
+              <View style={styles.docInfo}>
+                <Text style={[styles.docTitle, (!isKycVerified || investment.status === "PENDING" || !investment.agreementUrl) && { color: Colors.outline }]}>Fractional Ownership Agreement</Text>
+                <Text style={styles.docSubtitle}>{investment.agreementUrl ? `Signed on ${formatDate(investment.createdAt)}` : 'Not Generated'}</Text>
+              </View>
+              <Ionicons name="download-outline" size={20} color={isKycVerified && investment.status !== "PENDING" && investment.agreementUrl ? Colors.primary : Colors.outline} />
+            </TouchableOpacity>
+          )}
+
+          {((investment as any).paymentProofUrl) && (
+            <TouchableOpacity 
+              style={[styles.docRow, (investment.status !== "APPROVED") && styles.docRowDisabled, { marginTop: 12 }]}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (investment.status === "APPROVED") {
+                  Linking.openURL((investment as any).paymentProofUrl);
+                } else {
+                  Alert.alert("Pending", "Payment proof is only accessible after admin approves the investment.");
+                }
+              }}
+            >
+              <View style={styles.docIconBox}>
+                <Ionicons name="receipt" size={20} color={investment.status === "APPROVED" ? Colors.primary : Colors.outline} />
+              </View>
+              <View style={styles.docInfo}>
+                <Text style={[styles.docTitle, (investment.status !== "APPROVED") && { color: Colors.outline }]}>Payment Proof</Text>
+                <Text style={styles.docSubtitle}>{investment.status === "APPROVED" ? "Verified by Admin" : "Pending Approval"}</Text>
+              </View>
+              <Ionicons name="eye-outline" size={20} color={investment.status === "APPROVED" ? Colors.primary : Colors.outline} />
+            </TouchableOpacity>
+          )}
 
           {investment.status === "PENDING" ? (
             <View style={styles.kycWarningBox}>

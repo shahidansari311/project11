@@ -131,6 +131,19 @@ async function getPropertyFilters(req, res, next) {
   }
 }
 
+async function getLocationSuggestions(req, res, next) {
+  try {
+    const { query } = req.query;
+    if (!query || query.trim().length < 2) {
+      return successResponse(res, 200, [], "Location suggestions retrieved successfully");
+    }
+    const suggestions = await propertyService.getLocationSuggestions(query.trim());
+    return successResponse(res, 200, suggestions, "Location suggestions retrieved successfully");
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function addPriceHistory(req, res, next) {
   try {
     const { id } = req.params;
@@ -236,6 +249,7 @@ module.exports = {
   updateProperty,
   deleteProperty,
   getAllProperties,
+  getLocationSuggestions,
   getPropertyById,
   removePropertyImage,
   getPropertyFilters,
@@ -292,11 +306,11 @@ async function builderAddProperty(req, res, next) {
       propertyData.status = "PENDING_APPROVAL";
     }
     propertyData.builderId = req.user.id;
-    if (req.files && req.files.length > 0) {
-      propertyData.images = req.files.map(f => `/uploads/properties/${f.filename}`);
-    } else {
+    // Images are already uploaded to Supabase and attached to req.body.images by uploadPropertyImages middleware
+    if (!propertyData.images) {
       propertyData.images = [];
     }
+    
     const property = await propertyService.createProperty(propertyData);
     return successResponse(res, 201, property, "Property listed successfully");
   } catch (err) {
@@ -315,9 +329,9 @@ async function builderUpdateProperty(req, res, next) {
 
     let propertyData = { ...req.body };
     
-    // If the upload middleware populated new images, append them to existing ones
+    // Images are already processed by uploadPropertyImages middleware
     if (req.body.images && Array.isArray(req.body.images)) {
-      propertyData.images = existing.images ? [...existing.images, ...req.body.images] : req.body.images;
+      propertyData.images = req.body.images;
     }
 
     const property = await propertyService.updateProperty(id, propertyData);

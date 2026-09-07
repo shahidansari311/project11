@@ -31,6 +31,7 @@ export default function ProfilePage() {
   const { showToast } = useToast();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const fetchDocs = useCallback(async () => {
     try {
@@ -58,13 +59,11 @@ export default function ProfilePage() {
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!isGuest) {
-        fetchDocs();
-      }
-    }, [isGuest, fetchDocs])
-  );
+  useEffect(() => {
+    if (!isGuest) {
+      fetchDocs();
+    }
+  }, [isGuest, fetchDocs]);
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -77,14 +76,19 @@ export default function ProfilePage() {
   }, [isGuest, refreshAuth, fetchDocs]);
 
   const handleLogout = useCallback(async () => {
-    await SecureStore.deleteItemAsync("access_token");
-    await SecureStore.deleteItemAsync("refresh_token");
-    clearFavorites();
-    await refreshAuth();
-    if (router.canDismiss()) {
-      router.dismissAll();
+    try {
+      setIsLoggingOut(true);
+      await SecureStore.deleteItemAsync("access_token");
+      await SecureStore.deleteItemAsync("refresh_token");
+      clearFavorites();
+      await refreshAuth();
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
+      router.replace("/");
+    } finally {
+      setIsLoggingOut(false);
     }
-    router.replace("/");
   }, [router, clearFavorites, refreshAuth]);
 
   const handleUpdateProfileImage = async () => {
@@ -222,6 +226,8 @@ export default function ProfilePage() {
             <>
               <Text style={styles.userName}>{userProfile?.fullName || "Guest"}</Text>
               <Text style={styles.userRole}>{userProfile?.role === "BUILDER" ? "Builder" : "Accredited Investor"}</Text>
+              {userProfile?.email && <Text style={styles.userInfoText}>{userProfile.email}</Text>}
+              {userProfile?.phone && <Text style={styles.userInfoText}>{userProfile.phone}</Text>}
             </>
           )}
         </View>
@@ -426,10 +432,17 @@ export default function ProfilePage() {
           <TouchableOpacity
             style={styles.logoutButton}
             onPress={handleLogout}
+            disabled={isLoggingOut}
             activeOpacity={0.8}
           >
-            <Ionicons name="log-out-outline" size={20} color={Colors.primary} />
-            <Text style={styles.logoutText}>Logout</Text>
+            {isLoggingOut ? (
+              <ActivityIndicator color={Colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="log-out-outline" size={20} color={Colors.primary} />
+                <Text style={styles.logoutText}>Logout</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -525,6 +538,13 @@ const styles = StyleSheet.create({
   userRole: {
     fontSize: 14,
     color: Colors.onSurfaceVariant,
+    fontFamily: "Inter-Regular",
+  },
+  userInfoText: {
+    fontSize: 14,
+    color: Colors.onSurfaceVariant,
+    fontFamily: "Inter-Regular",
+    marginTop: 2,
   },
   contentArea: {
     paddingHorizontal: 16,

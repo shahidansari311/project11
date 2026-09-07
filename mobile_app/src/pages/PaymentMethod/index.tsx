@@ -1,15 +1,21 @@
 import { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as DocumentPicker from "expo-document-picker";
+import SignatureScreen from "react-native-signature-canvas";
 import { Colors } from "@/constants/colors";
 import { investmentService } from "../../services/investment.service";
 import { useAuth } from "../../contexts/AuthContext";
+import { uploadService } from "../../services/upload.service";
+import { signatureStore } from "../../utils/signatureStore";
+import { useToast } from "@/components/Toast";
 
 export default function PaymentMethodPage() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { showToast } = useToast();
   const { userProfile, refreshAuth } = useAuth();
   
   const propertyId = params.propertyId as string;
@@ -22,6 +28,13 @@ export default function PaymentMethodPage() {
   const [showKycModal, setShowKycModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [paymentProofUrl, setPaymentProofUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // Read signature from the global store (passed from the ViewSignAgreementPage)
+  const signatureBase64 = signatureStore.signatureBase64;
+  const placeOfSignature = signatureStore.placeOfSignature;
 
   const [activeTab, setActiveTab] = useState<"razorpay" | "bank">(
     isRazorpayDisabled ? "bank" : "razorpay"
@@ -41,15 +54,60 @@ export default function PaymentMethodPage() {
     setActiveTab(tab);
   };
 
-  const handleUploadProof = () => {
-    // Empty logic for now
+  const handleUploadProof = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*"],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      setIsUploading(true);
+      const file = result.assets[0];
+      
+      const response = await uploadService.uploadDocument(
+        file.uri,
+        file.mimeType || "application/octet-stream",
+        file.name
+      );
+      
+      setPaymentProofUrl(response.data.url);
+      showToast("Payment proof uploaded successfully!", "success");
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Failed to upload document. Please try again.";
+      showToast(msg, "error");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleConfirmPayment = async () => {
+    if (!signatureBase64 || !placeOfSignature) {
+      showToast("Signature missing. Please go back and sign the agreement.", "error");
+      router.back();
+      return;
+    }
+
+    if (activeTab === "bank") {
+      if (!paymentProofUrl) {
+        showToast("Please upload your payment proof before proceeding.", "error");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       // 1. Create the investment (PENDING)
-      await investmentService.createInvestment(propertyId, units);
+      await investmentService.createInvestment(
+        propertyId, 
+        units,
+        paymentProofUrl || undefined,
+        signatureBase64 || undefined,
+        placeOfSignature || undefined
+      );
       
       // 2. Check KYC status
       await refreshAuth(); // Ensure we have latest profile
@@ -67,7 +125,7 @@ export default function PaymentMethodPage() {
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Failed to submit investment. Please try again.";
-      alert(msg);
+      showToast(msg, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -104,6 +162,18 @@ export default function PaymentMethodPage() {
             <Text style={styles.summaryRowLabel}>Property Reference</Text>
             <Text style={styles.summaryRowValue}>FOA-XXXX-XXXX</Text>
           </View>
+        </View>
+
+        {/* Global Signature Section */}
+        <View style={[styles.signatureStatusBox, { marginBottom: 24, marginTop: 0 }]}>
+          <Ionicons name="create" size={24} color={Colors.primary} />
+          <View style={{ marginLeft: 12 }}>
+            <Text style={styles.signatureStatusTitle}>Agreement Signed</Text>
+            <Text style={styles.signatureStatusSubtitle}>Place: {placeOfSignature}</Text>
+          </View>
+          <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: "auto" }}>
+            <Text style={{ color: Colors.primary, fontWeight: "600" }}>Edit</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Pill Toggle */}
@@ -186,11 +256,34 @@ export default function PaymentMethodPage() {
               style={styles.uploadBox}
               activeOpacity={0.7}
               onPress={handleUploadProof}
+              disabled={isUploading}
             >
-              <Ionicons name="cloud-upload-outline" size={32} color={Colors.primary} />
-              <Text style={styles.uploadTitle}>Upload Payment Proof</Text>
-              <Text style={styles.uploadSubtitle}>PDF, JPG or PNG (Max 5MB)</Text>
+              {isUploading ? (
+                <ActivityIndicator color={Colors.primary} size="large" />
+              ) : paymentProofUrl ? (
+                <>
+                  <Ionicons name="checkmark-circle" size={32} color={Colors.primary} />
+                  <Text style={styles.uploadTitle}>Payment Proof Uploaded!</Text>
+                  <Text style={styles.uploadSubtitle}>Tap to upload a different file</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="cloud-upload-outline" size={32} color={Colors.primary} />
+                  <Text style={styles.uploadTitle}>Upload Payment Proof</Text>
+                  <Text style={styles.uploadSubtitle}>PDF, JPG or PNG (Max 5MB)</Text>
+                </>
+              )}
             </TouchableOpacity>
+
+            {paymentProofUrl && (
+              <TouchableOpacity 
+                style={styles.viewDocumentBtn} 
+                onPress={() => Linking.openURL(paymentProofUrl)}
+              >
+                <Ionicons name="eye-outline" size={18} color={Colors.primary} />
+                <Text style={styles.viewDocumentText}>View Uploaded Document</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </ScrollView>
@@ -594,5 +687,39 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: Colors.onPrimary,
+  },
+  signatureStatusBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.primaryContainer,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    width: "100%",
+  },
+  signatureStatusTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.onPrimaryContainer,
+  },
+  signatureStatusSubtitle: {
+    fontSize: 12,
+    color: Colors.onPrimaryContainer,
+    marginTop: 2,
+  },
+  viewDocumentBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+    marginTop: 8,
+    gap: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.surfaceContainerLow,
+  },
+  viewDocumentText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.primary,
   },
 });

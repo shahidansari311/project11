@@ -68,12 +68,12 @@ async function refreshUserToken(req, res, next) {
   }
 }
 
-async function adminSendOtp(req, res, next) {
+async function adminLoginStep1(req, res, next) {
   try {
-    const { phone } = req.body;
-    if (!phone) return errorResponse(res, 400, "Phone number is required");
+    const { phone, password } = req.body;
+    if (!phone || !password) return errorResponse(res, 400, "Phone and password are required");
     
-    const result = await authService.sendOtpAdmin(phone);
+    const result = await authService.sendOtpAdmin(phone, password);
     return successResponse(res, 200, null, result.message);
   } catch (err) {
     next(err);
@@ -255,6 +255,19 @@ async function updateProfileImage(req, res, next) {
   }
 }
 
+async function updatePushToken(req, res, next) {
+  try {
+    const { pushToken } = req.body;
+    if (!pushToken) {
+      return errorResponse(res, 400, "pushToken is required");
+    }
+    await authService.updateUserPushToken(req.user.id, pushToken);
+    return successResponse(res, 200, null, "Push token saved successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function adminCancelOtp(req, res, next) {
   try {
     const { phone } = req.body;
@@ -262,6 +275,42 @@ async function adminCancelOtp(req, res, next) {
 
     await authService.cancelOtpAdmin(phone);
     return successResponse(res, 200, null, "OTP session cleared");
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getSecurityQuestion(req, res, next) {
+  try {
+    const { phone } = req.query;
+    if (!phone) return errorResponse(res, 400, "Phone number is required");
+    
+    const result = await authService.getSecurityQuestion(phone);
+    return successResponse(res, 200, result, "Security question retrieved");
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function verifySecurityAnswer(req, res, next) {
+  try {
+    const { phone, answer } = req.body;
+    if (!phone || !answer) return errorResponse(res, 400, "Phone and answer are required");
+    
+    const result = await authService.verifySecurityAnswer(phone, answer);
+    return successResponse(res, 200, result, "Security answer verified");
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function resetPassword(req, res, next) {
+  try {
+    const { phone, resetToken, newPassword } = req.body;
+    if (!phone || !resetToken || !newPassword) return errorResponse(res, 400, "Missing required fields");
+    
+    const result = await authService.resetPassword(phone, resetToken, newPassword);
+    return successResponse(res, 200, result, result.message);
   } catch (err) {
     next(err);
   }
@@ -287,7 +336,7 @@ module.exports = {
   updateProfile,
   updateProfileImage,
   getProfile,
-  adminSendOtp,
+  adminLoginStep1,
   adminResendOtp,
   adminCancelOtp,
   adminVerifyOtp,
@@ -297,7 +346,11 @@ module.exports = {
   getUserById,
   createUserByAdmin,
   updateUserByAdmin,
-  deleteUserByAdmin
+  deleteUserByAdmin,
+  updatePushToken,
+  getSecurityQuestion,
+  verifySecurityAnswer,
+  resetPassword
 };
 
 async function getAllBuilders(req, res, next) {

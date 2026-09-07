@@ -1,7 +1,10 @@
 const investmentService = require("./investment.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 
+const { sendPushNotification } = require("../../services/push.service");
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
+
 
 function handleError(res, err, next) {
   const msg = err.message || "";
@@ -23,11 +26,49 @@ function handleError(res, err, next) {
 async function createInvestment(req, res, next) {
   try {
     const { propertyId } = req.params;
-    const { units }      = req.body;
+    const { units, paymentProofUrl, signatureBase64, placeOfSignature } = req.body;
     const userId         = req.user.id;
 
-    const investment = await investmentService.createInvestment(userId, propertyId, Number(units));
+    const investment = await investmentService.createInvestment(
+      userId, 
+      propertyId, 
+      Number(units),
+      paymentProofUrl,
+      signatureBase64,
+      placeOfSignature
+    );
+    
+    // Send push notification asynchronously
+    sendPushNotification(
+      userId, 
+      "Purchase Pending", 
+      `Your request to purchase ${units} unit(s) has been received and is pending admin approval.`
+    );
+
     return successResponse(res, 201, investment, "Investment created successfully. Awaiting admin approval.");
+  } catch (err) {
+    handleError(res, err, next);
+  }
+}
+
+/**
+ * POST /user/investments/:id/sign
+ * Body: { signatureBase64, placeOfSignature }
+ */
+async function signAdminInvestment(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { signatureBase64, placeOfSignature } = req.body;
+    const userId = req.user.id;
+
+    const investment = await investmentService.signAdminInvestment(
+      userId,
+      id,
+      signatureBase64,
+      placeOfSignature
+    );
+
+    return successResponse(res, 200, investment, "Agreement signed successfully.");
   } catch (err) {
     handleError(res, err, next);
   }
@@ -83,6 +124,39 @@ async function getUserInvestmentById(req, res, next) {
 }
 
 // ─── Admin Controllers ─────────────────────────────────────────────────────
+
+/**
+ * POST /admin/investments/buy-on-behalf
+ * Body: { userId, propertyId, units }
+ */
+async function createInvestmentOnBehalf(req, res, next) {
+  try {
+    const adminId = req.user.id;
+    const { userId, propertyId, units } = req.body;
+
+    if (!userId || !propertyId || !units) {
+      return errorResponse(res, 400, "userId, propertyId, and units are required.");
+    }
+
+    const investment = await investmentService.createInvestmentOnBehalf(
+      adminId,
+      userId,
+      propertyId,
+      Number(units)
+    );
+
+    // Send push notification to the user
+    sendPushNotification(
+      userId,
+      "Investment Assigned \uD83C\uDF89",
+      `Admin has purchased ${units} unit(s) of property on your behalf.`
+    );
+
+    return successResponse(res, 201, investment, "Investment created on behalf of user successfully.");
+  } catch (err) {
+    handleError(res, err, next);
+  }
+}
 
 /**
  * GET /admin/investments
@@ -169,6 +243,16 @@ async function approveInvestment(req, res, next) {
     const adminId = req.user.id;
 
     const investment = await investmentService.approveInvestment(adminId, id);
+    
+    // Send push notification
+    if (investment && investment.userId) {
+      sendPushNotification(
+        investment.userId,
+        "Investment Approved 🎉",
+        "Your property investment has been approved!"
+      );
+    }
+
     return successResponse(res, 200, investment, "Investment approved successfully.");
   } catch (err) {
     handleError(res, err, next);
@@ -186,6 +270,16 @@ async function rejectInvestment(req, res, next) {
     const { remark } = req.body;
 
     const investment = await investmentService.rejectInvestment(adminId, id, remark);
+
+    // Send push notification
+    if (investment && investment.userId) {
+      sendPushNotification(
+        investment.userId,
+        "Investment Rejected ❌",
+        `Your investment was rejected. Reason: ${remark || 'Not provided'}`
+      );
+    }
+
     return successResponse(res, 200, investment, "Investment rejected successfully.");
   } catch (err) {
     handleError(res, err, next);
@@ -195,10 +289,12 @@ async function rejectInvestment(req, res, next) {
 module.exports = {
   // User
   createInvestment,
+  signAdminInvestment,
   cancelInvestment,
   getUserInvestments,
   getUserInvestmentById,
   // Admin
+  createInvestmentOnBehalf,
   getAllInvestments,
   getInvestmentStats,
   getInvestmentById,

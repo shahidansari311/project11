@@ -30,32 +30,29 @@ const HERO_IMAGES = [
 
 interface AuthLayoutProps {
   children: React.ReactNode;
+  scrollEnabled?: boolean;
 }
 
-export default function AuthLayout({ children }: AuthLayoutProps) {
+export default function AuthLayout({ children, scrollEnabled = true }: AuthLayoutProps) {
   const router = useRouter();
 
   const arrowAnim = useRef(new Animated.Value(0)).current;
-  const heroHeight = useRef(new Animated.Value(SCREEN_HEIGHT * 0.7)).current;
+  const heroHeight = useRef(new Animated.Value(SCREEN_HEIGHT * 0.65)).current;
   
   const flatListRef = useRef<FlatList>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-    const startTimer = () => {
-      timer = setInterval(() => {
-        setActiveIndex((prev) => {
-          const nextIndex = (prev + 1) % HERO_IMAGES.length;
-          flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-          return nextIndex;
-        });
-      }, 4000);
-    };
+    const timer = setInterval(() => {
+      setActiveIndex((prev) => {
+        const nextIndex = (prev + 1) % HERO_IMAGES.length;
+        flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+        return nextIndex;
+      });
+    }, 4000);
     
-    startTimer();
     return () => clearInterval(timer);
-  }, []);
+  }, [activeIndex]);
 
   const handleScrollEnd = (e: any) => {
     const x = e.nativeEvent.contentOffset.x;
@@ -94,7 +91,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
       () => {
         Animated.timing(heroHeight, {
-          toValue: SCREEN_HEIGHT * 0.7,
+          toValue: SCREEN_HEIGHT * 0.65,
           duration: 250,
           useNativeDriver: false,
         }).start();
@@ -130,7 +127,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
             />
           )}
         />
-        <View style={styles.heroOverlay} />
+        <View style={styles.heroOverlay} pointerEvents="none" />
       <View style={styles.brandContainer}>
         <View style={styles.brandLogo}><Text style={styles.brandLogoText}>◆</Text></View>
         <Text style={styles.brandText}>{BRAND_NAME}</Text>
@@ -169,6 +166,8 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        scrollEnabled={scrollEnabled}
+        bounces={scrollEnabled}
       >
         {children}
       </ScrollView>
@@ -207,5 +206,5 @@ const styles = StyleSheet.create({
   paginationDotActive: { width: 16, backgroundColor: "#ffffff" },
 
   scrollView: { flex: 1, backgroundColor: Colors.surfaceContainerLowest, borderTopLeftRadius: 32, borderTopRightRadius: 32, marginTop: -32, shadowColor: Colors.onSurface, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 8 },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 24 },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32 },
 });

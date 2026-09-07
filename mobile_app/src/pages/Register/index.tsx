@@ -15,18 +15,31 @@ import {
 import { useRouter } from "expo-router";
 import { z } from "zod";
 import * as SecureStore from "expo-secure-store";
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
 import { Ionicons } from "@expo/vector-icons";
+import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 
-WebBrowser.maybeCompleteAuthSession();
+GoogleSignin.configure({
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+});
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path } from 'react-native-svg';
 import { Colors } from "@/constants/colors";
-
+import { sendLocalLoginNotification } from "@/services/push.service";
 import CustomInput from "@/components/CustomInput";
+import BouncingDots from "@/components/BouncingDots";
 import api from "@/utils/api";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/contexts/AuthContext";
+
+const GoogleLogo = ({ width = 20, height = 20 }) => (
+  <Svg width={width} height={height} viewBox="0 0 48 48">
+    <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+    <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+    <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+    <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+  </Svg>
+);
 
 const registerStep1Schema = z.object({
   fullName: z.string().trim().min(2, "Name is too short. Please enter your full name.").regex(/^[a-zA-Z\s]+$/, "Full name can only contain letters and spaces"),
@@ -42,6 +55,7 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { refreshFavorites } = useFavorites();
   const { refreshAuth } = useAuth();
 
@@ -56,24 +70,25 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
   // Popup Error State
   const [showErrorPopup, setShowErrorPopup] = useState(false);
   const [popupErrorMsg, setPopupErrorMsg] = useState("");
+  const [googleError, setGoogleError] = useState("");
+  
+  // Custom Top Toast State
+  const [toastMsg, setToastMsg] = useState("");
+  const toastAnim = useRef(new Animated.Value(-100)).current;
+
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    Animated.sequence([
+      Animated.timing(toastAnim, { toValue: insets.top + 20, duration: 300, useNativeDriver: true }),
+      Animated.delay(3000),
+      Animated.timing(toastAnim, { toValue: -100, duration: 300, useNativeDriver: true })
+    ]).start();
+  }, [insets.top]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(16)).current;
   const topContentHeight = useRef(new Animated.Value(1)).current; // 1 = full size, 0 = hidden
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
-
-  // Google OAuth Hook
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-  });
-
-  useEffect(() => {
-    if (response?.type === 'success' && response.authentication?.idToken) {
-      handleRegister(true, response.authentication.idToken);
-    }
-  }, [response]);
 
   useEffect(() => {
     Animated.parallel([
@@ -112,7 +127,7 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
   }, []);
 
   const handleRegister = useCallback(async (isGoogle = false, googleIdToken?: string) => {
-    if (!termsAccepted) {
+    if (!isGoogle && !termsAccepted) {
       setTermsError("You must agree to the Terms and Privacy Policy.");
       setPopupErrorMsg("You must agree to the Terms and Privacy Policy.");
       setShowErrorPopup(true);
@@ -155,13 +170,18 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
 
       // Refresh global favorites context with new token
       refreshFavorites();
-      await refreshAuth();
+      const profile = await refreshAuth();
+      if (profile) {
+        sendLocalLoginNotification(profile.fullName, profile.role);
+      }
 
       router.replace("/(tabs)/home" as any);
     } catch (error: any) {
       const msg = error.response?.data?.message || "Failed to register. Please try again.";
-      if (msg.toLowerCase().includes("email")) {
+      if (!isGoogle && msg.toLowerCase().includes("email")) {
         setEmailError(msg);
+      } else if (isGoogle) {
+        showToast(msg);
       } else {
         setTermsError(msg);
         setPopupErrorMsg(msg);
@@ -172,15 +192,38 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
     }
   }, [fullName, email, termsAccepted, registrationToken, router, refreshFavorites]);
 
-  const handleGoogleAuth = () => {
-    // We don't require terms for Google OAuth anymore because we moved it below? 
-    // Or we keep it? The layout puts Google button ABOVE terms now.
-    // If we want terms for Google OAuth, they must check it first, which feels weird if it's below.
-    // Let's remove the terms requirement for Google Auth here, or they check it. 
-    // Actually, usually Google Auth implies terms acceptance if stated nearby, but let's keep the check if required.
-    // Since the button is above the checkbox now, let's just trigger promptAsync directly. 
-    // The backend can assume terms are accepted, or we can show a small text under the Google button.
-    promptAsync();
+  const handleGoogleAuth = async () => {
+    try {
+      setIsGoogleLoading(true);
+      if (googleError) setGoogleError("");
+      await GoogleSignin.hasPlayServices();
+      try { await GoogleSignin.signOut(); } catch (e) {} // Force account picker
+      const userInfo = await GoogleSignin.signIn();
+      if (userInfo?.data?.idToken) {
+        await handleRegister(true, userInfo.data.idToken);
+      }
+    } catch (error) {
+      if (isErrorWithCode(error)) {
+        switch (error.code) {
+          case statusCodes.SIGN_IN_CANCELLED:
+            // user cancelled the login flow
+            break;
+          case statusCodes.IN_PROGRESS:
+            // operation (e.g. sign in) is in progress already
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            // play services not available or outdated
+            console.error("Play services not available");
+            break;
+          default:
+            console.error("Google sign in error", error);
+        }
+      } else {
+        console.error("Unknown error during Google sign in", error);
+      }
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   const hasManualInput = fullName.trim().length > 0 || email.trim().length > 0;
@@ -250,11 +293,19 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
                 <TouchableOpacity
                   style={styles.googleButton}
                   onPress={handleGoogleAuth}
-                  disabled={loading}
+                  disabled={loading || isGoogleLoading}
                   activeOpacity={0.9}
                 >
-                  <Ionicons name="logo-google" size={20} color={Colors.onSurface} style={{ marginRight: 8 }} />
-                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                  {isGoogleLoading ? (
+                    <BouncingDots label="Connecting to Google" color="#3C4043" />
+                  ) : (
+                    <>
+                      <View style={{ marginRight: 12 }}>
+                        <GoogleLogo width={22} height={22} />
+                      </View>
+                      <Text style={styles.googleButtonText}>Continue with Google</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
                 <Text style={styles.googleTermsText}>
                   By continuing with Google, you agree to our Terms and Privacy Policy.
@@ -334,6 +385,12 @@ export default function RegisterPage({ registrationToken, onGoBackToLogin }: Reg
           </View>
         </View>
       )}
+
+      {/* Top Toast */}
+      <Animated.View style={[styles.topToast, { transform: [{ translateY: toastAnim }] }]}>
+        <Ionicons name="alert-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+        <Text style={styles.topToastText}>{toastMsg}</Text>
+      </Animated.View>
     </View>
   );
 }
@@ -410,8 +467,8 @@ const styles = StyleSheet.create({
   dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
   orText: { marginHorizontal: 12, fontSize: 12, color: Colors.onSurfaceVariant, fontWeight: '600' },
   
-  googleButton: { width: "100%", height: 52, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  googleButtonText: { fontSize: 14, fontWeight: "600", color: Colors.onSurface },
+  googleButton: { width: "100%", height: 52, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#DADCE0", borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 },
+  googleButtonText: { fontSize: 15, fontWeight: "500", color: "#3C4043" },
 
   popupOverlay: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", zIndex: 1000 },
   popupContainer: { width: "80%", backgroundColor: Colors.surfaceContainerLowest, borderRadius: 16, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20, elevation: 10 },
@@ -420,4 +477,7 @@ const styles = StyleSheet.create({
   popupMessage: { fontSize: 14, color: Colors.onSurfaceVariant, textAlign: "center", marginBottom: 24, lineHeight: 20 },
   popupButton: { width: "100%", paddingVertical: 12, backgroundColor: Colors.primary, borderRadius: 8, alignItems: "center" },
   popupButtonText: { color: Colors.onPrimary, fontSize: 14, fontWeight: "600" },
+
+  topToast: { position: "absolute", top: 0, left: 20, right: 20, backgroundColor: Colors.error, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, flexDirection: "row", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 10, zIndex: 9999 },
+  topToastText: { color: "#fff", fontSize: 14, fontWeight: "600", flex: 1 },
 });

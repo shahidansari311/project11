@@ -59,29 +59,31 @@ export default function LoginPage({ initialPhone = "", onSendOtp }: LoginPagePro
   }, [phone, phoneError, onSendOtp]);
 
   return (
-    <AuthLayout>
-      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>Welcome back</Text>
-          <Text style={styles.headerSubtitle}>Sign in to manage your portfolio.</Text>
-        </View>
-
-        <View style={styles.inputWrapper}>
-          <Text style={styles.inputLabel}>Mobile Number</Text>
-          <View style={[styles.phoneInputContainer, phoneError ? styles.inputFieldError : styles.inputFieldDefault]}>
-            <Text style={styles.flagIcon}>🇮🇳</Text>
-            <Text style={styles.countryCode}>+91</Text>
-            <TextInput
-              style={styles.inputText}
-              placeholder="Enter mobile number"
-              placeholderTextColor={Colors.outline}
-              keyboardType="number-pad"
-              maxLength={10}
-              value={phone}
-              onChangeText={handlePhoneChange}
-            />
+    <AuthLayout scrollEnabled={false}>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], flex: 1, justifyContent: "space-between" }}>
+        <View>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Welcome back</Text>
+            <Text style={styles.headerSubtitle}>Sign in to manage your portfolio.</Text>
           </View>
-          {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
+
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>Mobile Number</Text>
+            <View style={[styles.phoneInputContainer, phoneError ? styles.inputFieldError : styles.inputFieldDefault]}>
+              <Text style={styles.flagIcon}>🇮🇳</Text>
+              <Text style={styles.countryCode}>+91</Text>
+              <TextInput
+                style={styles.inputText}
+                placeholder="Enter mobile number"
+                placeholderTextColor={Colors.outline}
+                keyboardType="number-pad"
+                maxLength={10}
+                value={phone}
+                onChangeText={handlePhoneChange}
+              />
+            </View>
+            {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
+          </View>
         </View>
 
         <TouchableOpacity

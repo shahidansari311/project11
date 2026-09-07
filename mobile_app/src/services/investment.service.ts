@@ -43,9 +43,33 @@ export const investmentService = {
    */
   async createInvestment(
     propertyId: string,
-    units: number
+    units: number,
+    paymentProofUrl?: string,
+    signatureBase64?: string,
+    placeOfSignature?: string
   ): Promise<SingleInvestmentResponse> {
-    const response = await api.post(`/user/property/${propertyId}/invest`, { units });
+    const response = await api.post(`/user/property/${propertyId}/invest`, { 
+      units,
+      paymentProofUrl,
+      signatureBase64,
+      placeOfSignature
+    });
+    return response.data;
+  },
+
+  /**
+   * POST /user/investments/:id/sign
+   * User signs an admin-created investment
+   */
+  async signAdminInvestment(
+    investmentId: string,
+    signatureBase64: string,
+    placeOfSignature: string
+  ): Promise<SingleInvestmentResponse> {
+    const response = await api.post(`/user/investments/${investmentId}/sign`, {
+      signatureBase64,
+      placeOfSignature
+    });
     return response.data;
   },
 

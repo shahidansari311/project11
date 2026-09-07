@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Colors } from "@/constants/colors";
 import { Ionicons } from "@expo/vector-icons";
+import { sendLocalLoginNotification } from "@/services/push.service";
 
 import AuthLayout from "@/components/AuthLayout";
 import OtpBoxes from "@/components/OtpBoxes";
@@ -119,6 +120,9 @@ export default function OtpPage({ phone, onRegisterRequired, onGoBack }: OtpPage
         await SecureStore.setItemAsync("refresh_token", refreshToken);
         refreshFavorites();
         const profile = await refreshAuth();
+        if (profile) {
+          sendLocalLoginNotification(profile.fullName, profile.role);
+        }
         if (profile?.role === "BUILDER") {
           router.replace("/(tabs)/builder-live" as any);
         } else {
@@ -158,38 +162,40 @@ export default function OtpPage({ phone, onRegisterRequired, onGoBack }: OtpPage
   }, [phone, onGoBack]);
 
   return (
-    <AuthLayout>
-      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>Verify your number</Text>
-          <View style={styles.otpSentRow}>
-            <Text style={styles.otpSentText}>OTP sent to +91 {phone}</Text>
-            <TouchableOpacity onPress={handleCancelAndEdit} activeOpacity={0.7} style={styles.editIconBtn}>
-              <Ionicons name="pencil" size={14} color={Colors.onSurface} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={{ marginBottom: 20 }}>
-          <OtpBoxes values={otp} refs={otpRefs} onChange={handleOtpChange} onKeyPress={handleOtpKeyPress} hasError={!!otpError} />
-          {otpError ? <Text style={styles.errorText}>{otpError}</Text> : null}
-
-          <View style={styles.resendContainer}>
-            <Text style={styles.resendPromptText}>
-              Didn't receive OTP?{" "}
-              {resendTimer > 0 ? (
-                <Text style={styles.resendText}>Resend in {resendTimer}s</Text>
-              ) : (
-                <Text style={styles.resendActionText} onPress={handleResendOtp}>Resend</Text>
-              )}
-            </Text>
-          </View>
-          {showResendSuccess && (
-            <View style={styles.resendSuccessContainer}>
-              <Ionicons name="checkmark-circle" size={14} color="#2e7d32" />
-              <Text style={styles.resendSuccessText}>OTP sent successfully</Text>
+    <AuthLayout scrollEnabled={false}>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], flex: 1, justifyContent: "space-between" }}>
+        <View>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Verify your number</Text>
+            <View style={styles.otpSentRow}>
+              <Text style={styles.otpSentText}>OTP sent to +91 {phone}</Text>
+              <TouchableOpacity onPress={handleCancelAndEdit} activeOpacity={0.7} style={styles.editIconBtn}>
+                <Ionicons name="pencil" size={14} color={Colors.onSurface} />
+              </TouchableOpacity>
             </View>
-          )}
+          </View>
+
+          <View style={{ marginBottom: 20 }}>
+            <OtpBoxes values={otp} refs={otpRefs} onChange={handleOtpChange} onKeyPress={handleOtpKeyPress} hasError={!!otpError} />
+            {otpError ? <Text style={styles.errorText}>{otpError}</Text> : null}
+
+            <View style={styles.resendContainer}>
+              <Text style={styles.resendPromptText}>
+                Didn't receive OTP?{" "}
+                {resendTimer > 0 ? (
+                  <Text style={styles.resendText}>Resend in {resendTimer}s</Text>
+                ) : (
+                  <Text style={styles.resendActionText} onPress={handleResendOtp}>Resend</Text>
+                )}
+              </Text>
+            </View>
+            {showResendSuccess && (
+              <View style={styles.resendSuccessContainer}>
+                <Ionicons name="checkmark-circle" size={14} color="#2e7d32" />
+                <Text style={styles.resendSuccessText}>OTP sent successfully</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <TouchableOpacity

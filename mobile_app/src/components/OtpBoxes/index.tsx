@@ -23,7 +23,15 @@ const OtpBoxes = memo(({ values, refs, onChange, onKeyPress, hasError }: any) =>
           value={values[i]}
           onChangeText={(text) => onChange(text, i)}
           onKeyPress={(e) => onKeyPress(e, i)}
-          onFocus={() => setFocusedIndex(i)}
+          onFocus={() => {
+            const firstEmptyIndex = values.findIndex((val: string) => !val);
+            const targetIndex = firstEmptyIndex === -1 ? OTP_LENGTH - 1 : firstEmptyIndex;
+            if (i > targetIndex) {
+              refs.current[targetIndex]?.focus();
+            } else {
+              setFocusedIndex(i);
+            }
+          }}
           onBlur={() => setFocusedIndex(null)}
         />
       ))}
@@ -37,15 +45,15 @@ const styles = StyleSheet.create({
   otpBoxContainer: { 
     flexDirection: "row", 
     justifyContent: "space-between", 
-    gap: 8 
+    alignItems: "center"
   },
   otpInput: { 
-    flex: 1, 
-    height: 52, 
+    width: 46,
+    height: 46, 
     textAlign: "center", 
-    fontSize: 20, 
+    fontSize: 18, 
     fontWeight: "600", 
-    borderRadius: 12, 
+    borderRadius: 10, 
     borderWidth: 1, 
     borderColor: Colors.border, 
     backgroundColor: Colors.surfaceContainerLowest, 

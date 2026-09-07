@@ -52,9 +52,10 @@ import { Colors } from "@/constants/colors";
 
 interface BouncingDotsProps {
   label: string;
+  color?: string;
 }
 
-export default function BouncingDots({ label }: BouncingDotsProps) {
+export default function BouncingDots({ label, color = Colors.onPrimary }: BouncingDotsProps) {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -80,10 +81,10 @@ export default function BouncingDots({ label }: BouncingDotsProps) {
 
   return (
     <View style={styles.loadingRow}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color }]}>{label}</Text>
       <View style={styles.dotsRow}>
         {[dot1, dot2, dot3].map((dot, i) => (
-          <Animated.View key={i} style={[styles.bounceDot, { transform: [{ translateY: dot }] }]} />
+          <Animated.View key={i} style={[styles.bounceDot, { backgroundColor: color, transform: [{ translateY: dot }] }]} />
         ))}
       </View>
     </View>

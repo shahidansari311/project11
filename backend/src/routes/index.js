@@ -52,6 +52,7 @@ const propertyController = require("../modules/property/property.controller");
 
 // Public property routes (No authentication required)
 router.get("/public/property/filters",           propertyController.getPropertyFilters);
+router.get("/public/property/locations/suggestions", propertyController.getLocationSuggestions);
 router.get("/public/property",                   propertyController.getAllProperties);
 router.get("/public/property/:id",               propertyController.getPropertyById);
 // Investment info (unit price, remaining units, min/max investment)

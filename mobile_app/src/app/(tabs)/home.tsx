@@ -19,7 +19,7 @@ export default function HomeTab() {
     let mounted = true;
     const loadProperties = async () => {
       try {
-        const res = await propertyService.getProperties({ limit: 15 });
+        const res = await propertyService.getProperties({ limit: 7 });
         if (mounted && res?.data?.properties) {
           setProperties(res.data.properties);
         }
@@ -39,7 +39,7 @@ export default function HomeTab() {
   const onRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const res = await propertyService.getProperties({ limit: 15 });
+      const res = await propertyService.getProperties({ limit: 7 });
       if (res?.data?.properties) {
         setProperties(res.data.properties);
       }

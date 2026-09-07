@@ -8,7 +8,13 @@ export default function RegisterScreen() {
   return (
     <RegisterPage 
       registrationToken={token}
-      onGoBackToLogin={() => router.replace("/")}
+      onGoBackToLogin={() => {
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace("/");
+        }
+      }}
     />
   );
 }

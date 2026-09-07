@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 import api from "@/utils/api";
 import { authService, UserProfile } from "@/services/auth.service";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/Toast";
 import ImageViewing from "react-native-image-viewing";
 
@@ -19,10 +20,10 @@ import { Ionicons } from "@expo/vector-icons";
 export default function DocumentUploadPage() {
   const router = useRouter();
   const { showToast } = useToast();
+  const { userProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [documentType, setDocumentType] = useState<DocumentType>("AADHAAR");
 
   // Independent States for new uploads
@@ -50,11 +51,6 @@ export default function DocumentUploadPage() {
   const fetchData = async (showLoader = true) => {
     if (showLoader) setIsLoading(true);
     try {
-      const profileResponse = await authService.getProfile();
-      if (profileResponse.data) {
-        setProfile(profileResponse.data);
-      }
-
       const docResponse = await api.get("/user/document");
       if (docResponse.data?.data) {
         const docs = docResponse.data.data;
@@ -244,8 +240,8 @@ export default function DocumentUploadPage() {
         <Text style={styles.headerTitle}>Upload KYC</Text>
         <View style={{ width: 24 }} />
       </View>
-
-      <UserDetailsCard user={profile} />
+      {/* User Info Header */}
+      <UserDetailsCard user={userProfile} />
 
       <View style={styles.formSection}>
         <DocumentTypeSelector value={documentType} onChange={handleDocumentTypeChange} />

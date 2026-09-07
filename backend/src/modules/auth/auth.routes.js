@@ -21,14 +21,19 @@ router.get("/user/profile",       verifyAuth, requireRole("user", "builder"), au
 router.post("/user/profile",      verifyAuth, requireRole("user", "builder"), imageUpload.single("profileImage"), uploadProfileImage, validate(profileSchema), authController.updateProfile);
 router.post("/user/profile-image",verifyAuth, requireRole("user", "builder"), imageUpload.single("profileImage"), uploadProfileImage, validate(profileImageSchema), authController.updateProfileImage);
 router.post("/user/logout",       verifyAuth, requireRole("user", "builder"), authController.userLogout);
+router.post("/user/push-token",   verifyAuth, requireRole("user", "builder"), authController.updatePushToken);
 
 // Admin routes
-router.post("/admin/send-otp", loginLimiter, validate(sendOtpSchema), authController.adminSendOtp);
-router.post("/admin/resend-otp", loginLimiter, validate(sendOtpSchema), authController.adminResendOtp);
-router.post("/admin/cancel-otp", loginLimiter, validate(sendOtpSchema), authController.adminCancelOtp);
-router.post("/admin/verify-otp", loginLimiter, validate(verifyOtpSchema), authController.adminVerifyOtp);
+router.post("/admin/login-step1", loginLimiter, authController.adminLoginStep1);
+router.post("/admin/resend-otp", loginLimiter, authController.adminResendOtp);
+router.post("/admin/cancel-otp", loginLimiter, authController.adminCancelOtp);
+router.post("/admin/login-step2", loginLimiter, authController.adminVerifyOtp);
 router.post("/admin/refresh-token", loginLimiter, validate(refreshTokenSchema), authController.refreshAdminToken);
 router.post("/admin/logout", verifyAuth, requireRole("admin"), authController.adminLogout);
+
+router.get("/admin/reset-password/question", authController.getSecurityQuestion);
+router.post("/admin/reset-password/verify-answer", loginLimiter, authController.verifySecurityAnswer);
+router.post("/admin/reset-password/confirm", loginLimiter, authController.resetPassword);
 
 router.get("/admin/builders", verifyAuth, requireRole("admin"), authController.getAllBuilders);
 router.post("/admin/builders", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(adminCreateUserSchema), authController.createBuilderByAdmin);

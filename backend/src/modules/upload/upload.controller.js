@@ -29,6 +29,32 @@ async function uploadImage(req, res, next) {
   }
 }
 
+/**
+ * POST /api/v1/upload/document
+ * Endpoint to upload a document (PDF or Image). Returns the public URL.
+ */
+async function uploadDocument(req, res, next) {
+  try {
+    if (!req.file) {
+      throw new AppError("No document file provided in the request. Please send a 'file' field.", 400);
+    }
+
+    const folder = req.query.folder || "documents";
+
+    const publicUrl = await storageService.uploadFile(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      folder
+    );
+
+    return successResponse(res, 200, { url: publicUrl }, "Document uploaded successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
-  uploadImage
+  uploadImage,
+  uploadDocument
 };

@@ -16,10 +16,10 @@ export const youtubeUrlSchema = z
 export const addPropertySchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters").max(100, "Title is too long"),
   description: z.string().min(20, "Description must be at least 20 characters").max(2000, "Description is too long"),
-  location: z.string().min(3, "Location is required"),
-  totalPrice: z.number({ invalid_type_error: "Price must be a number" }).positive("Price must be greater than 0"),
-  totalSize: z.number({ invalid_type_error: "Size must be a number" }).positive("Size must be greater than 0"),
-  targetReturn: z.number({ invalid_type_error: "Return % must be a number" }).positive("Return % must be greater than 0"),
+  address: z.string().min(3, "Address is required"),
+  totalPrice: z.coerce.number({ invalid_type_error: "Price must be a number" }).positive("Price must be greater than 0"),
+  totalSize: z.coerce.number({ invalid_type_error: "Size must be a number" }).positive("Size must be greater than 0"),
+  targetReturn: z.coerce.number({ invalid_type_error: "Return % must be a number" }).positive("Return % must be greater than 0"),
 });
 
 // Builder Price Update

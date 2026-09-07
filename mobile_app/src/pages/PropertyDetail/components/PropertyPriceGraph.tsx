@@ -298,11 +298,12 @@ export default function PropertyPriceGraph({
                     />
                     <SvgText
                       x={pt.x}
-                      y={chartData.height - 12}
-                      textAnchor="middle"
+                      y={chartData.height - 5}
+                      textAnchor="end"
                       fill={isHovered ? Colors.primary : "#9CA3AF"}
                       fontSize="9"
                       fontWeight={isHovered ? "bold" : "normal"}
+                      transform={`rotate(-45, ${pt.x}, ${chartData.height - 5})`}
                     >
                       {formatDate(pt.date, "short")}
                     </SvgText>

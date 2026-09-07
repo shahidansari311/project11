@@ -61,6 +61,8 @@ export default function AuthScreen() {
         <OtpPage
           phone={phoneForOtp}
           onRegisterRequired={(token) => {
+            setActivePage("login"); // Reset state so hardware back goes to login
+            setPhoneForOtp(""); // Clear phone number too
             router.push({ pathname: "/register", params: { token } });
           }}
           onGoBack={() => setActivePage("login")}

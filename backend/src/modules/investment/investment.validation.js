@@ -15,6 +15,9 @@ const createInvestmentSchema = z.object({
       })
       .int("Units must be a whole number.")
       .min(1, "You must invest in at least 1 unit."),
+    paymentProofUrl: z.string().url("Must be a valid URL.").optional(),
+    signatureBase64: z.string().min(10, "Signature data is required.").optional(),
+    placeOfSignature: z.string().min(2, "Place of signature is required.").optional(),
   }),
   params: z.object({ propertyId: z.string().min(1, "Property ID is required.") }).passthrough(),
   query: z.object({}).passthrough().optional(),

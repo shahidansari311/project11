@@ -1,4 +1,7 @@
 const prisma = require("../../config/db");
+const { generateAgreementPdf } = require("../../utils/pdfGenerator");
+const storageService = require("../../services/storage.service");
+const AppError = require("../../utils/AppError");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -30,16 +33,61 @@ function getPropertyModel() {
  *  - units >= 1 and units <= remainingUnits.
  *  - Amount is snapshotted at current perUnitPrice.
  */
-async function createInvestment(userId, propertyId, units) {
+async function createInvestment(userId, propertyId, units, paymentProofUrl, signatureBase64, placeOfSignature) {
+  // Pre-fetch user and property outside the transaction to generate the PDF
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const propertyInfo = await prisma.property.findUnique({ where: { id: propertyId } });
+
+  if (!user) throw new Error("User not found");
+  if (!propertyInfo) throw new Error("Property not found with the provided ID");
+  if (propertyInfo.status !== "AVAILABLE") {
+    throw new Error(`This property is not available for investment (status: ${propertyInfo.status})`);
+  }
+  if (propertyInfo.totalUnits <= 0) {
+    throw new Error("This property has not been set up for unit-based investment yet");
+  }
+
+  const remainingUnitsCheck = propertyInfo.totalUnits - propertyInfo.purchasedUnits;
+  if (units > remainingUnitsCheck) {
+    throw new Error(`You requested ${units} units but only ${remainingUnitsCheck} unit(s) are available`);
+  }
+
+  const totalAmount = units * propertyInfo.perUnitPrice;
+  let agreementUrl = null;
+
+  // Generate and upload PDF agreement if signature is provided
+  if (signatureBase64 && placeOfSignature) {
+    try {
+      const pdfBuffer = await generateAgreementPdf({
+        userName: user.fullName || "User",
+        userEmail: user.email || "N/A",
+        userPhone: user.phone || "N/A",
+        propertyTitle: propertyInfo.title,
+        units,
+        totalAmount,
+        placeOfSignature,
+        signatureBase64
+      });
+
+      // Upload to storage under 'agreements' folder
+      const filename = `agreement_${userId}_${propertyId}_${Date.now()}.pdf`;
+      agreementUrl = await storageService.uploadFile(
+        pdfBuffer,
+        filename,
+        "application/pdf",
+        "agreements"
+      );
+    } catch (err) {
+      throw new Error("Failed to generate or upload agreement PDF: " + err.message);
+    }
+  }
+
   return prisma.$transaction(async (tx) => {
+    // Re-fetch property inside transaction to ensure lock/consistency
     const property = await tx.property.findUnique({ where: { id: propertyId } });
 
-    if (!property) throw new Error("Property not found with the provided ID");
     if (property.status !== "AVAILABLE") {
       throw new Error(`This property is not available for investment (status: ${property.status})`);
-    }
-    if (property.totalUnits <= 0) {
-      throw new Error("This property has not been set up for unit-based investment yet");
     }
 
     const remainingUnits = property.totalUnits - property.purchasedUnits;
@@ -50,7 +98,7 @@ async function createInvestment(userId, propertyId, units) {
     }
 
     const unitPriceAtTime = property.perUnitPrice;
-    const totalAmount     = units * unitPriceAtTime;
+    const finalTotalAmount = units * unitPriceAtTime;
 
     // Create the investment record
     const investment = await tx.investment.create({
@@ -59,7 +107,9 @@ async function createInvestment(userId, propertyId, units) {
         userId,
         units,
         unitPriceAtTime,
-        totalAmount,
+        totalAmount: finalTotalAmount,
+        paymentProofUrl,
+        agreementUrl,
         status: "PENDING",
       },
       include: {
@@ -76,6 +126,122 @@ async function createInvestment(userId, propertyId, units) {
 
     return investment;
   });
+}
+
+/**
+ * Admin creates an investment on behalf of a user (cash payment).
+ * Status is immediately APPROVED, but agreementUrl is null until user signs.
+ */
+async function createInvestmentOnBehalf(adminId, userId, propertyId, units) {
+  // Check if admin exists and is authorized (assuming adminId is verified upstream)
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const propertyInfo = await prisma.property.findUnique({ where: { id: propertyId } });
+
+  if (!user) throw new AppError("User not found", 404);
+  if (!propertyInfo) throw new AppError("Property not found with the provided ID", 404);
+  if (propertyInfo.status !== "AVAILABLE") {
+    throw new AppError(`This property is not available for investment (status: ${propertyInfo.status})`, 400);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // Re-fetch inside transaction
+    const property = await tx.property.findUnique({ where: { id: propertyId } });
+    if (property.status !== "AVAILABLE") {
+      throw new AppError(`This property is not available for investment (status: ${property.status})`, 400);
+    }
+
+    const remainingUnits = property.totalUnits - property.purchasedUnits;
+    if (units > remainingUnits) {
+      throw new AppError(`Requested ${units} units but only ${remainingUnits} unit(s) are available`, 400);
+    }
+
+    const unitPriceAtTime = property.perUnitPrice;
+    const finalTotalAmount = units * unitPriceAtTime;
+
+    // Create the investment record
+    const investment = await tx.investment.create({
+      data: {
+        propertyId,
+        userId,
+        units,
+        unitPriceAtTime,
+        totalAmount: finalTotalAmount,
+        paymentProofUrl: "admin_cash",
+        paymentRef: "CASH",
+        agreementUrl: null, // User must sign later
+        status: "APPROVED",
+        adminRemark: `Created on behalf of user by admin ${adminId}`,
+      },
+      include: {
+        property: { select: { id: true, title: true, location: true, perUnitPrice: true } },
+        user:     { select: { id: true, fullName: true, phone: true, email: true } },
+      },
+    });
+
+    // Lock units
+    await tx.property.update({
+      where: { id: propertyId },
+      data:  { purchasedUnits: { increment: units } },
+    });
+
+    // Mark user as having purchased a property
+    await tx.user.update({
+      where: { id: userId },
+      data: { hasPurchasedProperty: true },
+    });
+
+    return investment;
+  });
+}
+
+/**
+ * User signs an existing admin-created investment that is APPROVED but missing an agreement.
+ */
+async function signAdminInvestment(userId, investmentId, signatureBase64, placeOfSignature) {
+  const investment = await prisma.investment.findUnique({
+    where: { id: investmentId },
+    include: {
+      property: true,
+      user: true,
+    }
+  });
+
+  if (!investment) throw new Error("Investment not found");
+  if (investment.userId !== userId) throw new Error("Not authorised to sign this investment");
+  if (investment.status !== "APPROVED") throw new Error("Investment is not approved");
+  if (investment.agreementUrl) throw new Error("Agreement is already signed and generated");
+
+  if (!signatureBase64 || !placeOfSignature) {
+    throw new Error("Signature and place of signature are required");
+  }
+
+  try {
+    const pdfBuffer = await generateAgreementPdf({
+      userName: investment.user.fullName || "User",
+      userEmail: investment.user.email || "N/A",
+      userPhone: investment.user.phone || "N/A",
+      propertyTitle: investment.property.title,
+      units: investment.units,
+      totalAmount: investment.totalAmount,
+      placeOfSignature,
+      signatureBase64
+    });
+
+    const filename = `agreement_${userId}_${investment.propertyId}_${Date.now()}.pdf`;
+    const agreementUrl = await storageService.uploadFile(
+      pdfBuffer,
+      filename,
+      "application/pdf",
+      "agreements"
+    );
+
+    return await prisma.investment.update({
+      where: { id: investmentId },
+      data: { agreementUrl }
+    });
+  } catch (err) {
+    throw new Error("Failed to generate or upload agreement PDF: " + err.message);
+  }
 }
 
 /**
@@ -434,17 +600,17 @@ async function getInvestmentStats() {
 }
 
 module.exports = {
-  // User
   createInvestment,
+  createInvestmentOnBehalf,
+  signAdminInvestment,
   cancelInvestment,
   getUserInvestments,
   getUserInvestmentById,
-  // Admin
-  approveInvestment,
-  rejectInvestment,
   getAllInvestments,
+  getInvestmentStats,
   getInvestmentById,
   getInvestmentsByProperty,
   getInvestmentsByUser,
-  getInvestmentStats,
+  approveInvestment,
+  rejectInvestment,
 };

@@ -39,7 +39,7 @@ const formatDate = (dateStr: string | undefined) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return "";
-  return `${d.getDate()} ${d.toLocaleString("default", { month: "short" })}`;
+  return `${d.getDate()} ${d.toLocaleString("default", { month: "short" })} ${d.getFullYear()}`;
 };
 
 export default function PortfolioValuationGraph({
@@ -247,15 +247,15 @@ export default function PortfolioValuationGraph({
                   stroke={pt.isDrop ? "#EF4444" : "#1E3A8A"}
                   strokeWidth={isHovered ? "2.5" : "2"}
                 />
-                {/* Only show date labels for first and last to save space */}
                 {(pt.idx === 0 || pt.idx === chartData.points.length - 1) && !isHovered && (
                   <SvgText
                     x={pt.x}
-                    y={chartData.height - 6}
-                    textAnchor={pt.idx === 0 ? "start" : "end"}
+                    y={chartData.height - 2}
+                    textAnchor="end"
                     fill="#9CA3AF"
                     fontSize="8"
                     fontWeight="bold"
+                    transform={`rotate(-45, ${pt.x}, ${chartData.height - 2})`}
                   >
                     {formatDate(pt.date)}
                   </SvgText>
@@ -287,6 +287,49 @@ export default function PortfolioValuationGraph({
           </View>
         )}
       </View>
+
+      {/* Valuation History Log Table */}
+      {scaledHistory.length > 0 && (
+        <View style={styles.tableSection}>
+          <View style={styles.tableHeaderRow}>
+            <Text style={styles.tableTitle}>Valuation History ({scaledHistory.length})</Text>
+          </View>
+          <View style={styles.tableContainer}>
+            <View style={styles.tableHeaderBg}>
+              <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Date</Text>
+              <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Value</Text>
+              <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>Change</Text>
+            </View>
+            {[...scaledHistory].reverse().map((item, idx, arr) => {
+              const prevItem = arr[idx + 1];
+              const diff = prevItem ? item.valuation - prevItem.valuation : 0;
+              const diffPct = prevItem && prevItem.valuation > 0 ? ((diff / prevItem.valuation) * 100).toFixed(1) : null;
+              const isDrop = diff < 0;
+
+              return (
+                <View key={idx} style={styles.tableRow}>
+                  <Text style={[styles.tableCellText, { flex: 1 }]}>{formatDate(item.date || item.createdAt)}</Text>
+                  <Text style={[styles.tableCellText, { flex: 1, fontWeight: "bold", color: prevItem ? (isDrop ? "#E11D48" : "#047857") : "#111827" }]}>
+                    {formatCurrency(item.valuation, currencySymbol)}
+                  </Text>
+                  <View style={{ flex: 1, alignItems: "flex-end" }}>
+                    {prevItem ? (
+                      <View style={[styles.tableDiffBadge, isDrop ? styles.tableDiffDrop : styles.tableDiffUp]}>
+                        <Ionicons name={isDrop ? "trending-down" : "trending-up"} size={10} color={isDrop ? "#BE123C" : "#047857"} />
+                        <Text style={[styles.tableDiffText, { color: isDrop ? "#BE123C" : "#047857" }]}>
+                          {diff >= 0 ? "+" : ""}{diffPct}%
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={{ fontSize: 10, color: "#9CA3AF", fontStyle: "italic" }}>Initial</Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -378,5 +421,74 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
     paddingHorizontal: 16,
+  },
+  tableSection: {
+    marginTop: 20,
+  },
+  tableHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  tableTitle: {
+    fontSize: 11,
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    color: "#9CA3AF",
+    letterSpacing: 0.5,
+  },
+  tableContainer: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  tableHeaderBg: {
+    flexDirection: "row",
+    backgroundColor: "#F9FAFB",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  tableHeaderCell: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#4B5563",
+  },
+  tableRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    backgroundColor: "#FFFFFF",
+  },
+  tableCellText: {
+    fontSize: 12,
+    color: "#111827",
+  },
+  tableDiffBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    gap: 2,
+  },
+  tableDiffDrop: {
+    backgroundColor: "#FFF1F2",
+    borderColor: "#FECDD3",
+  },
+  tableDiffUp: {
+    backgroundColor: "#ECFDF5",
+    borderColor: "#A7F3D0",
+  },
+  tableDiffText: {
+    fontSize: 10,
+    fontWeight: "600",
   },
 });

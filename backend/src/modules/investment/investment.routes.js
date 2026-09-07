@@ -26,6 +26,9 @@ userRouter.post(
   investmentController.createInvestment
 );
 
+// POST /user/investments/:id/sign
+userRouter.post("/investments/:id/sign", investmentController.signAdminInvestment);
+
 // GET /user/investments
 userRouter.get("/investments", investmentController.getUserInvestments);
 
@@ -36,6 +39,9 @@ userRouter.get("/investments/:id", investmentController.getUserInvestmentById);
 userRouter.delete("/investments/:id", investmentController.cancelInvestment);
 
 // ─── Admin routes ──────────────────────────────────────────────────────────
+
+// POST /admin/investments/buy-on-behalf
+adminRouter.post("/buy-on-behalf", investmentController.createInvestmentOnBehalf);
 
 // GET /admin/investments/stats  (must come before /:id to avoid param conflict)
 adminRouter.get("/stats", investmentController.getInvestmentStats);

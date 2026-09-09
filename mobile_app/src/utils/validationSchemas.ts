@@ -20,6 +20,7 @@ export const addPropertySchema = z.object({
   totalPrice: z.coerce.number({ invalid_type_error: "Price must be a number" }).positive("Price must be greater than 0"),
   totalSize: z.coerce.number({ invalid_type_error: "Size must be a number" }).positive("Size must be greater than 0"),
   targetReturn: z.coerce.number({ invalid_type_error: "Return % must be a number" }).positive("Return % must be greater than 0"),
+  termPeriodYears: z.coerce.number({ invalid_type_error: "Term period must be a number" }).int("Term period must be a whole year").positive("Term period must be greater than 0").optional(),
 });
 
 // Builder Price Update

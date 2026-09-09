@@ -1,6 +1,6 @@
 const { z } = require("zod");
 
-const VALID_STATUSES = ["PENDING", "APPROVED", "REJECTED", "CANCELLED"];
+const VALID_STATUSES = ["PENDING", "APPROVED", "REJECTED", "CANCELLED", "PARTIAL_PAID", "REFUND_REQUESTED", "REFUNDED", "WITHDRAWAL_REQUESTED", "WITHDRAWN"];
 
 /**
  * POST /user/property/:propertyId/invest
@@ -52,8 +52,31 @@ const listInvestmentsSchema = z.object({
   params: z.object({}).passthrough().optional(),
 });
 
+const requestWithdrawalSchema = z.object({
+  body: z.object({
+    refundBankDetails: z.object({
+      accountName: z.string().min(2, "Account name is required."),
+      bankName: z.string().min(2, "Bank name is required."),
+      accountNumber: z.string().min(5, "Account number is required."),
+      ifscCode: z.string().min(5, "IFSC code is required."),
+    }),
+  }),
+  params: z.object({ id: z.string().min(1, "Investment ID is required.") }).passthrough(),
+  query: z.object({}).passthrough().optional(),
+});
+
+const processWithdrawalSchema = z.object({
+  body: z.object({
+    paymentProofUrl: z.string().url("Must be a valid URL."),
+  }),
+  params: z.object({ id: z.string().min(1, "Investment ID is required.") }).passthrough(),
+  query: z.object({}).passthrough().optional(),
+});
+
 module.exports = {
   createInvestmentSchema,
   rejectInvestmentSchema,
   listInvestmentsSchema,
+  requestWithdrawalSchema,
+  processWithdrawalSchema,
 };

@@ -18,6 +18,7 @@ async function createProperty(req, res, next) {
       totalSize,
       category,
       youtubeVideoUrl,
+      termPeriodYears,
     } = req.body;
 
     const property = await propertyService.createProperty({
@@ -31,6 +32,7 @@ async function createProperty(req, res, next) {
       totalSize,
       category,
       youtubeVideoUrl,
+      termPeriodYears,
     });
 
     return successResponse(res, 201, property, "Property created successfully");
@@ -42,7 +44,18 @@ async function createProperty(req, res, next) {
 async function updateProperty(req, res, next) {
   try {
     const { id } = req.params;
-    const property = await propertyService.updateProperty(id, req.body);
+    const { title, images, youtubeVideoUrl, totalPrice, status } = req.body;
+    
+    // Admin only allowed to edit these fields
+    const restrictedData = {
+      ...(title !== undefined && { title }),
+      ...(images !== undefined && { images }),
+      ...(youtubeVideoUrl !== undefined && { youtubeVideoUrl }),
+      ...(totalPrice !== undefined && { totalPrice }),
+      ...(status !== undefined && { status })
+    };
+
+    const property = await propertyService.updateProperty(id, restrictedData);
     return successResponse(res, 200, property, "Property updated successfully");
   } catch (err) {
     if (err.message && err.message.includes("not found")) {
@@ -263,11 +276,14 @@ async function getBuilderSubmissions(req, res, next) {
   try {
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = req.query.search;
     
     const result = await propertyService.getAllProperties({
       page,
       limit,
+      search,
       status: req.query.status, // Can be PENDING_APPROVAL, AVAILABLE, etc.
+      builderId: req.query.builderId,
       onlyBuilderSubmissions: true,
       excludeRejected: false
     });
@@ -366,10 +382,12 @@ async function builderListProperties(req, res, next) {
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const status = req.query.status;
+    const search = req.query.search;
     
     const result = await propertyService.getAllProperties({
       page,
       limit,
+      search,
       status,
       builderId: req.user.id,
       excludeRejected: false

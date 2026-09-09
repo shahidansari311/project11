@@ -49,6 +49,7 @@ async function createProperty({
   category,
   youtubeVideoUrl,
   builderId,
+  termPeriodYears,
 }) {
   const propertyModel = getPropertyModel();
 
@@ -89,6 +90,7 @@ async function createProperty({
       category,
       youtubeVideoUrl,
       builderId,
+      termPeriodYears: termPeriodYears ? parseInt(termPeriodYears) : null,
       priceHistory: {
         create: {
           price: totalPrice,
@@ -147,6 +149,18 @@ async function updateProperty(id, data) {
     data.totalUnits   = newTotalUnits;
     data.perUnitPrice = newPerUnitPrice;
     data.minInvestment = newPerUnitPrice; // always 1 unit
+  }
+
+  // Calculate status automatically based on units if not explicitly overriding to something else
+  const currentTotalUnits = data.totalUnits !== undefined ? data.totalUnits : existingProperty.totalUnits;
+  const currentPurchasedUnits = existingProperty.purchasedUnits || 0;
+  
+  if (data.status !== "UNDER_REVIEW" && data.status !== "DRAFT" && data.status !== "PENDING_APPROVAL" && data.status !== "REJECTED") {
+     if (currentPurchasedUnits >= currentTotalUnits) {
+       data.status = "SOLD";
+     } else {
+       data.status = "AVAILABLE";
+     }
   }
 
   const updatedProperty = await propertyModel.update({
@@ -246,6 +260,15 @@ async function getAllProperties({ page = 1, limit = 10, status, category, search
       include: {
         priceHistory: {
           orderBy: { date: "asc" }
+        },
+        builder: {
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            email: true,
+            profileUrl: true,
+          }
         }
       }
     }),

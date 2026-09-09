@@ -35,6 +35,7 @@ export default function BuilderAddTab() {
     totalSize: "",
     totalPrice: "",
     targetReturn: "",
+    termPeriodYears: "",
     category: "RESIDENTIAL",
     youtubeVideoUrl: "",
     latitude: 28.6139,
@@ -837,6 +838,21 @@ export default function BuilderAddTab() {
             }}
           />
           {errors.targetReturn && <Text style={styles.errorText}>{errors.targetReturn}</Text>}
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Term Period (Years)</Text>
+          <TextInput 
+            style={[styles.input, errors.termPeriodYears && styles.inputError]} 
+            placeholder="e.g. 5"
+            keyboardType="numeric"
+            value={formData.termPeriodYears}
+            onChangeText={(val) => {
+              setFormData(prev => ({...prev, termPeriodYears: val}));
+              if (errors.termPeriodYears) setErrors(prev => ({ ...prev, termPeriodYears: "" }));
+            }}
+          />
+          {errors.termPeriodYears && <Text style={styles.errorText}>{errors.termPeriodYears}</Text>}
         </View>
       </View>
 

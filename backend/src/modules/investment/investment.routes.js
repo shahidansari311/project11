@@ -7,6 +7,8 @@ const {
   createInvestmentSchema,
   rejectInvestmentSchema,
   listInvestmentsSchema,
+  requestWithdrawalSchema,
+  processWithdrawalSchema,
 } = require("./investment.validation");
 
 // NOTE: Auth middleware (verifyAuth + requireRole) is applied in routes/index.js before mounting.
@@ -38,6 +40,19 @@ userRouter.get("/investments/:id", investmentController.getUserInvestmentById);
 // DELETE /user/investments/:id  (cancel)
 userRouter.delete("/investments/:id", investmentController.cancelInvestment);
 
+// POST /user/investments/:id/pay-remaining
+userRouter.post("/investments/:id/pay-remaining", investmentController.payRemainingInvestment);
+
+// POST /user/investments/:id/refund
+userRouter.post("/investments/:id/refund", investmentController.requestRefund);
+
+// POST /user/investments/:id/request-withdrawal
+userRouter.post(
+  "/investments/:id/request-withdrawal",
+  validate(requestWithdrawalSchema),
+  investmentController.requestWithdrawal
+);
+
 // ─── Admin routes ──────────────────────────────────────────────────────────
 
 // POST /admin/investments/buy-on-behalf
@@ -61,11 +76,22 @@ adminRouter.get("/:id", investmentController.getInvestmentById);
 // PATCH /admin/investments/:id/approve
 adminRouter.patch("/:id/approve", investmentController.approveInvestment);
 
+const { documentUpload } = require("../../config/multer.config");
+// POST /admin/investments/:id/refund
+adminRouter.post("/:id/refund", documentUpload.single("file"), investmentController.processRefund);
+
 // PATCH /admin/investments/:id/reject
 adminRouter.patch(
   "/:id/reject",
   validate(rejectInvestmentSchema),
   investmentController.rejectInvestment
+);
+
+// POST /admin/investments/:id/process-withdrawal
+adminRouter.post(
+  "/:id/process-withdrawal",
+  documentUpload.single("file"),
+  investmentController.processWithdrawal
 );
 
 module.exports = { userRouter, adminRouter };

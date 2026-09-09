@@ -37,5 +37,8 @@ router.post("/admin/reset-password/confirm", loginLimiter, authController.resetP
 
 router.get("/admin/builders", verifyAuth, requireRole("admin"), authController.getAllBuilders);
 router.post("/admin/builders", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(adminCreateUserSchema), authController.createBuilderByAdmin);
+router.get("/admin/builders/:id", verifyAuth, requireRole("admin"), authController.getBuilderById);
+router.patch("/admin/builders/:id", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(require("./auth.validation").adminUpdateUserSchema), authController.updateUserByAdmin);
+router.delete("/admin/builders/:id", verifyAuth, requireRole("admin"), authController.deleteUserByAdmin);
 
 module.exports = router;

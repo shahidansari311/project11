@@ -102,4 +102,37 @@ export const investmentService = {
     const response = await api.delete(`/user/investments/${id}`);
     return response.data;
   },
+
+  /**
+   * POST /user/investments/:id/pay-remaining
+   * Pay remaining balance for PARTIAL_PAID investment
+   */
+  async payRemainingInvestment(id: string, paymentProofUrl: string): Promise<SingleInvestmentResponse> {
+    const response = await api.post(`/user/investments/${id}/pay-remaining`, { paymentProofUrl });
+    return response.data;
+  },
+
+  /**
+   * POST /user/investments/:id/refund
+   * Request refund for a PARTIAL_PAID investment
+   */
+  async requestRefund(
+    id: string,
+    refundBankDetails: { accountName: string; bankName: string; accountNumber: string; ifscCode: string }
+  ): Promise<SingleInvestmentResponse> {
+    const response = await api.post(`/user/investments/${id}/refund`, { refundBankDetails });
+    return response.data;
+  },
+
+  /**
+   * POST /user/investments/:id/request-withdrawal
+   * Request withdrawal after maturity
+   */
+  async requestWithdrawal(
+    id: string,
+    refundBankDetails: { accountName: string; bankName: string; accountNumber: string; ifscCode: string }
+  ): Promise<SingleInvestmentResponse> {
+    const response = await api.post(`/user/investments/${id}/request-withdrawal`, { refundBankDetails });
+    return response.data;
+  },
 };

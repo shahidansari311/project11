@@ -42,3 +42,17 @@ Use the following credentials to test the login and password reset flows:
 * `POST /api/v1/auth/admin/reset-password/confirm`
 * Body: `{ "phone": "8472921035", "resetToken": "...", "newPassword": "new_password" }`
 * Response: Success message (Password updated).
+
+---
+
+### 3. Investment Refund Process
+When an admin processes a refund for an investment that is in the `REFUND_REQUESTED` state, the frontend needs to upload a proof document and pass the URL to the backend.
+
+**Step 1: Upload Document**
+* Admin selects a PDF/Image of the bank transfer receipt.
+* Frontend uploads it to S3/storage and gets the URL (`refundProofUrl`).
+
+**Step 2: Submit Refund**
+* `POST /api/v1/admin/investments/:id/refund`
+* Body: `{ "refundProofUrl": "https://url-to-s3-document.pdf" }`
+* Response: Success message (Status changed to `REFUNDED` and units released).

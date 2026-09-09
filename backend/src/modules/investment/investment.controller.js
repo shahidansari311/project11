@@ -1,4 +1,5 @@
 const investmentService = require("./investment.service");
+const storageService = require("../../services/storage.service");
 const { successResponse, errorResponse } = require("../../utils/apiResponse");
 
 const { sendPushNotification } = require("../../services/push.service");
@@ -26,7 +27,7 @@ function handleError(res, err, next) {
 async function createInvestment(req, res, next) {
   try {
     const { propertyId } = req.params;
-    const { units, paymentProofUrl, signatureBase64, placeOfSignature } = req.body;
+    const { units, paymentProofUrl, signatureBase64, placeOfSignature } = req.body || {};
     const userId         = req.user.id;
 
     const investment = await investmentService.createInvestment(
@@ -58,7 +59,7 @@ async function createInvestment(req, res, next) {
 async function signAdminInvestment(req, res, next) {
   try {
     const { id } = req.params;
-    const { signatureBase64, placeOfSignature } = req.body;
+    const { signatureBase64, placeOfSignature } = req.body || {};
     const userId = req.user.id;
 
     const investment = await investmentService.signAdminInvestment(
@@ -99,9 +100,14 @@ async function getUserInvestments(req, res, next) {
     const userId = req.user.id;
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const { status } = req.query;
+    const { status, search } = req.query;
 
-    const result = await investmentService.getUserInvestments(userId, { page, limit, status });
+    const result = await investmentService.getUserInvestments(userId, {
+      page,
+      limit,
+      status,
+      search,
+    });
     return successResponse(res, 200, result, "Investments retrieved successfully.");
   } catch (err) {
     next(err);
@@ -132,7 +138,7 @@ async function getUserInvestmentById(req, res, next) {
 async function createInvestmentOnBehalf(req, res, next) {
   try {
     const adminId = req.user.id;
-    const { userId, propertyId, units } = req.body;
+    const { userId, propertyId, units } = req.body || {};
 
     if (!userId || !propertyId || !units) {
       return errorResponse(res, 400, "userId, propertyId, and units are required.");
@@ -166,9 +172,16 @@ async function getAllInvestments(req, res, next) {
   try {
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const { status, propertyId, userId } = req.query;
+    const { status, propertyId, userId, search } = req.query;
 
-    const result = await investmentService.getAllInvestments({ page, limit, status, propertyId, userId });
+    const result = await investmentService.getAllInvestments({
+      page,
+      limit,
+      status,
+      search,
+      propertyId,
+      userId,
+    });
     return successResponse(res, 200, result, "All investments retrieved successfully.");
   } catch (err) {
     next(err);
@@ -241,19 +254,21 @@ async function approveInvestment(req, res, next) {
   try {
     const { id }  = req.params;
     const adminId = req.user.id;
+    const { amountReceived } = req.body || {}; // Default to {} if no body sent (full approval)
 
-    const investment = await investmentService.approveInvestment(adminId, id);
+    const investment = await investmentService.approveInvestment(adminId, id, amountReceived);
     
     // Send push notification
     if (investment && investment.userId) {
+      const isPartial = investment.status === "PARTIAL_PAID";
       sendPushNotification(
         investment.userId,
-        "Investment Approved 🎉",
-        "Your property investment has been approved!"
+        isPartial ? "Partial Payment Accepted 💰" : "Investment Approved 🎉",
+        isPartial ? `Your partial payment of ₹${amountReceived} was received. Please pay the remaining balance.` : "Your property investment has been approved!"
       );
     }
 
-    return successResponse(res, 200, investment, "Investment approved successfully.");
+    return successResponse(res, 200, investment, "Investment processed successfully.");
   } catch (err) {
     handleError(res, err, next);
   }
@@ -267,7 +282,7 @@ async function rejectInvestment(req, res, next) {
   try {
     const { id }    = req.params;
     const adminId   = req.user.id;
-    const { remark } = req.body;
+    const { remark } = req.body || {};
 
     const investment = await investmentService.rejectInvestment(adminId, id, remark);
 
@@ -286,20 +301,154 @@ async function rejectInvestment(req, res, next) {
   }
 }
 
+/**
+ * POST /user/investments/:id/pay-remaining
+ */
+async function payRemainingInvestment(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { paymentProofUrl } = req.body || {};
+
+    const investment = await investmentService.payRemainingInvestment(userId, id, paymentProofUrl);
+    return successResponse(res, 200, investment, "Payment proof uploaded and submitted for review.");
+  } catch (err) {
+    handleError(res, err, next);
+  }
+}
+
+/**
+ * POST /user/investments/:id/refund
+ */
+async function requestRefund(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { refundBankDetails } = req.body || {};
+
+    const investment = await investmentService.requestRefund(userId, id, refundBankDetails);
+    return successResponse(res, 200, investment, "Refund requested successfully. Our team will process it soon.");
+  } catch (err) {
+    handleError(res, err, next);
+  }
+}
+
+/**
+ * POST /user/investments/:id/request-withdrawal
+ */
+async function requestWithdrawal(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { refundBankDetails } = req.body || {};
+
+    const investment = await investmentService.requestWithdrawal(userId, id, refundBankDetails);
+    return successResponse(res, 200, investment, "Withdrawal requested successfully. Our team will process it soon.");
+  } catch (err) {
+    handleError(res, err, next);
+  }
+}
+
+/**
+ * POST /admin/investments/:id/refund
+ */
+async function processRefund(req, res, next) {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.id;
+    let refundProofUrl = req.body?.refundProofUrl;
+
+    if (req.file) {
+      refundProofUrl = await storageService.uploadFile(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        "refunds"
+      );
+    }
+
+    if (!refundProofUrl) {
+      return errorResponse(res, 400, "refundProofUrl or a file upload is required");
+    }
+
+    const investment = await investmentService.processRefund(adminId, id, refundProofUrl);
+    
+    // Remove agreementUrl from response
+    if (investment && investment.agreementUrl) {
+      delete investment.agreementUrl;
+    }
+    
+    // Send push notification
+    if (investment && investment.userId) {
+      sendPushNotification(
+        investment.userId,
+        "Refund Processed 💸",
+        "Your investment refund has been processed and units have been cancelled."
+      );
+    }
+
+    return successResponse(res, 200, investment, "Refund processed and units released.");
+  } catch (err) {
+    handleError(res, err, next);
+  }
+}
+
+/**
+ * POST /admin/investments/:id/process-withdrawal
+ */
+async function processWithdrawal(req, res, next) {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.id;
+    let paymentProofUrl = req.body?.paymentProofUrl;
+
+    if (req.file) {
+      paymentProofUrl = await storageService.uploadFile(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        "withdrawals"
+      );
+    }
+
+    if (!paymentProofUrl) {
+      return errorResponse(res, 400, "paymentProofUrl or a file upload is required");
+    }
+
+    const investment = await investmentService.processWithdrawal(adminId, id, paymentProofUrl);
+    
+    // Send push notification
+    if (investment && investment.userId) {
+      sendPushNotification(
+        investment.userId,
+        "Withdrawal Processed 💸",
+        "Your investment withdrawal has been processed and units have been released."
+      );
+    }
+
+    return successResponse(res, 200, investment, "Withdrawal processed and units released.");
+  } catch (err) {
+    handleError(res, err, next);
+  }
+}
+
 module.exports = {
-  // User
   createInvestment,
+  createInvestmentOnBehalf,
   signAdminInvestment,
-  cancelInvestment,
   getUserInvestments,
   getUserInvestmentById,
-  // Admin
-  createInvestmentOnBehalf,
-  getAllInvestments,
-  getInvestmentStats,
-  getInvestmentById,
+  cancelInvestment,
   getInvestmentsByProperty,
   getInvestmentsByUser,
+  getInvestmentStats,
+  getAllInvestments,
+  getInvestmentById,
   approveInvestment,
   rejectInvestment,
+  payRemainingInvestment,
+  requestRefund,
+  processRefund,
+  requestWithdrawal,
+  processWithdrawal,
 };

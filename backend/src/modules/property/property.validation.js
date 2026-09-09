@@ -1,7 +1,7 @@
 const { z } = require("zod");
 
 const VALID_STATUSES   = ["AVAILABLE", "SOLD", "UNDER_REVIEW", "COMING_SOON", "PENDING_APPROVAL", "REJECTED", "DRAFT"];
-const VALID_CATEGORIES = ["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "LAND"];
+const VALID_CATEGORIES = ["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "LAND", "OTHERS"];
 
 const createPropertySchema = z.object({
   body: z.object({
@@ -77,6 +77,7 @@ const createPropertySchema = z.object({
       errorMap: () => ({ message: `Please select a valid category (${VALID_CATEGORIES.join(", ")}).` }),
     }),
     youtubeVideoUrl: z.string().url("Must be a valid URL").optional(),
+    termPeriodYears: z.coerce.number().positive("Term period must be positive").optional(),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({}).passthrough().optional(),

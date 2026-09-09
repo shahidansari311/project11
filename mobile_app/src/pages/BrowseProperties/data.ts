@@ -1,5 +1,5 @@
 export type PropertyStatus = "AVAILABLE" | "SOLD" | "UNDER_REVIEW" | "COMING_SOON";
-export type PropertyCategory = "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "LAND";
+export type PropertyCategory = "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "LAND" | "OTHERS";
 
 export interface LocationObject {
   latitude: number;
@@ -31,10 +31,11 @@ export interface Property {
   createdAt: string;
   updatedAt: string;
   youtubeVideoUrl?: string;
+  termPeriodYears?: number;
   priceHistory?: { id: string; price: number; date: string }[];
 }
 
-export type InvestmentStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+export type InvestmentStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED" | "PARTIAL_PAID" | "REFUND_REQUESTED" | "REFUNDED";
 
 export interface Investment {
   id: string;
@@ -43,9 +44,18 @@ export interface Investment {
   units: number;
   unitPriceAtTime: number;
   totalAmount: number;
+  paidAmount: number;
   status: InvestmentStatus;
   paymentRef?: string;
+  paymentProofs?: string[];
+  refundProofUrl?: string;
+  agreementUrl?: string;
   adminRemark?: string;
+  refundBankDetails?: any;
+  maturityDate?: string;
+  isMatured?: boolean;
+  remainingTermString?: string;
+  currentValuation?: number;
   createdAt: string;
   updatedAt: string;
   property?: Pick<Property, "id" | "title" | "location" | "category" | "status" | "images"> & { priceHistory?: { id: string; price: number; date: string }[] };
@@ -65,7 +75,7 @@ export interface InvestmentInfo {
   maxInvestment: number;
 }
 
-export const CATEGORIES = ["ALL ASSETS", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "LAND"] as const;
+export const CATEGORIES = ["ALL ASSETS", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "LAND", "OTHERS"] as const;
 export type CategoryFilter = (typeof CATEGORIES)[number];
 
 export const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80"; // Generic placeholder

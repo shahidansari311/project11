@@ -366,6 +366,43 @@ async function getAllBuilders(req, res, next) {
   }
 }
 
+async function getBuilderById(req, res, next) {
+  try {
+    const { id } = req.params;
+    const builder = await authService.getUserById(id);
+
+    // Ensure the fetched user is actually a BUILDER
+    if (builder.role !== "BUILDER") {
+      return next(new (require("../../utils/AppError"))("Builder not found.", 404));
+    }
+
+    // Also fetch their properties
+    const prisma = require("../../config/db");
+    const properties = await prisma.property.findMany({
+      where: { builderId: id },
+      select: {
+        id: true,
+        title: true,
+        location: true,
+        status: true,
+        category: true,
+        perUnitPrice: true,
+        totalUnits: true,
+        purchasedUnits: true,
+        investors: true,
+        images: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return successResponse(res, 200, { ...builder, properties }, "Builder retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function createBuilderByAdmin(req, res, next) {
   try {
     const { fullName, phone, email, profileImage } = req.body;
@@ -383,4 +420,5 @@ async function createBuilderByAdmin(req, res, next) {
 }
 
 module.exports.getAllBuilders = getAllBuilders;
+module.exports.getBuilderById = getBuilderById;
 module.exports.createBuilderByAdmin = createBuilderByAdmin;

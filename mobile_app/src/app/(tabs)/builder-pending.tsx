@@ -37,10 +37,10 @@ export default function BuilderTab() {
   return (
     <BuilderPropertyListLayout
       title="Pending Review"
-      subtitle="SUBPending Review"
+      subtitle="Properties awaiting admin approval before going live."
       iconName="time"
       headerColor="#f59e0b"
-      emptyMessage="EMPTYPending Review"
+      emptyMessage="No Pending Properties"
       emptySubmessage="You do not have any properties waiting for admin review."
       properties={properties}
       isLoading={isLoading}

@@ -37,10 +37,10 @@ export default function BuilderTab() {
   return (
     <BuilderPropertyListLayout
       title="Rejected"
-      subtitle="SUBRejected"
+      subtitle="Properties that did not meet the approval criteria. Please review and resubmit."
       iconName="close-circle"
       headerColor="#ef4444"
-      emptyMessage="EMPTYRejected"
+      emptyMessage="No Rejected Properties"
       emptySubmessage="None of your properties have been rejected by the admin."
       properties={properties}
       isLoading={isLoading}

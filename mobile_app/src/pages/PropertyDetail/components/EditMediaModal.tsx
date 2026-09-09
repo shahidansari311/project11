@@ -17,7 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { Colors } from "@/constants/colors";
 import api from "../../../utils/api";
-import { Property } from "../../BrowseProperties/data";
+import { Property, CATEGORIES } from "../../BrowseProperties/data";
 import { youtubeUrlSchema } from "@/utils/validationSchemas";
 
 interface EditMediaModalProps {
@@ -29,13 +29,16 @@ interface EditMediaModalProps {
 
 export default function EditMediaModal({ visible, onClose, property, onUpdate }: EditMediaModalProps) {
   const [youtubeVideoUrl, setYoutubeVideoUrl] = useState(property.youtubeVideoUrl || "");
-  const [isUpdatingVideo, setIsUpdatingVideo] = useState(false);
+  const [title, setTitle] = useState(property.title || "");
+  const [category, setCategory] = useState(property.category);
+  const [isUpdatingInfo, setIsUpdatingInfo] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [deletingImage, setDeletingImage] = useState<string | null>(null);
 
   const [videoUrlError, setVideoUrlError] = useState("");
+  const [titleError, setTitleError] = useState("");
 
-  const handleUpdateVideo = async () => {
+  const handleUpdateInfo = async () => {
     if (youtubeVideoUrl) {
       const result = youtubeUrlSchema.safeParse(youtubeVideoUrl);
       if (!result.success) {
@@ -43,16 +46,21 @@ export default function EditMediaModal({ visible, onClose, property, onUpdate }:
         return;
       }
     }
+    
+    if (!title || title.trim().length < 5) {
+      setTitleError("Title must be at least 5 characters");
+      return;
+    }
 
-    setIsUpdatingVideo(true);
+    setIsUpdatingInfo(true);
     try {
-      await api.patch(`/builder/property/builder/${property.id}`, { youtubeVideoUrl });
-      Alert.alert("Success", "Video link updated successfully");
+      await api.patch(`/builder/property/builder/${property.id}`, { youtubeVideoUrl, title, category });
+      Alert.alert("Success", "Property info updated successfully");
       onUpdate();
     } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.message || "Failed to update video link");
+      Alert.alert("Error", error.response?.data?.message || "Failed to update info");
     } finally {
-      setIsUpdatingVideo(false);
+      setIsUpdatingInfo(false);
     }
   };
 
@@ -126,13 +134,43 @@ export default function EditMediaModal({ visible, onClose, property, onUpdate }:
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.overlay}>
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.title}>Edit Property Media</Text>
+            <Text style={styles.title}>Edit Property</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color={Colors.onSurface} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
+            {/* Video Section */}
+            <Text style={styles.sectionTitle}>PROPERTY TITLE</Text>
+            <View style={styles.videoRow}>
+              <TextInput
+                style={[styles.input, titleError ? { borderColor: Colors.error } : null]}
+                value={title}
+                onChangeText={(val) => {
+                  setTitle(val);
+                  if (titleError) setTitleError("");
+                }}
+                placeholder="Property Title"
+                placeholderTextColor="#9ca3af"
+              />
+            </View>
+            {titleError ? <Text style={{ color: Colors.error, fontSize: 12, marginTop: -20, marginBottom: 10 }}>{titleError}</Text> : null}
+
+            {/* Category Section */}
+            <Text style={styles.sectionTitle}>CATEGORY</Text>
+            <View style={styles.categoryRow}>
+              {CATEGORIES.filter(c => c !== "ALL ASSETS").map(cat => (
+                <TouchableOpacity 
+                  key={cat} 
+                  style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
+                  onPress={() => setCategory(cat as any)}
+                >
+                  <Text style={[styles.categoryChipText, category === cat && styles.categoryChipTextActive]}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             {/* Video Section */}
             <Text style={styles.sectionTitle}>YOUTUBE VIDEO LINK</Text>
             <View style={styles.videoRow}>
@@ -148,18 +186,18 @@ export default function EditMediaModal({ visible, onClose, property, onUpdate }:
                 autoCapitalize="none"
               />
               <TouchableOpacity
-                style={[styles.saveBtn, isUpdatingVideo && styles.disabledBtn]}
-                onPress={handleUpdateVideo}
-                disabled={isUpdatingVideo || youtubeVideoUrl === (property.youtubeVideoUrl || "")}
+                style={[styles.saveBtn, isUpdatingInfo && styles.disabledBtn]}
+                onPress={handleUpdateInfo}
+                disabled={isUpdatingInfo || (youtubeVideoUrl === (property.youtubeVideoUrl || "") && title === property.title && category === property.category)}
               >
-                {isUpdatingVideo ? (
+                {isUpdatingInfo ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.saveBtnText}>Save</Text>
+                  <Text style={styles.saveBtnText}>Save Info</Text>
                 )}
               </TouchableOpacity>
             </View>
-            {videoUrlError ? <Text style={{ color: Colors.error, fontSize: 12, marginTop: 4 }}>{videoUrlError}</Text> : null}
+            {videoUrlError ? <Text style={{ color: Colors.error, fontSize: 12, marginTop: -20, marginBottom: 10 }}>{videoUrlError}</Text> : null}
 
             {/* Images Section */}
             <View style={styles.imageHeaderRow}>
@@ -331,5 +369,31 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     width: "100%",
     textAlign: "center",
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 24,
+  },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  categoryChipActive: {
+    backgroundColor: '#ECFDF5',
+    borderColor: Colors.primary,
+  },
+  categoryChipText: {
+    fontSize: 12,
+    color: '#4b5563',
+    fontWeight: '600',
+  },
+  categoryChipTextActive: {
+    color: Colors.primary,
   },
 });

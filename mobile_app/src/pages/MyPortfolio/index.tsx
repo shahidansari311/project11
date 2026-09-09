@@ -17,7 +17,12 @@ import {
   Alert,
   Image,
   Animated,
+  Modal,
+  TextInput,
+  Linking,
 } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
+import { uploadService } from "../../services/upload.service";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -53,10 +58,15 @@ const STATUS_CONFIG: Record<
   InvestmentStatus,
   { label: string; bg: string; text: string; icon: string }
 > = {
-  PENDING:   { label: "Pending Approval", bg: "#FFF8E1", text: "#B8860B", icon: "time-outline" },
-  APPROVED:  { label: "Approved",         bg: "#E8F5E9", text: "#2E7D32", icon: "checkmark-circle-outline" },
-  REJECTED:  { label: "Rejected",         bg: "#FFEBEE", text: "#C62828", icon: "close-circle-outline" },
-  CANCELLED: { label: "Cancelled",        bg: "#F5F5F5", text: "#616161", icon: "ban-outline" },
+  PENDING:          { label: "Pending Approval",  bg: "#FFF8E1", text: "#B8860B", icon: "time-outline" },
+  APPROVED:         { label: "Approved",           bg: "#E8F5E9", text: "#2E7D32", icon: "checkmark-circle-outline" },
+  REJECTED:         { label: "Rejected",           bg: "#FFEBEE", text: "#C62828", icon: "close-circle-outline" },
+  CANCELLED:        { label: "Cancelled",          bg: "#F5F5F5", text: "#616161", icon: "ban-outline" },
+  PARTIAL_PAID:     { label: "Partial Paid",       bg: "#FFF3E0", text: "#E65100", icon: "wallet-outline" },
+  REFUND_REQUESTED: { label: "Refund Requested",   bg: "#FCE4EC", text: "#AD1457", icon: "return-down-back-outline" },
+  REFUNDED:         { label: "Refunded",           bg: "#F3E5F5", text: "#6A1B9A", icon: "checkmark-done-outline" },
+  WITHDRAWAL_REQUESTED: { label: "Withdrawal Requested", bg: "#E3F2FD", text: "#1565C0", icon: "cash-outline" },
+  WITHDRAWN:        { label: "Withdrawn",          bg: "#E8EAF6", text: "#283593", icon: "checkmark-done-outline" },
 };
 
 // ── Skeleton Loader ──
@@ -205,7 +215,122 @@ export default function MyPortfolioPage() {
     loadInvestments(true);
   };
 
-  // Removed handleCancel function as per requirements
+  // ── Partial Payment Modal State ──
+  const [selectedInv, setSelectedInv] = useState<Investment | null>(null);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [paymentProofUrl, setPaymentProofUrl] = useState("");
+  const [refundDetails, setRefundDetails] = useState({ accountName: "", bankName: "", accountNumber: "", ifscCode: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [activePayTab, setActivePayTab] = useState<"razorpay" | "bank">("razorpay");
+
+  const openPayModal = (inv: Investment) => { 
+    setSelectedInv(inv); 
+    setPaymentProofUrl(""); 
+    
+    // Check Razorpay limit (if remaining > 1,00,000, disable Razorpay and force bank)
+    const remaining = inv.totalAmount - (inv.paidAmount || 0);
+    setActivePayTab(remaining > 100000 ? "bank" : "razorpay");
+    
+    setShowPayModal(true); 
+  };
+  const openRefundModal = (inv: Investment) => { setSelectedInv(inv); setRefundDetails({ accountName: "", bankName: "", accountNumber: "", ifscCode: "" }); setShowRefundModal(true); };
+  const openWithdrawalModal = (inv: Investment) => { setSelectedInv(inv); setRefundDetails({ accountName: "", bankName: "", accountNumber: "", ifscCode: "" }); setShowWithdrawalModal(true); };
+
+  const handleUploadProof = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*"],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      setIsUploading(true);
+      const file = result.assets[0];
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      let mimeType = file.mimeType;
+      if (!mimeType) {
+        const ext = fileExt?.toLowerCase();
+        if (ext === 'pdf') mimeType = 'application/pdf';
+        else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+        else if (ext === 'png') mimeType = 'image/png';
+        else mimeType = 'application/octet-stream';
+      }
+
+      const response = await uploadService.uploadDocument(
+        file.uri,
+        mimeType,
+        fileName
+      );
+
+      setPaymentProofUrl(response.data.url);
+      Alert.alert("Uploaded", "Document uploaded successfully.");
+    } catch (err: any) {
+      console.log("Upload error:", err);
+      Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to upload document.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePayRemaining = async () => {
+    // If Razorpay tab is active, we just use a dummy URL for now, or real Razorpay if integrated. 
+    // Just like PaymentMethod, if it's Razorpay, proof url might be omitted or set to a placeholder
+    if (activePayTab === "bank" && !paymentProofUrl) {
+      return Alert.alert("Required", "Please upload your payment proof document.");
+    }
+    
+    setIsSubmitting(true);
+    try {
+      // For Razorpay we pass undefined or dummy, for bank we pass the URL
+      const proofToSubmit = activePayTab === "razorpay" ? "razorpay_direct_payment" : paymentProofUrl;
+      await investmentService.payRemainingInvestment(selectedInv!.id, proofToSubmit);
+      Alert.alert("Submitted ✅", activePayTab === "razorpay" ? "Payment processed via Razorpay." : "Your payment proof has been submitted for admin review.");
+      setShowPayModal(false);
+      loadInvestments(true);
+    } catch (e: any) {
+      Alert.alert("Error", e?.response?.data?.message || "Failed to submit.");
+    } finally { setIsSubmitting(false); }
+  };
+
+  const handleRequestRefund = async () => {
+    if (!selectedInv) return;
+    const { accountName, bankName, accountNumber, ifscCode } = refundDetails;
+    if (!accountName || !bankName || !accountNumber || !ifscCode) return Alert.alert("Required", "Please fill all bank details.");
+    setIsSubmitting(true);
+    try {
+      await investmentService.requestRefund(selectedInv.id, refundDetails);
+      Alert.alert("Requested ✅", "Your refund request has been submitted.");
+      setShowRefundModal(false);
+      loadInvestments(true);
+    } catch (e: any) {
+      Alert.alert("Error", e?.response?.data?.message || "Failed to submit.");
+    } finally { setIsSubmitting(false); }
+  };
+
+  const handleRequestWithdrawal = async () => {
+    if (!selectedInv) return;
+    const { accountName, bankName, accountNumber, ifscCode } = refundDetails;
+    if (!accountName || !bankName || !accountNumber || !ifscCode) return Alert.alert("Required", "Please fill all bank details.");
+    setIsSubmitting(true);
+    try {
+      await investmentService.requestWithdrawal(selectedInv.id, refundDetails);
+      Alert.alert("Requested ✅", "Your withdrawal request has been submitted.");
+      setShowWithdrawalModal(false);
+      loadInvestments(true);
+    } catch (e: any) {
+      Alert.alert("Error", e?.response?.data?.message || "Failed to submit.");
+    } finally { setIsSubmitting(false); }
+  };
 
   // ── Derived stats ──
   const approvedInvestments = investments.filter((i) => i.status === "APPROVED");
@@ -219,7 +344,7 @@ export default function MyPortfolioPage() {
       ? investments
       : investments.filter((i) => i.status === activeFilter);
 
-  const FILTERS: Array<InvestmentStatus | "ALL"> = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED"];
+  const FILTERS: Array<InvestmentStatus | "ALL"> = ["ALL", "PENDING", "APPROVED", "PARTIAL_PAID", "WITHDRAWAL_REQUESTED", "WITHDRAWN", "REFUND_REQUESTED", "REFUNDED", "REJECTED", "CANCELLED"];
 
   if (isLoading) {
     return <PortfolioSkeleton insets={insets} />;
@@ -316,7 +441,7 @@ export default function MyPortfolioPage() {
           </View>
         ) : (
           filteredInvestments.map((inv) => {
-            const cfg = STATUS_CONFIG[inv.status];
+            const cfg = STATUS_CONFIG[inv.status] ?? { label: inv.status, bg: "#F5F5F5", text: "#616161", icon: "help-circle-outline" };
             const img = inv.property?.images?.[0] ?? PLACEHOLDER_IMAGE;
 
             return (
@@ -358,35 +483,172 @@ export default function MyPortfolioPage() {
                   </View>
                 </View>
 
-                {/* Investment details */}
-                <View style={styles.detailGrid}>
-                  <View style={styles.detailCell}>
-                    <Text style={styles.detailLabel}>Units</Text>
-                    <Text style={styles.detailValue}>{inv.units}</Text>
+                {/* Investment details - HIDE IF REFUNDED OR REJECTED or CANCELLED */}
+                {inv.status !== "REFUNDED" && inv.status !== "REJECTED" && inv.status !== "CANCELLED" && (
+                  <View style={styles.detailGrid}>
+                    <View style={styles.detailCell}>
+                      <Text style={styles.detailLabel}>Units</Text>
+                      <Text style={styles.detailValue}>{inv.units}</Text>
+                    </View>
+                    <View style={styles.detailCell}>
+                      <Text style={styles.detailLabel}>Per Unit</Text>
+                      <Text style={styles.detailValue}>{formatCurrency(inv.unitPriceAtTime)}</Text>
+                    </View>
+                    <View style={styles.detailCell}>
+                      <Text style={styles.detailLabel}>Total</Text>
+                      <Text style={[styles.detailValue, styles.detailTotal]}>
+                        {formatCurrency(inv.totalAmount)}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.detailCell}>
-                    <Text style={styles.detailLabel}>Per Unit</Text>
-                    <Text style={styles.detailValue}>{formatCurrency(inv.unitPriceAtTime)}</Text>
+                )}
+
+                {/* ── Maturity Info ── */}
+                {inv.status === "APPROVED" && inv.maturityDate && (
+                  <View style={{ backgroundColor: "#F5F5F5", padding: 12, borderRadius: 8, marginBottom: 12 }}>
+                    <Text style={{ fontSize: 12, color: "#616161", fontWeight: "600", marginBottom: 4 }}>
+                      <Ionicons name="timer-outline" size={12} /> {inv.isMatured ? "Matured" : "Remaining Term"}
+                    </Text>
+                    <Text style={{ fontSize: 14, color: inv.isMatured ? "#2E7D32" : "#424242", fontWeight: "700" }}>
+                      {inv.remainingTermString}
+                    </Text>
+                    {inv.isMatured && (
+                      <TouchableOpacity
+                        style={{ backgroundColor: "#059669", paddingVertical: 8, paddingHorizontal: 16, borderRadius: 6, alignSelf: "flex-start", marginTop: 8 }}
+                        onPress={(e) => { e.stopPropagation?.(); openWithdrawalModal(inv); }}
+                      >
+                        <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>Request Withdrawal</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <View style={styles.detailCell}>
-                    <Text style={styles.detailLabel}>Total</Text>
-                    <Text style={[styles.detailValue, styles.detailTotal]}>
-                      {formatCurrency(inv.totalAmount)}
+                )}
+
+                {/* ── Partial Payment Section ── */}
+                {inv.status === "PARTIAL_PAID" && (() => {
+                  const paid = inv.paidAmount || 0;
+                  const remaining = inv.totalAmount - paid;
+                  const progress = Math.min(paid / inv.totalAmount, 1);
+                  return (
+                    <View style={styles.partialBox}>
+                      {/* Header */}
+                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                        <Ionicons name="wallet-outline" size={15} color="#E65100" />
+                        <Text style={styles.partialTitle}> Partial Payment Accepted</Text>
+                      </View>
+                      
+                      {/* Warning text */}
+                      <View style={{ backgroundColor: "#FFE0B2", padding: 8, borderRadius: 6, marginBottom: 10 }}>
+                        <Text style={{ fontSize: 11, color: "#BF360C", lineHeight: 16 }}>
+                          <Ionicons name="alert-circle" size={12} /> Please pay the remaining amount or request a refund within 7 days. Otherwise, the amount will not be refunded.
+                        </Text>
+                      </View>
+
+                      {/* Progress bar */}
+                      <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` as any }]} />
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
+                        <Text style={styles.partialMeta}>Paid: <Text style={{ color: "#2E7D32", fontWeight: "700" }}>{formatCurrency(paid)}</Text></Text>
+                        <Text style={styles.partialMeta}>Due: <Text style={{ color: "#C62828", fontWeight: "700" }}>{formatCurrency(remaining)}</Text></Text>
+                      </View>
+
+                      {/* Action buttons */}
+                      <View style={styles.partialActions}>
+                        <TouchableOpacity
+                          style={styles.payBtn}
+                          activeOpacity={0.8}
+                          onPress={(e) => { e.stopPropagation?.(); openPayModal(inv); }}
+                        >
+                          <Ionicons name="card-outline" size={14} color="#fff" />
+                          <Text style={styles.payBtnText}>Pay Remaining</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.refundBtn}
+                          activeOpacity={0.8}
+                          onPress={(e) => { e.stopPropagation?.(); openRefundModal(inv); }}
+                        >
+                          <Ionicons name="return-down-back-outline" size={14} color="#AD1457" />
+                          <Text style={styles.refundBtnText}>Request Refund</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })()}
+
+                {/* Refund Requested state */}
+                {inv.status === "REFUND_REQUESTED" && (
+                  <View style={[styles.partialBox, { backgroundColor: "#FCE4EC", borderColor: "#AD1457" }]}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Ionicons name="time-outline" size={15} color="#AD1457" />
+                      <Text style={[styles.partialTitle, { color: "#AD1457" }]}> Refund Request Submitted</Text>
+                    </View>
+                    <Text style={{ color: "#880E4F", fontSize: 12, marginTop: 6 }}>
+                      Amount: {formatCurrency(inv.paidAmount || 0)} — Our team is processing your refund.
                     </Text>
                   </View>
-                </View>
+                )}
 
+                {/* Refunded state */}
+                {inv.status === "REFUNDED" ? (
+                  <View style={[styles.partialBox, { backgroundColor: "#F3E5F5", borderColor: "#7B1FA2" }]}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Ionicons name="checkmark-done-outline" size={15} color="#6A1B9A" />
+                      <Text style={[styles.partialTitle, { color: "#6A1B9A" }]}> Refund Completed</Text>
+                    </View>
+                    <Text style={{ color: "#4A148C", fontSize: 12, marginTop: 6, marginBottom: 10 }}>
+                      {formatCurrency(inv.paidAmount || 0)} has been refunded to your bank account.
+                    </Text>
+                    {inv.refundProofUrl && (
+                      <TouchableOpacity
+                        style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#fff", padding: 8, borderRadius: 6, borderWidth: 1, borderColor: "#CE93D8", alignSelf: "flex-start" }}
+                        onPress={() => Linking.openURL(inv.refundProofUrl!)}
+                      >
+                        <Ionicons name="document-text-outline" size={14} color="#6A1B9A" />
+                        <Text style={{ fontSize: 12, color: "#6A1B9A", marginLeft: 6, fontWeight: "600" }}>View Refund Proof</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ) : null}
 
+                {/* Withdrawal Requested state */}
+                {inv.status === "WITHDRAWAL_REQUESTED" && (
+                  <View style={[styles.partialBox, { backgroundColor: "#E3F2FD", borderColor: "#1565C0" }]}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Ionicons name="time-outline" size={15} color="#1565C0" />
+                      <Text style={[styles.partialTitle, { color: "#1565C0" }]}> Withdrawal Request Submitted</Text>
+                    </View>
+                    <Text style={{ color: "#0D47A1", fontSize: 12, marginTop: 6 }}>
+                      Our team is processing your withdrawal to your bank account.
+                    </Text>
+                  </View>
+                )}
+
+                {/* Withdrawn state */}
+                {inv.status === "WITHDRAWN" ? (
+                  <View style={[styles.partialBox, { backgroundColor: "#E8EAF6", borderColor: "#283593" }]}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Ionicons name="checkmark-done-outline" size={15} color="#283593" />
+                      <Text style={[styles.partialTitle, { color: "#283593" }]}> Withdrawal Completed</Text>
+                    </View>
+                    <Text style={{ color: "#1A237E", fontSize: 12, marginTop: 6, marginBottom: 10 }}>
+                      Your funds have been transferred to your bank account.
+                    </Text>
+                    {inv.refundProofUrl && (
+                      <TouchableOpacity
+                        style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#fff", padding: 8, borderRadius: 6, borderWidth: 1, borderColor: "#9FA8DA", alignSelf: "flex-start" }}
+                        onPress={() => Linking.openURL(inv.refundProofUrl!)}
+                      >
+                        <Ionicons name="document-text-outline" size={14} color="#283593" />
+                        <Text style={{ fontSize: 12, color: "#283593", marginLeft: 6, fontWeight: "600" }}>View Payment Proof</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ) : null}
 
                 {/* Date + admin remark */}
                 <View style={styles.cardFooter}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.dateText}>{formatDate(inv.createdAt)}</Text>
-                    {inv.adminRemark && (
-                      <Text style={styles.remarkText}>
-                        Admin note: {inv.adminRemark}
-                      </Text>
-                    )}
                   </View>
                 </View>
 
@@ -409,6 +671,161 @@ export default function MyPortfolioPage() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* ── Pay Remaining Modal ── */}
+      <Modal visible={showPayModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Pay Remaining Balance</Text>
+            {selectedInv && (() => {
+              const remaining = selectedInv.totalAmount - (selectedInv.paidAmount || 0);
+              const isRazorpayDisabled = remaining > 100000;
+              return (
+                <View>
+                  <Text style={styles.modalSubtitle}>
+                    Remaining balance: <Text style={{fontWeight: "700", color: Colors.primary}}>{formatCurrency(remaining)}</Text>
+                  </Text>
+                  
+                  {/* Tabs */}
+                  <View style={styles.tabContainer}>
+                    <TouchableOpacity
+                      style={[styles.tabButton, activePayTab === "razorpay" && styles.tabButtonActive, isRazorpayDisabled && styles.tabButtonDisabled]}
+                      onPress={() => !isRazorpayDisabled && setActivePayTab("razorpay")}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.tabText, activePayTab === "razorpay" && styles.tabTextActive, isRazorpayDisabled && styles.tabTextDisabled]}>Pay via Razorpay</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.tabButton, activePayTab === "bank" && styles.tabButtonActive]}
+                      onPress={() => setActivePayTab("bank")}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.tabText, activePayTab === "bank" && styles.tabTextActive]}>Bank Transfer</Text>
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {isRazorpayDisabled && activePayTab === "razorpay" && (
+                     <Text style={{color: "red", fontSize: 12, marginBottom: 10}}>Razorpay is disabled for amounts > ₹1,00,000. Use Bank Transfer.</Text>
+                  )}
+
+                  {activePayTab === "bank" && (
+                    <View style={{ marginBottom: 16 }}>
+                      <Text style={styles.inputLabel}>Payment Proof Document</Text>
+                      {paymentProofUrl ? (
+                         <View style={{flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#E8F5E9", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#A5D6A7"}}>
+                           <Text style={{color: "#2E7D32", fontWeight: "600", fontSize: 13}}>Document Uploaded ✅</Text>
+                           <TouchableOpacity onPress={() => setPaymentProofUrl("")}><Ionicons name="close-circle" size={20} color="#2E7D32" /></TouchableOpacity>
+                         </View>
+                      ) : (
+                        <TouchableOpacity style={styles.uploadBtn} onPress={handleUploadProof} disabled={isUploading}>
+                          {isUploading ? <ActivityIndicator color={Colors.primary} /> : (
+                            <>
+                              <Ionicons name="cloud-upload-outline" size={20} color={Colors.primary} />
+                              <Text style={styles.uploadBtnText}>Upload PDF/Image</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                  
+                  {activePayTab === "razorpay" && !isRazorpayDisabled && (
+                    <View style={{ marginBottom: 16, backgroundColor: "#F3E5F5", padding: 16, borderRadius: 12, alignItems: "center" }}>
+                      <Ionicons name="shield-checkmark" size={28} color="#6A1B9A" />
+                      <Text style={{color: "#4A148C", marginTop: 8, textAlign: "center", fontSize: 13}}>
+                        You will be securely redirected to Razorpay to complete your transaction.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
+            
+            <View style={styles.modalRow}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowPayModal(false)} disabled={isSubmitting}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.submitBtn} onPress={handlePayRemaining} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Submit Proof</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Request Refund Modal ── */}
+      <Modal visible={showRefundModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Request Refund</Text>
+            {selectedInv && (
+              <Text style={styles.modalSubtitle}>
+                Enter your bank details to receive {formatCurrency(selectedInv.paidAmount || 0)} back.
+              </Text>
+            )}
+            {(["accountName", "bankName", "accountNumber", "ifscCode"] as const).map((field) => (
+              <View key={field} style={{ marginBottom: 12 }}>
+                <Text style={styles.inputLabel}>
+                  {field === "accountName" ? "Account Name" : field === "bankName" ? "Bank Name" : field === "accountNumber" ? "Account Number" : "IFSC Code"}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  value={refundDetails[field]}
+                  onChangeText={(t) => setRefundDetails(p => ({ ...p, [field]: t }))}
+                  keyboardType={field === "accountNumber" ? "number-pad" : "default"}
+                  autoCapitalize={field === "ifscCode" ? "characters" : "words"}
+                  placeholderTextColor={Colors.outline}
+                />
+              </View>
+            ))}
+            <View style={styles.modalRow}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowRefundModal(false)} disabled={isSubmitting}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.submitBtn, { backgroundColor: "#AD1457" }]} onPress={handleRequestRefund} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Request Refund</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Request Withdrawal Modal ── */}
+      <Modal visible={showWithdrawalModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Request Withdrawal</Text>
+            {selectedInv && (
+              <Text style={styles.modalSubtitle}>
+                Enter your bank details to receive your maturity payout.
+              </Text>
+            )}
+            {(["accountName", "bankName", "accountNumber", "ifscCode"] as const).map((field) => (
+              <View key={field} style={{ marginBottom: 12 }}>
+                <Text style={styles.inputLabel}>
+                  {field === "accountName" ? "Account Name" : field === "bankName" ? "Bank Name" : field === "accountNumber" ? "Account Number" : "IFSC Code"}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  value={refundDetails[field]}
+                  onChangeText={(t) => setRefundDetails(p => ({ ...p, [field]: t }))}
+                  keyboardType={field === "accountNumber" ? "number-pad" : "default"}
+                  autoCapitalize={field === "ifscCode" ? "characters" : "words"}
+                  placeholderTextColor={Colors.outline}
+                />
+              </View>
+            ))}
+            <View style={styles.modalRow}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowWithdrawalModal(false)} disabled={isSubmitting}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.submitBtn, { backgroundColor: "#059669" }]} onPress={handleRequestWithdrawal} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Submit Request</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -799,5 +1216,198 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceContainerLow,
     borderRadius: 12,
     marginBottom: 10,
-  }
+  },
+
+  // ── Partial Payment ──
+  partialBox: {
+    backgroundColor: "#FFF3E0",
+    borderWidth: 1,
+    borderColor: "#FFCC80",
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 10,
+  },
+  partialTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#E65100",
+  },
+  progressTrack: {
+    height: 7,
+    backgroundColor: "#FFE0B2",
+    borderRadius: 99,
+    overflow: "hidden",
+    marginTop: 8,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#FF6F00",
+    borderRadius: 99,
+  },
+  partialMeta: {
+    fontSize: 12,
+    color: "#6D4C41",
+  },
+  partialActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+  payBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+  },
+  payBtnText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  refundBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#FCE4EC",
+    borderWidth: 1,
+    borderColor: "#AD1457",
+    borderRadius: 10,
+    paddingVertical: 10,
+  },
+  refundBtnText: {
+    color: "#AD1457",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  // ── Modals ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: Colors.onSurface,
+    marginBottom: 6,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: Colors.outline,
+    marginBottom: 18,
+    lineHeight: 20,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.onSurfaceVariant,
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 14,
+    color: Colors.onSurface,
+    marginBottom: 14,
+    backgroundColor: Colors.surfaceContainerLowest,
+  },
+  modalRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
+  },
+  cancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.onSurfaceVariant,
+  },
+  submitBtn: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  submitBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  
+  // Modal tabs
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  tabButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  tabButtonDisabled: {
+    opacity: 0.5,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.onSurfaceVariant,
+  },
+  tabTextActive: {
+    color: "#fff",
+  },
+  tabTextDisabled: {
+    color: Colors.outline,
+  },
+  uploadBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderStyle: "dashed",
+    borderRadius: 10,
+    paddingVertical: 14,
+    backgroundColor: "#F5FDF9",
+  },
+  uploadBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.primary,
+  },
 });

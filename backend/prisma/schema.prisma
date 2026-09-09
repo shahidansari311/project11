@@ -83,6 +83,7 @@ model Property {
   purchasedUnits  Int                    @default(0) // sum of PENDING+APPROVED investments
   category        PropertyCategory
   youtubeVideoUrl String?
+  termPeriodYears Int?
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
   builderId       String?
@@ -136,6 +137,7 @@ enum PropertyCategory {
   COMMERCIAL
   INDUSTRIAL
   LAND
+  OTHERS
 }
 
 enum DocumentStatus {
@@ -153,9 +155,17 @@ model Investment {
   totalAmount     Float            // units × unitPriceAtTime
   status          InvestmentStatus @default(PENDING)
   paymentRef      String?          // future payment gateway reference
-  paymentProofUrl String?          // manual payment proof document URL
-  agreementUrl    String?          // generated PDF agreement URL
+  paymentProofs   String[]         @default([]) // array of payment proof URLs
+  signatureBase64 String?          // saved signature to generate PDF later
+  placeOfSignature String?         // saved place of signature
+  agreementUrl    String?          // generated PDF agreement URL (only set when APPROVED)
   adminRemark     String?          // admin note on approve/reject
+  paidAmount      Float            @default(0) // actual amount approved by admin
+  refundBankDetails Json?          // stored structured bank details for refund
+  refundProofUrl  String?          // admin's proof of refund payment
+  maturityDate    DateTime?        // calculated term maturity date
+  targetReturnAtTime Float         @default(0) // snapshot of property targetReturn
+  promisedReturnAmount Float       @default(0) // calculated promised return amount
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -168,8 +178,13 @@ model Investment {
 }
 
 enum InvestmentStatus {
-  PENDING    // user clicked pay — awaiting admin approval
-  APPROVED   // admin confirmed the investment
-  REJECTED   // admin rejected it (units released back)
-  CANCELLED  // user cancelled before admin acted (units released back)
+  PENDING           // user clicked pay — awaiting admin approval
+  PARTIAL_PAID      // admin accepted partial payment
+  APPROVED          // admin confirmed the full investment
+  REFUND_REQUESTED  // user requested a refund for partial payment
+  REFUNDED          // admin processed the refund
+  REJECTED          // admin rejected it (units released back)
+  CANCELLED         // user cancelled before admin acted (units released back)
+  WITHDRAWAL_REQUESTED // user requested withdrawal after maturity
+  WITHDRAWN
 }

@@ -19,6 +19,25 @@ function getPropertyModel() {
   return model;
 }
 
+/**
+ * Updates the 'investors' count on a property by counting unique users 
+ * who have an active investment (APPROVED or PARTIAL_PAID) in it.
+ */
+async function updatePropertyInvestorsCount(tx, propertyId) {
+  const uniqueInvestors = await tx.investment.groupBy({
+    by: ['userId'],
+    where: {
+      propertyId,
+      status: { in: ["APPROVED", "PARTIAL_PAID"] }
+    }
+  });
+
+  await tx.property.update({
+    where: { id: propertyId },
+    data: { investors: uniqueInvestors.length }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // User-facing services
 // ---------------------------------------------------------------------------
@@ -34,7 +53,7 @@ function getPropertyModel() {
  *  - Amount is snapshotted at current perUnitPrice.
  */
 async function createInvestment(userId, propertyId, units, paymentProofUrl, signatureBase64, placeOfSignature) {
-  // Pre-fetch user and property outside the transaction to generate the PDF
+  // Pre-fetch user and property outside the transaction
   const user = await prisma.user.findUnique({ where: { id: userId } });
   const propertyInfo = await prisma.property.findUnique({ where: { id: propertyId } });
 
@@ -50,36 +69,6 @@ async function createInvestment(userId, propertyId, units, paymentProofUrl, sign
   const remainingUnitsCheck = propertyInfo.totalUnits - propertyInfo.purchasedUnits;
   if (units > remainingUnitsCheck) {
     throw new Error(`You requested ${units} units but only ${remainingUnitsCheck} unit(s) are available`);
-  }
-
-  const totalAmount = units * propertyInfo.perUnitPrice;
-  let agreementUrl = null;
-
-  // Generate and upload PDF agreement if signature is provided
-  if (signatureBase64 && placeOfSignature) {
-    try {
-      const pdfBuffer = await generateAgreementPdf({
-        userName: user.fullName || "User",
-        userEmail: user.email || "N/A",
-        userPhone: user.phone || "N/A",
-        propertyTitle: propertyInfo.title,
-        units,
-        totalAmount,
-        placeOfSignature,
-        signatureBase64
-      });
-
-      // Upload to storage under 'agreements' folder
-      const filename = `agreement_${userId}_${propertyId}_${Date.now()}.pdf`;
-      agreementUrl = await storageService.uploadFile(
-        pdfBuffer,
-        filename,
-        "application/pdf",
-        "agreements"
-      );
-    } catch (err) {
-      throw new Error("Failed to generate or upload agreement PDF: " + err.message);
-    }
   }
 
   return prisma.$transaction(async (tx) => {
@@ -99,6 +88,9 @@ async function createInvestment(userId, propertyId, units, paymentProofUrl, sign
 
     const unitPriceAtTime = property.perUnitPrice;
     const finalTotalAmount = units * unitPriceAtTime;
+    
+    const targetReturnAtTime = property.targetReturn || 0;
+    const promisedReturnAmount = finalTotalAmount * (targetReturnAtTime / 100);
 
     // Create the investment record
     const investment = await tx.investment.create({
@@ -108,9 +100,13 @@ async function createInvestment(userId, propertyId, units, paymentProofUrl, sign
         units,
         unitPriceAtTime,
         totalAmount: finalTotalAmount,
-        paymentProofUrl,
-        agreementUrl,
+        paymentProofs: paymentProofUrl ? [paymentProofUrl] : [],
+        signatureBase64: signatureBase64 || null,
+        placeOfSignature: placeOfSignature || null,
+        agreementUrl: null, // Agreement is generated on APPROVAL
         status: "PENDING",
+        targetReturnAtTime,
+        promisedReturnAmount,
       },
       include: {
         property: { select: { id: true, title: true, location: true, perUnitPrice: true } },
@@ -157,6 +153,9 @@ async function createInvestmentOnBehalf(adminId, userId, propertyId, units) {
 
     const unitPriceAtTime = property.perUnitPrice;
     const finalTotalAmount = units * unitPriceAtTime;
+    
+    const targetReturnAtTime = property.targetReturn || 0;
+    const promisedReturnAmount = finalTotalAmount * (targetReturnAtTime / 100);
 
     // Create the investment record
     const investment = await tx.investment.create({
@@ -166,10 +165,14 @@ async function createInvestmentOnBehalf(adminId, userId, propertyId, units) {
         units,
         unitPriceAtTime,
         totalAmount: finalTotalAmount,
-        paymentProofUrl: "admin_cash",
+        paymentProofs: ["admin_cash"],
         paymentRef: "CASH",
+        signatureBase64: null,
+        placeOfSignature: null,
         agreementUrl: null, // User must sign later
         status: "APPROVED",
+        targetReturnAtTime,
+        promisedReturnAmount,
         adminRemark: `Created on behalf of user by admin ${adminId}`,
       },
       include: {
@@ -237,7 +240,11 @@ async function signAdminInvestment(userId, investmentId, signatureBase64, placeO
 
     return await prisma.investment.update({
       where: { id: investmentId },
-      data: { agreementUrl }
+      data: { 
+        agreementUrl,
+        signatureBase64,
+        placeOfSignature 
+      }
     });
   } catch (err) {
     throw new Error("Failed to generate or upload agreement PDF: " + err.message);
@@ -276,10 +283,16 @@ async function cancelInvestment(userId, investmentId) {
 /**
  * Get all investments belonging to a user (with pagination & optional status filter).
  */
-async function getUserInvestments(userId, { page = 1, limit = 20, status } = {}) {
+async function getUserInvestments(userId, { page = 1, limit = 20, status, search } = {}) {
   const skip  = (page - 1) * limit;
   const where = { userId };
   if (status) where.status = status;
+  
+  if (search && search.trim() !== "") {
+    where.property = {
+      title: { contains: search, mode: 'insensitive' }
+    };
+  }
 
   const [investments, total] = await Promise.all([
     getInvestmentModel().findMany({
@@ -302,7 +315,7 @@ async function getUserInvestments(userId, { page = 1, limit = 20, status } = {})
   ]);
 
   return {
-    investments,
+    investments: investments.map(enrichInvestment),
     pagination: {
       total,
       page,
@@ -325,7 +338,7 @@ async function getUserInvestmentById(userId, investmentId) {
         select: {
           id: true, title: true, location: true, category: true,
           status: true, perUnitPrice: true, totalUnits: true,
-          purchasedUnits: true, images: true,
+          purchasedUnits: true, images: true, targetReturn: true, termPeriodYears: true,
         },
       },
       user: { select: { id: true, fullName: true, phone: true, email: true } },
@@ -334,7 +347,66 @@ async function getUserInvestmentById(userId, investmentId) {
 
   if (!investment) throw new Error("Investment not found");
   if (investment.userId !== userId) throw new Error("You are not authorised to view this investment");
-  return investment;
+
+  return enrichInvestment(investment);
+}
+
+function enrichInvestment(investment) {
+  if (!investment) return investment;
+
+  let remainingTermString = null;
+  let isMatured = false;
+  let currentValuation = investment.totalAmount;
+
+  let effectiveMaturityDate = investment.maturityDate;
+  if (!effectiveMaturityDate && investment.createdAt && investment.property && investment.property.termPeriodYears) {
+    const fallbackDate = new Date(investment.createdAt);
+    fallbackDate.setFullYear(fallbackDate.getFullYear() + investment.property.termPeriodYears);
+    effectiveMaturityDate = fallbackDate;
+  }
+
+  if (effectiveMaturityDate) {
+    const now = new Date();
+    const maturity = new Date(effectiveMaturityDate);
+    
+    if (now >= maturity) {
+      isMatured = true;
+      remainingTermString = "0 Years, 0 Months, 0 Days";
+    } else {
+      let years = maturity.getFullYear() - now.getFullYear();
+      let months = maturity.getMonth() - now.getMonth();
+      let days = maturity.getDate() - now.getDate();
+
+      if (days < 0) {
+        months -= 1;
+        // get days in previous month
+        const prevMonth = new Date(maturity.getFullYear(), maturity.getMonth(), 0);
+        days += prevMonth.getDate();
+      }
+      if (months < 0) {
+        years -= 1;
+        months += 12;
+      }
+      remainingTermString = `${years} Years, ${months} Months, ${days} Days`;
+    }
+
+    if (investment.promisedReturnAmount) {
+      currentValuation = investment.totalAmount + investment.promisedReturnAmount;
+    } else if (investment.property && investment.property.targetReturn) {
+      // Fallback for old investments
+      const targetReturnDecimal = investment.property.targetReturn / 100;
+      currentValuation = investment.totalAmount + (investment.totalAmount * targetReturnDecimal);
+    }
+  }
+
+  return {
+    ...investment,
+    date: investment.createdAt, // Added explicitly for API response
+    maturityDate: effectiveMaturityDate,
+    remainingTermString,
+    isMatured,
+    currentValuation,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -346,38 +418,96 @@ async function getUserInvestmentById(userId, investmentId) {
  * Updates user.hasPurchasedProperty = true and increments property.investors count.
  * purchasedUnits stays as-is (already counted on creation).
  */
-async function approveInvestment(adminId, investmentId) {
+async function approveInvestment(adminId, investmentId, amountReceived) {
   return prisma.$transaction(async (tx) => {
     const investment = await tx.investment.findUnique({
       where: { id: investmentId },
       include: { user: true },
     });
 
-    if (!investment) throw new Error("Investment not found");
-    if (investment.status !== "PENDING") {
-      throw new Error(`Only PENDING investments can be approved (current status: ${investment.status})`);
+    if (!investment) throw new AppError("Investment not found", 404);
+    if (!["PENDING", "PARTIAL_PAID"].includes(investment.status)) {
+      throw new AppError(`Only PENDING or PARTIAL_PAID investments can receive payments (current status: ${investment.status})`, 400);
+    }
+
+    const received = Number(amountReceived) || 0;
+    
+    if (received < 0) {
+      throw new AppError("Amount received cannot be negative.", 400);
+    }
+
+    const remainingAmount = investment.totalAmount - investment.paidAmount;
+    if (received > remainingAmount) {
+      throw new AppError(`Amount received (₹${received}) cannot be greater than the remaining balance (₹${remainingAmount}).`, 400);
+    }
+
+    const newPaidAmount = investment.paidAmount + received;
+    
+    // Determine status based on cumulative payment
+    const finalStatus = newPaidAmount >= investment.totalAmount ? "APPROVED" : "PARTIAL_PAID";
+    
+    // If approved, calculate maturity date and generate agreement PDF
+    let maturityDate = null;
+    let newAgreementUrl = null;
+
+    if (finalStatus === "APPROVED") {
+      const property = await tx.property.findUnique({ where: { id: investment.propertyId } });
+      if (property && property.termPeriodYears) {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + property.termPeriodYears);
+        maturityDate = d;
+      }
+
+      // Generate PDF if not yet generated and user has signed
+      if (!investment.agreementUrl && investment.signatureBase64 && investment.placeOfSignature) {
+        try {
+          const pdfBuffer = await generateAgreementPdf({
+            userName: investment.user.fullName || "User",
+            userEmail: investment.user.email || "N/A",
+            userPhone: investment.user.phone || "N/A",
+            propertyTitle: property?.title || "Property",
+            units: investment.units,
+            totalAmount: investment.totalAmount,
+            placeOfSignature: investment.placeOfSignature,
+            signatureBase64: investment.signatureBase64
+          });
+
+          const filename = `agreement_${investment.userId}_${investment.propertyId}_${Date.now()}.pdf`;
+          newAgreementUrl = await storageService.uploadFile(
+            pdfBuffer,
+            filename,
+            "application/pdf",
+            "agreements"
+          );
+        } catch (err) {
+          console.error("Failed to generate agreement PDF on approval:", err.message);
+          // Non-fatal, admin can still approve, PDF generation might fail
+        }
+      }
     }
 
     const updated = await tx.investment.update({
       where: { id: investmentId },
-      data:  { status: "APPROVED" },
+      data:  { 
+        status: finalStatus,
+        paidAmount: newPaidAmount,
+        ...(maturityDate && { maturityDate }),
+        ...(newAgreementUrl && { agreementUrl: newAgreementUrl })
+      },
       include: {
         property: { select: { id: true, title: true, location: true } },
         user:     { select: { id: true, fullName: true, phone: true, email: true } },
       },
     });
 
-    // Mark user as having purchased property
+    // Mark user as having purchased property (if not already)
     await tx.user.update({
       where: { id: investment.userId },
       data:  { hasPurchasedProperty: true },
     });
 
-    // Increment the named-investor count on the property
-    await tx.property.update({
-      where: { id: investment.propertyId },
-      data:  { investors: { increment: 1 } },
-    });
+    // Dynamically update unique investors count
+    await updatePropertyInvestorsCount(tx, investment.propertyId);
 
     return updated;
   });
@@ -427,13 +557,22 @@ async function getAllInvestments({ page = 1, limit = 20, status, search, propert
   if (userId)     where.userId     = userId;
 
   if (search && search.trim() !== "") {
-    where.user = {
-      OR: [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
-      ],
-    };
+    where.OR = [
+      {
+        user: {
+          OR: [
+            { fullName: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+            { phone: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      },
+      {
+        property: {
+          title: { contains: search, mode: 'insensitive' }
+        }
+      }
+    ];
   }
 
   const [investments, total] = await Promise.all([
@@ -471,14 +610,14 @@ async function getAllInvestments({ page = 1, limit = 20, status, search, propert
     // Clean up documents from response and shape the user object properly
     const { documents, ...userWithoutDocs } = inv.user || {};
     
-    return {
+    return enrichInvestment({
       ...inv,
       user: {
         ...userWithoutDocs,
         profileImage: userWithoutDocs.profileUrl,
         isVerified
       }
-    };
+    });
   });
 
   return {
@@ -506,7 +645,7 @@ async function getInvestmentById(investmentId) {
     },
   });
   if (!investment) throw new Error("Investment not found");
-  return investment;
+  return enrichInvestment(investment);
 }
 
 /**
@@ -599,18 +738,164 @@ async function getInvestmentStats() {
   };
 }
 
+/**
+ * User uploads new payment proof for remaining amount
+ */
+async function payRemainingInvestment(userId, investmentId, paymentProofUrl) {
+  const investment = await getInvestmentModel().findUnique({ where: { id: investmentId } });
+  if (!investment) throw new AppError("Investment not found", 404);
+  if (investment.userId !== userId) throw new AppError("Not authorized", 403);
+  if (investment.status !== "PARTIAL_PAID") {
+    throw new AppError("You can only pay remaining balance on partially paid investments", 400);
+  }
+
+  const newProofs = investment.paymentProofs ? [...investment.paymentProofs, paymentProofUrl] : [paymentProofUrl];
+
+  return getInvestmentModel().update({
+    where: { id: investmentId },
+    data: {
+      status: "PENDING",
+      paymentProofs: newProofs,
+    },
+    include: { property: { select: { title: true } } },
+  });
+}
+
+/**
+ * User requests a refund for a partially paid investment
+ */
+async function requestRefund(userId, investmentId, refundBankDetails) {
+  const investment = await getInvestmentModel().findUnique({ where: { id: investmentId } });
+  if (!investment) throw new AppError("Investment not found", 404);
+  if (investment.userId !== userId) throw new AppError("Not authorized", 403);
+  if (investment.status !== "PARTIAL_PAID") {
+    throw new AppError("You can only request a refund on partially paid investments", 400);
+  }
+
+  return getInvestmentModel().update({
+    where: { id: investmentId },
+    data: {
+      status: "REFUND_REQUESTED",
+      refundBankDetails,
+    },
+  });
+}
+
+/**
+ * User requests withdrawal after the investment term has matured
+ */
+async function requestWithdrawal(userId, investmentId, refundBankDetails) {
+  const investment = await getInvestmentModel().findUnique({ 
+    where: { id: investmentId },
+    include: {
+      property: true
+    }
+  });
+  if (!investment) throw new AppError("Investment not found", 404);
+  if (investment.userId !== userId) throw new AppError("Not authorized", 403);
+  if (investment.status !== "APPROVED") {
+    throw new AppError("You can only request withdrawal for APPROVED investments", 400);
+  }
+  if (!investment.maturityDate || new Date() < new Date(investment.maturityDate)) {
+    throw new AppError("Investment has not matured yet", 400);
+  }
+
+  return getInvestmentModel().update({
+    where: { id: investmentId },
+    data: {
+      status: "WITHDRAWAL_REQUESTED",
+      refundBankDetails,
+      adminRemark: "User requested withdrawal upon maturity"
+    },
+  });
+}
+
+/**
+ * Admin processes the refund and releases units
+ */
+async function processRefund(adminId, investmentId, refundProofUrl) {
+  return prisma.$transaction(async (tx) => {
+    const investment = await tx.investment.findUnique({
+      where: { id: investmentId },
+    });
+
+    if (!investment) throw new AppError("Investment not found", 404);
+    if (investment.status !== "REFUND_REQUESTED") {
+      throw new AppError(`Cannot refund investment with status: ${investment.status}`, 400);
+    }
+
+    const updated = await tx.investment.update({
+      where: { id: investmentId },
+      data: { status: "REFUNDED", refundProofUrl },
+    });
+
+    // Release units back to property
+    await tx.property.update({
+      where: { id: investment.propertyId },
+      data: { 
+        purchasedUnits: { decrement: investment.units },
+      },
+    });
+    
+    // Dynamically update unique investors count
+    await updatePropertyInvestorsCount(tx, investment.propertyId);
+
+    return updated;
+  });
+}
+
+/**
+ * Admin processes the withdrawal and releases units
+ */
+async function processWithdrawal(adminId, investmentId, paymentProofUrl) {
+  return prisma.$transaction(async (tx) => {
+    const investment = await tx.investment.findUnique({
+      where: { id: investmentId },
+    });
+
+    if (!investment) throw new AppError("Investment not found", 404);
+    if (investment.status !== "WITHDRAWAL_REQUESTED") {
+      throw new AppError(`Cannot process withdrawal for investment with status: ${investment.status}`, 400);
+    }
+
+    const updated = await tx.investment.update({
+      where: { id: investmentId },
+      // Re-using refundProofUrl to store the withdrawal payment proof
+      data: { status: "WITHDRAWN", refundProofUrl: paymentProofUrl },
+    });
+
+    // Release units back to property
+    await tx.property.update({
+      where: { id: investment.propertyId },
+      data: { 
+        purchasedUnits: { decrement: investment.units },
+      },
+    });
+    
+    // Dynamically update unique investors count
+    await updatePropertyInvestorsCount(tx, investment.propertyId);
+
+    return updated;
+  });
+}
+
 module.exports = {
   createInvestment,
   createInvestmentOnBehalf,
   signAdminInvestment,
-  cancelInvestment,
   getUserInvestments,
   getUserInvestmentById,
-  getAllInvestments,
-  getInvestmentStats,
-  getInvestmentById,
+  cancelInvestment,
   getInvestmentsByProperty,
   getInvestmentsByUser,
+  getInvestmentStats,
+  getAllInvestments,
+  getInvestmentById,
   approveInvestment,
   rejectInvestment,
+  payRemainingInvestment,
+  requestRefund,
+  processRefund,
+  requestWithdrawal,
+  processWithdrawal,
 };

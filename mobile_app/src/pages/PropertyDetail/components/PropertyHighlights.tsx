@@ -44,6 +44,13 @@ export default function PropertyHighlights({ property }: PropertyHighlightsProps
             <Text style={styles.quickStatText}>{property.totalUnits} Units</Text>
           </View>
         )}
+
+        {property.termPeriodYears ? (
+          <View style={styles.quickStatChip}>
+            <Ionicons name="time-outline" size={14} color={Colors.primary} />
+            <Text style={styles.quickStatText}>{property.termPeriodYears} Years Term</Text>
+          </View>
+        ) : null}
       </View>
 
       {/* ── High-Contrast Highlight Grid ── */}
@@ -70,6 +77,7 @@ const styles = StyleSheet.create({
   // ── Quick Info Chips ──
   quickStatsRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     paddingHorizontal: 20,
     gap: 10,
     marginBottom: 16,

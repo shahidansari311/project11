@@ -47,6 +47,13 @@ router.put("/admin/users/:id", verifyAuth, requireRole("admin"), imageUpload.sin
 router.patch("/admin/users/:id", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(adminUpdateUserSchema), authController.updateUserByAdmin);
 router.delete("/admin/users/:id", verifyAuth, requireRole("admin"), authController.deleteUserByAdmin);
 
+// Admin builder routes
+router.get("/admin/builders", verifyAuth, requireRole("admin"), authController.getAllBuilders);
+router.post("/admin/builders", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(adminCreateUserSchema), authController.createBuilderByAdmin);
+router.get("/admin/builders/:id", verifyAuth, requireRole("admin"), authController.getBuilderById);
+router.patch("/admin/builders/:id", verifyAuth, requireRole("admin"), imageUpload.single("profileImage"), uploadProfileImage, validate(adminUpdateUserSchema), authController.updateUserByAdmin);
+router.delete("/admin/builders/:id", verifyAuth, requireRole("admin"), authController.deleteUserByAdmin);
+
 
 const propertyController = require("../modules/property/property.controller");
 

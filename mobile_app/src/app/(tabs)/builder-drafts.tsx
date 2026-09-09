@@ -37,10 +37,10 @@ export default function BuilderTab() {
   return (
     <BuilderPropertyListLayout
       title="Drafts"
-      subtitle="SUBDrafts"
+      subtitle="Saved but unpublished listings. Complete and submit them for review."
       iconName="document-text"
       headerColor="#6366f1"
-      emptyMessage="EMPTYDrafts"
+      emptyMessage="No Drafts Yet"
       emptySubmessage="You do not have any unpublished property drafts."
       properties={properties}
       isLoading={isLoading}

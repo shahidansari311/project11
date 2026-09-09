@@ -82,5 +82,14 @@ export const propertyService = {
       },
     });
     return response.data;
+  },
+
+  async updateBuilderProperty(id: string, data: FormData): Promise<{ data: Property; message: string }> {
+    const response = await api.patch(`/builder/property/builder/${id}`, data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
   }
 };

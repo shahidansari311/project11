@@ -54,7 +54,7 @@ export default function BuilderPropertyListLayout({
           <View style={styles.listContainer}>
             {properties.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Ionicons name="documents-outline" size={64} color={Colors.textLight + "50"} style={styles.emptyIcon} />
+                <Ionicons name="documents-outline" size={64} color={Colors.onSurfaceVariant + "50"} style={styles.emptyIcon} />
                 <Text style={styles.emptyTitle}>{emptyMessage}</Text>
                 <Text style={styles.emptySubtitle}>{emptySubmessage}</Text>
               </View>
@@ -110,13 +110,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: Colors.text,
+    color: Colors.onSurface,
     marginBottom: 8,
     textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 14,
-    color: Colors.textLight,
+    color: Colors.onSurfaceVariant,
     textAlign: "center",
     lineHeight: 22,
   },

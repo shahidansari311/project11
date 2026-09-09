@@ -1,14 +1,15 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList, BackHandler } from "react-native";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList, BackHandler, KeyboardAvoidingView, Platform, Keyboard, Modal, Animated } from "react-native";
 import { propertyService } from "@/services/property.service";
 import { Colors } from "@/constants/colors";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { WebView } from "react-native-webview";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { addPropertySchema } from "@/utils/validationSchemas";
+import BouncingDots from "@/components/BouncingDots";
 
 const CATEGORIES = [
   { id: "RESIDENTIAL", label: "Residential" },
@@ -20,6 +21,9 @@ const CATEGORIES = [
 
 export default function BuilderAddTab() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ draftId?: string }>();
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [isLoadingDraft, setIsLoadingDraft] = useState(false);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -48,9 +52,124 @@ export default function BuilderAddTab() {
   const [isSearching, setIsSearching] = useState(false);
   const [isLocatingGPS, setIsLocatingGPS] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const initialCoordsRef = useRef({ latitude: 28.6139, longitude: 77.2090 });
   
+  const scrollRef = useRef<ScrollView>(null);
   const webViewRef = useRef<WebView>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [submitStep, setSubmitStep] = useState("Preparing submission...");
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Load draft data if draftId is provided
+  useEffect(() => {
+    if (params.draftId) {
+      setEditingDraftId(params.draftId);
+      setIsLoadingDraft(true);
+      propertyService.getPropertyById(params.draftId)
+        .then((res) => {
+          const p = res?.data;
+          if (p) {
+            let loc: any = {};
+            if (typeof p.location === "string") {
+              try {
+                loc = JSON.parse(p.location);
+              } catch (e) {
+                loc = { address: p.location };
+              }
+            } else if (p.location && typeof p.location === "object") {
+              loc = p.location;
+            }
+
+            const lat = Number(loc.latitude) || 28.6139;
+            const lon = Number(loc.longitude) || 77.2090;
+
+            setFormData({
+              title: p.title || "",
+              description: p.description || "",
+              address: loc.address || "",
+              city: loc.city || "",
+              state: loc.state || "",
+              postalCode: loc.postalCode || "",
+              totalSize: p.totalUnits ? p.totalUnits.toString() : (p.totalSize ? p.totalSize.toString() : ""),
+              totalPrice: p.totalPrice ? p.totalPrice.toString() : (p.minInvestment ? p.minInvestment.toString() : ""),
+              targetReturn: p.targetReturn ? p.targetReturn.toString() : "",
+              category: p.category || "RESIDENTIAL",
+              youtubeVideoUrl: (p as any).youtubeVideoUrl || "",
+              latitude: lat,
+              longitude: lon,
+            });
+
+            if (p.images && Array.isArray(p.images)) {
+              setImages(p.images);
+            }
+
+            setTimeout(() => {
+              webViewRef.current?.injectJavaScript(`
+                if (typeof map !== 'undefined') {
+                  map.flyTo([${lat}, ${lon}], 17, { animate: true, duration: 1.0 });
+                }
+                true;
+              `);
+            }, 600);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load draft property:", err);
+        })
+        .finally(() => {
+          setIsLoadingDraft(false);
+          setHasUnsavedChanges(false);
+        });
+    }
+  }, [params.draftId]);
+
+  useEffect(() => {
+    let animLoop: Animated.CompositeAnimation | null = null;
+    if (isSubmitting) {
+      animLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.15, duration: 700, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+        ])
+      );
+      animLoop.start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+    return () => {
+      if (animLoop) animLoop.stop();
+    };
+  }, [isSubmitting, pulseAnim]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const scrollToInput = (yOffset: number) => {
+    scrollRef.current?.scrollTo({ y: yOffset, animated: true });
+  };
+
+  const handleZoomIn = () => {
+    webViewRef.current?.injectJavaScript(`if (typeof map !== 'undefined') { map.zoomIn(); } true;`);
+  };
+
+  const handleZoomOut = () => {
+    webViewRef.current?.injectJavaScript(`if (typeof map !== 'undefined') { map.zoomOut(); } true;`);
+  };
 
   // Mark as unsaved on any change
   useEffect(() => {
@@ -133,9 +252,11 @@ export default function BuilderAddTab() {
     setSearchQuery(item.display_name);
     setSearchResults([]);
     
-    // Fly map to new location
+    // Fly map to new location with street-level zoom (17)
     webViewRef.current?.injectJavaScript(`
-      map.flyTo([${lat}, ${lon}], 16);
+      if (typeof map !== 'undefined') {
+        map.flyTo([${lat}, ${lon}], 17, { animate: true, duration: 1.2 });
+      }
       true;
     `);
     fetchAddressFromCoords(lat, lon);
@@ -150,12 +271,15 @@ export default function BuilderAddTab() {
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const lat = location.coords.latitude;
       const lon = location.coords.longitude;
       
+      // Fly map to live GPS location with street-level zoom (17)
       webViewRef.current?.injectJavaScript(`
-        map.flyTo([${lat}, ${lon}], 16);
+        if (typeof map !== 'undefined') {
+          map.flyTo([${lat}, ${lon}], 17, { animate: true, duration: 1.2 });
+        }
         true;
       `);
       fetchAddressFromCoords(lat, lon);
@@ -200,20 +324,37 @@ export default function BuilderAddTab() {
   };
 
   const handleSubmit = async (submitStatus: "PENDING_APPROVAL" | "DRAFT") => {
-    if (!validateForm()) {
-      Alert.alert("Validation Error", "Please check the highlighted fields.");
-      return;
+    if (submitStatus === "PENDING_APPROVAL") {
+      if (!validateForm()) {
+        Alert.alert("Validation Error", "Please fill all required fields before submitting for approval.");
+        return;
+      }
+    } else {
+      if (!formData.title.trim()) {
+        Alert.alert("Title Required", "Please enter at least a Property Title to save as a draft.");
+        return;
+      }
     }
     
     setIsSubmitting(true);
+    setSubmitStep(submitStatus === "DRAFT" ? (editingDraftId ? "Updating draft property..." : "Saving draft property...") : "Uploading property photos & media...");
+
+    const step1Timer = setTimeout(() => {
+      setSubmitStep("Processing coordinates & valuation data...");
+    }, 1500);
+
+    const step2Timer = setTimeout(() => {
+      setSubmitStep(submitStatus === "DRAFT" ? "Saving draft listing..." : "Submitting listing for admin verification...");
+    }, 3200);
+
     try {
       const data = new FormData();
       
       const locationObj = {
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        postalCode: formData.postalCode,
+        address: formData.address || "Draft Location",
+        city: formData.city || "",
+        state: formData.state || "",
+        postalCode: formData.postalCode || "",
         latitude: formData.latitude,
         longitude: formData.longitude
       };
@@ -227,19 +368,26 @@ export default function BuilderAddTab() {
       data.append('status', submitStatus);
 
       images.forEach((uri, index) => {
-        const filename = uri.split('/').pop() || `image_${index}.jpg`;
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image/jpeg`;
-        data.append("images", { uri, name: filename, type } as any);
+        if (uri.startsWith("http://") || uri.startsWith("https://")) {
+          data.append("images", uri);
+        } else {
+          const filename = uri.split('/').pop() || `image_${index}.jpg`;
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : `image/jpeg`;
+          data.append("images", { uri, name: filename, type } as any);
+        }
       });
       
-      await propertyService.addBuilderProperty(data);
-      setHasUnsavedChanges(false); // Clear dirty state
+      if (editingDraftId) {
+        await propertyService.updateBuilderProperty(editingDraftId, data);
+      } else {
+        await propertyService.addBuilderProperty(data);
+      }
+      setHasUnsavedChanges(false);
       
       if (submitStatus === "DRAFT") {
-        Alert.alert("Saved", "Property saved as Draft.");
-        // If there was a drafts tab we'd go there, for now just go pending or clear
-        router.replace("/(tabs)/builder-pending");
+        Alert.alert("Draft Saved", "Property saved to your Drafts tab successfully.");
+        router.replace("/(tabs)/builder-drafts");
       } else {
         Alert.alert("Success", "Property submitted for admin verification.");
         router.replace("/(tabs)/builder-pending");
@@ -248,6 +396,8 @@ export default function BuilderAddTab() {
     } catch (error: any) {
       Alert.alert("Submission Failed", error?.response?.data?.message || "An error occurred.");
     } finally {
+      clearTimeout(step1Timer);
+      clearTimeout(step2Timer);
       setIsSubmitting(false);
     }
   };
@@ -256,63 +406,170 @@ export default function BuilderAddTab() {
   const numUnits = Number(formData.totalSize) || 0;
   const perUnitPrice = numUnits > 0 ? numPrice / numUnits : 0;
 
-  const mapHtml = `
+  const mapHtml = useMemo(() => `
     <!DOCTYPE html>
     <html>
     <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <style>
-            body { padding: 0; margin: 0; }
+            * { box-sizing: border-box; }
+            body { padding: 0; margin: 0; background: #F3F4F6; }
             html, body, #map { height: 100%; width: 100%; }
             #crosshair {
                 position: absolute;
                 top: 50%;
                 left: 50%;
-                margin-left: -15px;
-                margin-top: -30px;
-                font-size: 30px;
+                margin-left: -16px;
+                margin-top: -32px;
+                font-size: 32px;
                 z-index: 1000;
                 pointer-events: none;
+                filter: drop-shadow(0 2px 5px rgba(0,0,0,0.35));
+            }
+            .zoom-controls {
+                position: absolute;
+                bottom: 14px;
+                right: 14px;
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .zoom-btn {
+                width: 42px;
+                height: 42px;
+                background: #FFFFFF;
+                border: 1px solid #D1D5DB;
+                border-radius: 10px;
+                font-size: 24px;
+                font-weight: bold;
+                color: #111827;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                outline: none;
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
+            }
+            .zoom-btn:active {
+                background: #E5E7EB;
+                transform: scale(0.92);
+            }
+            .zoom-badge {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                background: rgba(255, 255, 255, 0.95);
+                border: 1px solid #E5E7EB;
+                border-radius: 6px;
+                padding: 4px 10px;
+                font-size: 11px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                font-weight: 700;
+                color: #374151;
+                z-index: 1000;
+                pointer-events: none;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.08);
             }
         </style>
     </head>
     <body>
         <div id="map"></div>
         <div id="crosshair">📍</div>
+        <div id="zoom-badge" class="zoom-badge">Zoom: 14x</div>
+        <div class="zoom-controls">
+            <button type="button" class="zoom-btn" onclick="map.zoomIn()" aria-label="Zoom In">+</button>
+            <button type="button" class="zoom-btn" onclick="map.zoomOut()" aria-label="Zoom Out">−</button>
+        </div>
         <script>
-            var map = L.map('map', {zoomControl: true}).setView([${formData.latitude}, ${formData.longitude}], 13);
+            var map = L.map('map', {
+                center: [${initialCoordsRef.current.latitude}, ${initialCoordsRef.current.longitude}],
+                zoom: 14,
+                minZoom: 3,
+                maxZoom: 19,
+                zoomControl: false,
+                attributionControl: false,
+                touchZoom: true,
+                scrollWheelZoom: true,
+                doubleClickZoom: true,
+                boxZoom: true,
+                dragging: true
+            });
+
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                maxNativeZoom: 19,
                 attribution: '© OSM'
             }).addTo(map);
 
+            function updateZoomBadge() {
+                var z = map.getZoom();
+                var badge = document.getElementById('zoom-badge');
+                if (badge) badge.innerText = 'Zoom: ' + z + 'x';
+            }
+
+            map.on('zoomend', updateZoomBadge);
+
+            map.on('click', function(e) {
+                map.panTo(e.latlng, { animate: true });
+            });
+
             map.on('moveend', function() {
                 var center = map.getCenter();
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                    lat: center.lat,
-                    lon: center.lng
-                }));
+                var zoom = map.getZoom();
+                updateZoomBadge();
+                if (window.ReactNativeWebView) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                        lat: center.lat,
+                        lon: center.lng,
+                        zoom: zoom
+                    }));
+                }
             });
         </script>
     </body>
     </html>
-  `;
+  `, []);
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" nestedScrollEnabled={true}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: "#F3F4F6" }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+    >
+      <ScrollView
+        ref={scrollRef}
+        style={styles.root}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : 160 }
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+        nestedScrollEnabled={true}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.headerTitle}>Add Property</Text>
-          <Text style={styles.headerSubtitle}>Create a new listing</Text>
+          <Text style={styles.headerTitle}>
+            {editingDraftId ? "Edit Draft Listing" : "Add Property"}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            {editingDraftId ? "Update your saved draft or submit it for review" : "Create a new listing"}
+          </Text>
         </View>
         <TouchableOpacity 
           style={styles.cancelBtn}
           onPress={() => {
             if (hasUnsavedChanges) {
               Alert.alert(
-                "Cancel Creation?",
-                "You have unsaved changes. Are you sure you want to cancel?",
+                "Discard Changes?",
+                "You have unsaved changes. Are you sure you want to exit?",
                 [
                   { text: "No", style: "cancel" },
                   { text: "Yes, Discard", style: "destructive", onPress: () => router.back() }
@@ -326,6 +583,26 @@ export default function BuilderAddTab() {
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Draft Banner if editing draft */}
+      {editingDraftId && (
+        <View style={styles.draftEditBanner}>
+          <Ionicons name="document-text" size={18} color="#4F46E5" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.draftEditBannerTitle}>Editing Saved Draft</Text>
+            <Text style={styles.draftEditBannerText}>
+              You can update any field, save changes as draft, or submit for approval.
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {isLoadingDraft && (
+        <View style={styles.loadingDraftCard}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+          <Text style={styles.loadingDraftText}>Loading draft details...</Text>
+        </View>
+      )}
       
       {/* Basic Info */}
       <View style={styles.card}>
@@ -338,8 +615,10 @@ export default function BuilderAddTab() {
           <Text style={styles.label}>Property Title *</Text>
           <TextInput 
             style={[styles.input, errors.title && styles.inputError]} 
-            placeholder="e.g. Silver Heights Luxury Apartments"
+            placeholder="e.g. Silver Heights 3BHK Luxury Apartments"
+            placeholderTextColor="#9CA3AF"
             value={formData.title}
+            onFocus={() => scrollToInput(0)}
             onChangeText={(val) => {
               setFormData(prev => ({...prev, title: val}));
               if (errors.title) setErrors(prev => ({ ...prev, title: "" }));
@@ -369,11 +648,13 @@ export default function BuilderAddTab() {
           <Text style={styles.label}>Description *</Text>
           <TextInput 
             style={[styles.input, styles.textArea, errors.description && styles.inputError]} 
-            placeholder="Provide a detailed overview of the property..."
+            placeholder="Detailed overview: key features, floor area, luxury amenities, road access, and builder specifications..."
+            placeholderTextColor="#9CA3AF"
             multiline
             numberOfLines={4}
             textAlignVertical="top"
             value={formData.description}
+            onFocus={() => scrollToInput(120)}
             onChangeText={(val) => {
               setFormData(prev => ({...prev, description: val}));
               if (errors.description) setErrors(prev => ({ ...prev, description: "" }));
@@ -386,8 +667,10 @@ export default function BuilderAddTab() {
           <Text style={styles.label}>YouTube Video / Virtual Tour URL</Text>
           <TextInput 
             style={[styles.input, errors.youtubeVideoUrl && styles.inputError]} 
-            placeholder="https://youtube.com/watch?v=..."
+            placeholder="e.g. https://www.youtube.com/watch?v=xyz123 (Optional)"
+            placeholderTextColor="#9CA3AF"
             value={formData.youtubeVideoUrl}
+            onFocus={() => scrollToInput(250)}
             onChangeText={(val) => {
               setFormData(prev => ({...prev, youtubeVideoUrl: val}));
               if (errors.youtubeVideoUrl) setErrors(prev => ({ ...prev, youtubeVideoUrl: "" }));
@@ -408,12 +691,28 @@ export default function BuilderAddTab() {
           <View style={styles.searchInputContainer}>
             <Ionicons name="search" size={16} color="#9CA3AF" style={styles.searchIcon} />
             <TextInput
-              style={styles.searchInput}
-              placeholder="Search address, city..."
+              style={[styles.searchInput, searchQuery.length > 0 && { paddingRight: 36 }]}
+              placeholder="Search area, landmark, street, city or PIN code..."
+              placeholderTextColor="#9CA3AF"
               value={searchQuery}
+              onFocus={() => scrollToInput(400)}
               onChangeText={handleSearchChange}
             />
-            {isSearching && <ActivityIndicator size="small" color={Colors.primary} style={styles.searchLoader} />}
+            {isSearching ? (
+              <ActivityIndicator size="small" color={Colors.primary} style={styles.searchLoader} />
+            ) : searchQuery.length > 0 ? (
+              <TouchableOpacity
+                style={styles.clearSearchBtn}
+                onPress={() => {
+                  setSearchQuery("");
+                  setSearchResults([]);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+            ) : null}
           </View>
           <TouchableOpacity style={styles.gpsBtn} onPress={handleGetLiveGPS} disabled={isLocatingGPS}>
             {isLocatingGPS ? (
@@ -440,6 +739,10 @@ export default function BuilderAddTab() {
             ref={webViewRef}
             style={styles.map}
             source={{ html: mapHtml }}
+            nestedScrollEnabled={true}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            scalesPageToFit={false}
             onMessage={(event) => {
               try {
                 const data = JSON.parse(event.nativeEvent.data);
@@ -451,10 +754,16 @@ export default function BuilderAddTab() {
           />
         </View>
 
+        <Text style={styles.mapHintText}>
+          📍 Drag map or tap to reposition pin. Use + / − buttons to zoom in to exact street & plot level.
+        </Text>
+
         <View style={styles.formGroup}>
           <Text style={styles.label}>Formatted Address *</Text>
           <TextInput 
             style={[styles.input, styles.inputDisabled, errors.address && styles.inputError]} 
+            placeholder="Address will auto-fill when location is selected on map"
+            placeholderTextColor="#9CA3AF"
             value={formData.address}
             editable={false}
             multiline
@@ -476,9 +785,11 @@ export default function BuilderAddTab() {
             <Text style={styles.label}>Total Valuation (INR ₹) *</Text>
             <TextInput 
               style={[styles.input, errors.totalPrice && styles.inputError]} 
-              placeholder="e.g. 50000000"
+              placeholder="e.g. 50000000 (₹5 Cr)"
+              placeholderTextColor="#9CA3AF"
               keyboardType="numeric"
               value={formData.totalPrice}
+              onFocus={() => scrollToInput(760)}
               onChangeText={(val) => {
                 setFormData(prev => ({...prev, totalPrice: val}));
                 if (errors.totalPrice) setErrors(prev => ({ ...prev, totalPrice: "" }));
@@ -490,9 +801,11 @@ export default function BuilderAddTab() {
             <Text style={styles.label}>Total Fractional Units *</Text>
             <TextInput 
               style={[styles.input, errors.totalSize && styles.inputError]} 
-              placeholder="e.g. 1000"
+              placeholder="e.g. 1000 (Units)"
+              placeholderTextColor="#9CA3AF"
               keyboardType="numeric"
               value={formData.totalSize}
+              onFocus={() => scrollToInput(760)}
               onChangeText={(val) => {
                 setFormData(prev => ({...prev, totalSize: val}));
                 if (errors.totalSize) setErrors(prev => ({ ...prev, totalSize: "" }));
@@ -513,9 +826,11 @@ export default function BuilderAddTab() {
           <Text style={styles.label}>Target Return (% p.a.)</Text>
           <TextInput 
             style={[styles.input, errors.targetReturn && styles.inputError]} 
-            placeholder="e.g. 12.5"
+            placeholder="e.g. 12.5 (% per year)"
+            placeholderTextColor="#9CA3AF"
             keyboardType="numeric"
             value={formData.targetReturn}
+            onFocus={() => scrollToInput(860)}
             onChangeText={(val) => {
               setFormData(prev => ({...prev, targetReturn: val}));
               if (errors.targetReturn) setErrors(prev => ({ ...prev, targetReturn: "" }));
@@ -563,7 +878,9 @@ export default function BuilderAddTab() {
           onPress={() => handleSubmit("DRAFT")}
           disabled={isSubmitting}
         >
-          <Text style={styles.draftButtonText}>Save Draft</Text>
+          <Text style={styles.draftButtonText}>
+            {editingDraftId ? "Update Draft" : "Save Draft"}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -575,17 +892,180 @@ export default function BuilderAddTab() {
         </TouchableOpacity>
       </View>
     </ScrollView>
+
+    {keyboardHeight > 0 && (
+      <TouchableOpacity
+        style={[styles.floatingDoneBtn, { bottom: Platform.OS === 'ios' ? keyboardHeight + 10 : 16 }]}
+        onPress={() => Keyboard.dismiss()}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="checkmark-circle" size={16} color="#FFF" />
+        <Text style={styles.floatingDoneText}>Done</Text>
+      </TouchableOpacity>
+    )}
+
+    {/* ── Submitting Animation Overlay Modal ── */}
+    <Modal visible={isSubmitting} transparent animationType="fade" statusBarTranslucent>
+      <View style={styles.submittingModalOverlay}>
+        <View style={styles.submittingCard}>
+          <Animated.View style={[styles.submittingIconCircle, { transform: [{ scale: pulseAnim }] }]}>
+            <Ionicons name="cloud-upload" size={40} color={Colors.primary} />
+          </Animated.View>
+
+          <Text style={styles.submittingTitle}>
+            {formData.title ? `Submitting "${formData.title}"` : "Submitting Property"}
+          </Text>
+
+          <Text style={styles.submittingStepText}>
+            {submitStep}
+          </Text>
+
+          <View style={styles.submittingLoaderRow}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+            <BouncingDots label="Please wait" color={Colors.primary} />
+          </View>
+
+          <Text style={styles.submittingHint}>
+            Please do not close or minimize the app while photos and details are being uploaded.
+          </Text>
+        </View>
+      </View>
+    </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#F3F4F6" },
-  scrollContent: { padding: 16, paddingBottom: 100 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  scrollContent: { padding: 16, paddingBottom: 160 },
+  submittingModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+    zIndex: 99999,
+  },
+  submittingCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 28,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  submittingIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#F0F9FF",
+    borderWidth: 2,
+    borderColor: "#BAE6FD",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  submittingTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#111827",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  submittingStepText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 16,
+    minHeight: 20,
+  },
+  submittingLoaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  submittingHint: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    textAlign: "center",
+    lineHeight: 16,
+  },
+  floatingDoneBtn: {
+    position: "absolute",
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 8,
+    zIndex: 9999,
+  },
+  floatingDoneText: {
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   headerTitle: { fontSize: 24, fontWeight: "800", color: "#111827" },
   headerSubtitle: { fontSize: 13, color: "#6B7280", marginTop: 2 },
   cancelBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: "#FFF", borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" },
   cancelBtnText: { color: "#374151", fontSize: 13, fontWeight: "600" },
+
+  draftEditBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#EEF2FF",
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    gap: 10,
+  },
+  draftEditBannerTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#3730A3",
+    marginBottom: 2,
+  },
+  draftEditBannerText: {
+    fontSize: 12,
+    color: "#4338CA",
+    lineHeight: 16,
+  },
+
+  loadingDraftCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  loadingDraftText: {
+    fontSize: 13,
+    color: "#4B5563",
+    fontWeight: "500",
+  },
   
   card: { backgroundColor: "#FFF", borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 },
   cardHeader: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#F3F4F6", paddingBottom: 12, marginBottom: 16, gap: 8 },
@@ -611,14 +1091,16 @@ const styles = StyleSheet.create({
   searchIcon: { position: "absolute", left: 12, zIndex: 1 },
   searchInput: { backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, padding: 10, paddingLeft: 36, fontSize: 13, color: "#111827" },
   searchLoader: { position: "absolute", right: 12 },
+  clearSearchBtn: { position: "absolute", right: 10, height: "100%", justifyContent: "center", alignItems: "center", paddingHorizontal: 4, zIndex: 2 },
   gpsBtn: { width: 44, height: 44, backgroundColor: "#F0F9FF", borderRadius: 10, borderWidth: 1, borderColor: "#BAE6FD", alignItems: "center", justifyContent: "center" },
   
   searchResults: { backgroundColor: "#FFF", borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB", maxHeight: 150, marginBottom: 12, overflow: "hidden" },
   searchResultItem: { flexDirection: "row", alignItems: "center", padding: 12, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", gap: 8 },
   searchResultText: { fontSize: 12, color: "#374151", flex: 1 },
   
-  mapContainer: { height: 250, borderRadius: 12, overflow: "hidden", marginBottom: 16, position: "relative", borderWidth: 1, borderColor: "#E5E7EB" },
+  mapContainer: { height: 280, borderRadius: 12, overflow: "hidden", marginBottom: 8, position: "relative", borderWidth: 1, borderColor: "#E5E7EB" },
   map: { flex: 1 },
+  mapHintText: { fontSize: 11, color: "#6B7280", marginBottom: 16, lineHeight: 16 },
   loader: { position: "absolute", right: 12, top: 38 },
   
   perUnitBox: { backgroundColor: "#ECFDF5", borderWidth: 1, borderColor: "#A7F3D0", borderRadius: 10, padding: 12, flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },

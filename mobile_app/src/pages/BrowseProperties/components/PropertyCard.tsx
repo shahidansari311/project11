@@ -32,6 +32,9 @@ const getStatusColor = (status: string) => {
     case "AVAILABLE": return "#10b981";
     case "COMING_SOON": return "#3b82f6";
     case "UNDER_REVIEW": return "#f59e0b";
+    case "PENDING_APPROVAL": return "#f59e0b";
+    case "REJECTED": return "#ef4444";
+    case "DRAFT": return "#6366f1";
     case "SOLD": return "#ef4444";
     default: return "#9ca3af";
   }
@@ -58,6 +61,15 @@ export default memo(function PropertyCard({
 }: PropertyCardProps) {
   const router = useRouter();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const isDraft = property.status === "DRAFT";
+
+  const handleCardPress = () => {
+    if (isDraft) {
+      router.push(`/(tabs)/builder-add?draftId=${property.id}`);
+    } else {
+      router.push(`/property/${property.id}`);
+    }
+  };
 
   const imagesList = property.images && property.images.length > 0
     ? property.images
@@ -87,7 +99,7 @@ export default memo(function PropertyCard({
             <TouchableOpacity
               key={idx}
               activeOpacity={0.9}
-              onPress={() => router.push(`/property/${property.id}`)}
+              onPress={handleCardPress}
             >
               <Image
                 source={{ uri: imgUrl }}
@@ -120,7 +132,7 @@ export default memo(function PropertyCard({
       <TouchableOpacity
         style={styles.detailsContainer}
         activeOpacity={0.88}
-        onPress={() => router.push(`/property/${property.id}`)}
+        onPress={handleCardPress}
       >
         {/* Header: Title + Favorite */}
         <View style={styles.topHeaderRow}>
@@ -149,18 +161,31 @@ export default memo(function PropertyCard({
           <Text style={styles.categoryTag}>{property.category}</Text>
         </View>
 
-        {/* Footer Metrics Row */}
-        <View style={styles.metricsRow}>
-          <View style={styles.irrBadge}>
-            <Text style={styles.irrLabel}>IRR </Text>
-            <Text style={styles.irrValue}>{property.targetReturn}%</Text>
+        {/* Footer Metrics Row or Edit Draft Button */}
+        {isDraft ? (
+          <View style={styles.draftActionRow}>
+            <TouchableOpacity
+              style={styles.editDraftBtn}
+              onPress={handleCardPress}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="create-outline" size={13} color="#FFFFFF" />
+              <Text style={styles.editDraftBtnText}>Edit Draft</Text>
+            </TouchableOpacity>
           </View>
+        ) : (
+          <View style={styles.metricsRow}>
+            <View style={styles.irrBadge}>
+              <Text style={styles.irrLabel}>IRR </Text>
+              <Text style={styles.irrValue}>{property.targetReturn}%</Text>
+            </View>
 
-          <View style={styles.minInvestCol}>
-            <Text style={styles.minInvestLabel}>FROM</Text>
-            <Text style={styles.minInvestValue}>{formatCurrency(property.minInvestment)}</Text>
+            <View style={styles.minInvestCol}>
+              <Text style={styles.minInvestLabel}>FROM</Text>
+              <Text style={styles.minInvestValue}>{formatCurrency(property.minInvestment)}</Text>
+            </View>
           </View>
-        </View>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -322,5 +347,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
     color: Colors.onSurface,
+  },
+  draftActionRow: {
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  editDraftBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#6366f1",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  editDraftBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 });

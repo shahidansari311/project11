@@ -1,4 +1,4 @@
-export type PropertyStatus = "AVAILABLE" | "SOLD" | "UNDER_REVIEW" | "COMING_SOON";
+export type PropertyStatus = "AVAILABLE" | "SOLD" | "UNDER_REVIEW" | "COMING_SOON" | "DRAFT" | "PENDING_APPROVAL" | "REJECTED";
 export type PropertyCategory = "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "LAND";
 
 export interface LocationObject {

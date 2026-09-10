@@ -62,6 +62,7 @@ export default memo(function PropertyCard({
   const router = useRouter();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const isDraft = property.status === "DRAFT";
+  const isSoldOut = property.status === "SOLD";
 
   const handleCardPress = () => {
     if (isDraft) {
@@ -84,7 +85,7 @@ export default memo(function PropertyCard({
   };
 
   return (
-    <View style={styles.cardContainer}>
+    <View style={[styles.cardContainer, isSoldOut && styles.soldOutCard]}>
       {/* ── Left Side Image (Swipeable Carousel) ── */}
       <View style={styles.imageWrapper}>
         <ScrollView
@@ -103,13 +104,20 @@ export default memo(function PropertyCard({
             >
               <Image
                 source={{ uri: imgUrl }}
-                style={styles.image}
+                style={[styles.image, isSoldOut && { opacity: 0.55 }]}
                 contentFit="cover"
                 transition={200}
               />
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* SOLD OUT diagonal ribbon watermark */}
+        {isSoldOut && (
+          <View style={styles.soldOutRibbon} pointerEvents="none">
+            <Text style={styles.soldOutRibbonText}>SOLD OUT</Text>
+          </View>
+        )}
 
         {/* Status Badge */}
         <View style={styles.statusBadge} pointerEvents="none">
@@ -209,6 +217,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(225, 227, 228, 0.6)",
   },
+  soldOutCard: {
+    borderColor: "rgba(239, 68, 68, 0.35)",
+    backgroundColor: "#fafafa",
+  },
 
   // ── Image Section (Left) ──
   imageWrapper: {
@@ -262,6 +274,30 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "700",
     color: "#ffffff",
+  },
+  soldOutRibbon: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+  },
+  soldOutRibbonText: {
+    backgroundColor: "rgba(180, 20, 20, 0.82)",
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    textTransform: "uppercase",
+    transform: [{ rotate: "-35deg" }],
+    overflow: "hidden",
+    borderRadius: 4,
+    textAlign: "center",
   },
 
   // ── Details Section (Right) ──

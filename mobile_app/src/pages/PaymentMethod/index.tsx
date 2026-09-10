@@ -26,6 +26,7 @@ export default function PaymentMethodPage() {
 
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showKycModal, setShowKycModal] = useState(false);
+  const [showUnderVerificationModal, setShowUnderVerificationModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -110,18 +111,24 @@ export default function PaymentMethodPage() {
       );
       
       // 2. Check KYC status
-      await refreshAuth(); // Ensure we have latest profile
-      const hasAadhar = userProfile?.documents?.some(d => d.documentType === "AADHAAR" && d.status === "APPROVED");
-      const hasPan = userProfile?.documents?.some(d => d.documentType === "PAN" && d.status === "APPROVED");
+      const latestProfile = await refreshAuth(); // Ensure we have latest profile
+      const docs = latestProfile?.documents || userProfile?.documents || [];
       
-      const isKycVerified = hasAadhar && hasPan;
+      const hasApprovedAadhar = docs.some(d => d.documentType === "AADHAAR" && d.status === "APPROVED");
+      const hasApprovedPan = docs.some(d => d.documentType === "PAN" && d.status === "APPROVED");
       
-      if (!isKycVerified) {
-        // Show KYC warning popup
-        setShowKycModal(true);
-      } else {
-        // Show success popup
+      const hasUploadedAadhar = docs.some(d => d.documentType === "AADHAAR");
+      const hasUploadedPan = docs.some(d => d.documentType === "PAN");
+      
+      const isKycVerified = hasApprovedAadhar && hasApprovedPan;
+      const isKycUploaded = hasUploadedAadhar && hasUploadedPan;
+      
+      if (isKycVerified) {
         setShowSuccessModal(true);
+      } else if (isKycUploaded) {
+        setShowUnderVerificationModal(true);
+      } else {
+        setShowKycModal(true);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Failed to submit investment. Please try again.";
@@ -373,6 +380,37 @@ export default function PaymentMethodPage() {
               activeOpacity={0.8}
             >
               <Text style={[styles.modalButtonText, { color: Colors.primary }]}>Do it Later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Under Verification Modal */}
+      <Modal
+        visible={showUnderVerificationModal}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={[styles.modalIconCircle, { backgroundColor: Colors.tertiary }]}>
+              <Ionicons name="time" size={32} color={Colors.onTertiary} />
+            </View>
+            
+            <Text style={styles.modalTitle}>Verification Pending</Text>
+            <Text style={styles.modalMessage}>
+              Your investment request has been recorded. Your uploaded Aadhar and PAN cards are currently under verification by the admin. You'll be notified once approved.
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: Colors.tertiary }]}
+              onPress={() => {
+                setShowUnderVerificationModal(false);
+                router.replace("/(tabs)/portfolio");
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalButtonText}>Go to Portfolio</Text>
             </TouchableOpacity>
           </View>
         </View>

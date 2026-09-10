@@ -22,6 +22,7 @@ export default function HorizontalPropertyCard({
   onRequireLogin 
 }: HorizontalPropertyCardProps) {
   const router = useRouter();
+  const isSoldOut = property.status === "SOLD";
 
   const handlePress = () => {
     router.push(`/property/${property.id}`);
@@ -39,7 +40,7 @@ export default function HorizontalPropertyCard({
 
   return (
     <TouchableOpacity 
-      style={styles.card} 
+      style={[styles.card, isSoldOut && styles.soldOutCard]} 
       activeOpacity={0.9} 
       onPress={handlePress}
     >
@@ -47,10 +48,19 @@ export default function HorizontalPropertyCard({
       <View style={styles.imageContainer}>
         <Image 
           source={{ uri: imageUri }} 
-          style={styles.image} 
+          style={[styles.image, isSoldOut && { opacity: 0.5 }]} 
           contentFit="cover" 
           transition={200}
         />
+
+        {/* SOLD OUT diagonal ribbon */}
+        {isSoldOut && (
+          <View style={styles.soldOutOverlay} pointerEvents="none">
+            <View style={styles.soldOutBanner}>
+              <Text style={styles.soldOutText}>SOLD OUT</Text>
+            </View>
+          </View>
+        )}
         
         {/* Price Badge */}
         <View style={styles.priceBadge}>
@@ -59,15 +69,16 @@ export default function HorizontalPropertyCard({
           </Text>
         </View>
 
-        {/* Favorite Button */}
-        <FavoriteButton 
-          propertyId={property.id}
-          size={18}
-          isGuest={isGuest}
-          onRequireLogin={onRequireLogin}
-          style={styles.bookmarkBtn}
-        />
       </View>
+
+      {/* Favorite Button (Moved outside imageContainer to avoid clipping) */}
+      <FavoriteButton 
+        propertyId={property.id}
+        size={18}
+        isGuest={isGuest}
+        onRequireLogin={onRequireLogin}
+        style={styles.bookmarkBtn}
+      />
 
       {/* ── Details Section ── */}
       <View style={styles.detailsContainer}>
@@ -109,13 +120,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(225, 227, 228, 0.5)",
   },
+  soldOutCard: {
+    borderColor: "rgba(239, 68, 68, 0.4)",
+    backgroundColor: "#fafafa",
+  },
   imageContainer: {
     width: "100%",
     height: 180,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     position: "relative",
-    overflow: "visible", // So bookmark can overlap if we want, though we'll keep it inside bounds for cleaner clipping
+    overflow: "hidden",
+  },
+  soldOutOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+  },
+  soldOutBanner: {
+    backgroundColor: "rgba(180, 20, 20, 0.85)",
+    paddingHorizontal: 28,
+    paddingVertical: 9,
+    transform: [{ rotate: "-30deg" }],
+    borderRadius: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  soldOutText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 2,
+    textTransform: "uppercase",
   },
   image: {
     width: "100%",
@@ -149,7 +193,7 @@ const styles = StyleSheet.create({
   },
   bookmarkBtn: {
     position: "absolute",
-    bottom: -18,
+    top: 160,
     right: 16,
     width: 40,
     height: 40,

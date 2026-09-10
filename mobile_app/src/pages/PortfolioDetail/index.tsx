@@ -468,34 +468,43 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
                 {investment.status === "REFUNDED" ? "Refund Completed" : investment.status === "WITHDRAWN" ? "Maturity Payout Complete" : "Investment Rejected"}
               </Text>
             </View>
-            <Text style={[styles.rejectedReason, (investment.status === "REFUNDED" || investment.status === "WITHDRAWN") && { color: "#4A148C" }]}>
+            <Text style={[styles.rejectedReason, (investment.status === "REFUNDED" || investment.status === "WITHDRAWN") && { color: "#4A148C", marginBottom: 16 }]}>
               {investment.status === "REFUNDED" 
-                ? `${formatCurrency(investment.paidAmount || 0)} has been refunded to your bank account.`
+                ? `${formatCurrency(investment.paidAmount || 0)} has been processed from the admin side and will be credited to your account in 3-5 business days.`
                 : investment.status === "WITHDRAWN"
-                ? `Maturity payout of ${formatCurrency(investment.currentValuation || 0)} has been successfully credited to your bank account.`
+                ? `Maturity payout of ${formatCurrency(investment.currentValuation || 0)} has been processed from the admin side and will be credited to your account in 3-5 business days.`
                 : (investment.adminRemark || "Your investment request was rejected by the admin.")}
             </Text>
+
             {(investment.status === "REFUNDED" || investment.status === "WITHDRAWN") && investment.refundBankDetails && (
-              <View style={{ marginTop: 12, backgroundColor: "#fff", borderRadius: 8, borderWidth: 1, borderColor: "#E1BEE7", overflow: 'hidden' }}>
-                <View style={{ backgroundColor: '#F3E5F5', padding: 8, borderBottomWidth: 1, borderColor: "#E1BEE7" }}>
-                  <Text style={{ fontSize: 13, color: "#6A1B9A", fontWeight: "700" }}>Refund Bank Details</Text>
-                </View>
-                <View style={{ padding: 12 }}>
-                  <View style={{ flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 1, borderColor: "#F3E5F5" }}>
-                    <Text style={{ flex: 1, fontSize: 12, color: Colors.outline }}>Account Name</Text>
-                    <Text style={{ flex: 2, fontSize: 12, color: "#4A148C", fontWeight: "600", textAlign: 'right' }}>{investment.refundBankDetails.accountName}</Text>
+              <View style={{ gap: 12 }}>
+                <Text style={{ fontSize: 14, color: "#6A1B9A", fontWeight: "700", marginBottom: 4 }}>Destination Account</Text>
+                
+                <View style={{ gap: 12 }}>
+                  {/* Read-only Input style for Account Name */}
+                  <View style={{ backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E1BEE7" }}>
+                    <Text style={{ fontSize: 11, color: Colors.outline, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Account Name</Text>
+                    <Text style={{ fontSize: 15, color: "#4A148C", fontWeight: "600" }}>{investment.refundBankDetails.accountName}</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 1, borderColor: "#F3E5F5" }}>
-                    <Text style={{ flex: 1, fontSize: 12, color: Colors.outline }}>Bank Name</Text>
-                    <Text style={{ flex: 2, fontSize: 12, color: "#4A148C", fontWeight: "600", textAlign: 'right' }}>{investment.refundBankDetails.bankName}</Text>
+
+                  {/* Read-only Input style for Bank Name */}
+                  <View style={{ backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E1BEE7" }}>
+                    <Text style={{ fontSize: 11, color: Colors.outline, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Bank Name</Text>
+                    <Text style={{ fontSize: 15, color: "#4A148C", fontWeight: "600" }}>{investment.refundBankDetails.bankName}</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 1, borderColor: "#F3E5F5" }}>
-                    <Text style={{ flex: 1, fontSize: 12, color: Colors.outline }}>Account No.</Text>
-                    <Text style={{ flex: 2, fontSize: 12, color: "#4A148C", fontWeight: "600", textAlign: 'right' }}>{investment.refundBankDetails.accountNumber}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', paddingVertical: 4 }}>
-                    <Text style={{ flex: 1, fontSize: 12, color: Colors.outline }}>IFSC Code</Text>
-                    <Text style={{ flex: 2, fontSize: 12, color: "#4A148C", fontWeight: "600", textAlign: 'right' }}>{investment.refundBankDetails.ifscCode}</Text>
+
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    {/* Read-only Input style for Account No */}
+                    <View style={{ flex: 1, backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E1BEE7" }}>
+                      <Text style={{ fontSize: 11, color: Colors.outline, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Account No.</Text>
+                      <Text style={{ fontSize: 15, color: "#4A148C", fontWeight: "600" }}>{investment.refundBankDetails.accountNumber}</Text>
+                    </View>
+
+                    {/* Read-only Input style for IFSC */}
+                    <View style={{ flex: 1, backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E1BEE7" }}>
+                      <Text style={{ fontSize: 11, color: Colors.outline, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>IFSC Code</Text>
+                      <Text style={{ fontSize: 15, color: "#4A148C", fontWeight: "600" }}>{investment.refundBankDetails.ifscCode}</Text>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -632,53 +641,76 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
               <View style={styles.snapshotHeader}>
                 <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Snapshot</Text>
               </View>
-          <View style={styles.snapshotGrid}>
-            <View style={styles.snapshotItem}>
-              <Text style={styles.snapshotLabel}>Total Value</Text>
-              <Text style={styles.snapshotValue}>{formatCurrency(investment.totalAmount)}</Text>
-            </View>
-            <View style={styles.snapshotItem}>
-              <Text style={styles.snapshotLabel}>Paid Amount</Text>
-              <Text style={styles.snapshotValue}>{formatCurrency(investment.paidAmount || (investment.status === 'APPROVED' ? investment.totalAmount : 0))}</Text>
-            </View>
-            {investment.status === 'APPROVED' && investment.remainingTermString && (
-              <View style={[styles.snapshotItem, { width: '100%' }]}>
-                <Text style={styles.snapshotLabel}>Time to Maturity</Text>
-                <Text style={styles.snapshotValue}>
-                  {investment.isMatured ? 'Matured' : investment.remainingTermString}
-                </Text>
-              </View>
-            )}
-            {investment.status === 'APPROVED' && investment.currentValuation && (
-              <View style={[styles.snapshotItem, { width: '100%' }]}>
-                <Text style={styles.snapshotLabel}>Current Valuation (Promised Return)</Text>
-                <Text style={[styles.snapshotValue, { color: "#2E7D32" }]}>
-                  {formatCurrency(investment.currentValuation)}
-                </Text>
-              </View>
-            )}
-            <View style={[styles.snapshotItem, { width: '100%' }]}>
-              <Text style={styles.snapshotLabel}>Current Mkt Value</Text>
-              <Text style={[styles.snapshotValue, { color: isPositive ? "#2E7D32" : Colors.error }]}>
-                {formatCurrency(investment.units * currentPrice)}
-              </Text>
-            </View>
-          </View>
-        </View>
+              
+              <View style={styles.snapshotGrid}>
+                {/* Always visible: Total Value, Paid Amount, Remaining */}
+                <View style={[styles.snapshotItem, { width: '48%' }]}>
+                  <Text style={styles.snapshotLabel}>Total Value</Text>
+                  <Text style={styles.snapshotValue}>{formatCurrency(investment.totalAmount)}</Text>
+                </View>
+                
+                <View style={[styles.snapshotItem, { width: '48%' }]}>
+                  <Text style={styles.snapshotLabel}>Paid Amount</Text>
+                  <Text style={styles.snapshotValue}>
+                    {formatCurrency(investment.paidAmount || (investment.status === 'APPROVED' ? investment.totalAmount : 0))}
+                  </Text>
+                </View>
+                
+                <View style={[styles.snapshotItem, { width: '100%' }]}>
+                  <Text style={styles.snapshotLabel}>Remaining Amount</Text>
+                  <Text style={[styles.snapshotValue, { color: (investment.totalAmount - (investment.paidAmount || 0)) > 0 ? Colors.error : "#2E7D32" }]}>
+                    {formatCurrency(Math.max(0, investment.totalAmount - (investment.paidAmount || (investment.status === 'APPROVED' ? investment.totalAmount : 0))))}
+                  </Text>
+                </View>
 
-        {investment.isMatured && investment.status === 'APPROVED' && (
-          <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
-             <TouchableOpacity 
-               style={[styles.submitBtn, { backgroundColor: '#E65100' }]} 
-               onPress={() => {
-                 setRefundDetails({ accountName: "", bankName: "", accountNumber: "", ifscCode: "" });
-                 setShowWithdrawalModal(true);
-               }}
-             >
-               <Text style={styles.submitBtnText}>Request Withdrawal</Text>
-             </TouchableOpacity>
-          </View>
-        )}
+                {/* Only visible when fully approved and verified (agreement signed) */}
+                {investment.status === 'APPROVED' && investment.agreementUrl && (
+                  <>
+                    <View style={[styles.snapshotItem, { width: '48%', backgroundColor: "#F3E5F5", borderColor: "#E1BEE7" }]}>
+                      <Text style={[styles.snapshotLabel, { color: "#6A1B9A" }]}>Promised Return</Text>
+                      <Text style={[styles.snapshotValue, { color: "#4A148C" }]}>
+                        {formatCurrency(investment.currentValuation || 0)}
+                      </Text>
+                    </View>
+                    
+                    <View style={[styles.snapshotItem, { width: '48%' }]}>
+                      <Text style={styles.snapshotLabel}>Current Mkt Value</Text>
+                      <Text style={[styles.snapshotValue, { color: isPositive ? "#2E7D32" : Colors.error }]}>
+                        {formatCurrency(investment.units * currentPrice)}
+                      </Text>
+                    </View>
+
+                    {investment.remainingTermString && (
+                      <View style={[styles.snapshotItem, { width: '100%' }]}>
+                        <Text style={styles.snapshotLabel}>Maturity Timeline</Text>
+                        <Text style={styles.snapshotValue}>
+                          {investment.isMatured ? 'Matured - Ready for Withdrawal' : investment.remainingTermString + " Left"}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {/* Withdrawal Button embedded in snapshot */}
+                    <View style={{ width: '100%', marginTop: 8 }}>
+                      <TouchableOpacity 
+                        style={[
+                          styles.submitBtn, 
+                          { backgroundColor: investment.isMatured ? '#E65100' : '#E0E0E0' }
+                        ]} 
+                        disabled={!investment.isMatured}
+                        onPress={() => {
+                          setRefundDetails({ accountName: "", bankName: "", accountNumber: "", ifscCode: "" });
+                          setShowWithdrawalModal(true);
+                        }}
+                      >
+                        <Text style={[styles.submitBtnText, !investment.isMatured && { color: '#9E9E9E' }]}>
+                          {investment.isMatured ? 'Request Withdrawal' : 'Withdrawal Locked Until Maturity'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
 
         {/* Graph */}
         <View style={styles.chartCard}>

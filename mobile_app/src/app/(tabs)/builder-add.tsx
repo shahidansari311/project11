@@ -85,16 +85,21 @@ export default function BuilderAddTab() {
             const lat = Number(loc.latitude) || 28.6139;
             const lon = Number(loc.longitude) || 77.2090;
 
+            const isPlaceholderImg = (imgUrl: string) => imgUrl.includes("photo-1560518883-ce09059eeffa");
+            const isDummyValuation = (p.totalPrice === 1 && (p.totalSize === 1 || p.totalUnits === 1) && p.targetReturn === 1);
+            const isDummyDesc = (p.description === "Draft description");
+            const isDummyTitle = (p.title === "Untitled Draft");
+
             setFormData({
-              title: p.title || "",
-              description: p.description || "",
-              address: loc.address || "",
+              title: isDummyTitle ? "" : (p.title || ""),
+              description: isDummyDesc ? "" : (p.description || ""),
+              address: loc.address === "Draft Location" ? "" : (loc.address || ""),
               city: loc.city || "",
               state: loc.state || "",
               postalCode: loc.postalCode || "",
-              totalSize: p.totalUnits ? p.totalUnits.toString() : (p.totalSize ? p.totalSize.toString() : ""),
-              totalPrice: p.totalPrice ? p.totalPrice.toString() : (p.minInvestment ? p.minInvestment.toString() : ""),
-              targetReturn: p.targetReturn ? p.targetReturn.toString() : "",
+              totalSize: isDummyValuation ? "" : (p.totalUnits ? p.totalUnits.toString() : (p.totalSize ? p.totalSize.toString() : "")),
+              totalPrice: isDummyValuation ? "" : (p.totalPrice ? p.totalPrice.toString() : (p.minInvestment ? p.minInvestment.toString() : "")),
+              targetReturn: isDummyValuation ? "" : (p.targetReturn ? p.targetReturn.toString() : ""),
               category: p.category || "RESIDENTIAL",
               youtubeVideoUrl: (p as any).youtubeVideoUrl || "",
               latitude: lat,
@@ -102,7 +107,8 @@ export default function BuilderAddTab() {
             });
 
             if (p.images && Array.isArray(p.images)) {
-              setImages(p.images);
+              const realImages = p.images.filter((img: string) => !isPlaceholderImg(img));
+              setImages(realImages);
             }
 
             setTimeout(() => {
@@ -331,8 +337,18 @@ export default function BuilderAddTab() {
         return;
       }
     } else {
-      if (!formData.title.trim()) {
-        Alert.alert("Title Required", "Please enter at least a Property Title to save as a draft.");
+      const hasAnyData =
+        Boolean(formData.title.trim()) ||
+        Boolean(formData.description.trim()) ||
+        Boolean(formData.totalPrice.trim()) ||
+        Boolean(formData.totalSize.trim()) ||
+        Boolean(formData.targetReturn.trim()) ||
+        Boolean(formData.address.trim()) ||
+        Boolean(formData.youtubeVideoUrl?.trim()) ||
+        images.length > 0;
+
+      if (!hasAnyData) {
+        Alert.alert("Empty Form", "Please fill in at least one field or upload a photo to save as a draft.");
         return;
       }
     }
@@ -360,24 +376,48 @@ export default function BuilderAddTab() {
         longitude: formData.longitude
       };
       
-      Object.entries(formData).forEach(([key, value]) => {
-        if (!['address', 'city', 'state', 'postalCode', 'latitude', 'longitude'].includes(key) && value) {
-          data.append(key, value.toString());
+      if (submitStatus === "DRAFT") {
+        const draftTitle = formData.title.trim() || (formData.address ? `Draft: ${formData.address.slice(0, 25)}` : "Untitled Draft");
+        const draftDesc = formData.description.trim() || "Draft description";
+        const draftCategory = formData.category || "RESIDENTIAL";
+        const draftPrice = formData.totalPrice.trim() ? formData.totalPrice.trim() : "1";
+        const draftSize = formData.totalSize.trim() ? formData.totalSize.trim() : "1";
+        const draftTargetReturn = formData.targetReturn.trim() ? formData.targetReturn.trim() : "1";
+
+        data.append('title', draftTitle);
+        data.append('description', draftDesc);
+        data.append('category', draftCategory);
+        data.append('totalPrice', draftPrice);
+        data.append('totalSize', draftSize);
+        data.append('targetReturn', draftTargetReturn);
+        if (formData.youtubeVideoUrl?.trim()) {
+          data.append('youtubeVideoUrl', formData.youtubeVideoUrl.trim());
         }
-      });
+      } else {
+        Object.entries(formData).forEach(([key, value]) => {
+          if (!['address', 'city', 'state', 'postalCode', 'latitude', 'longitude'].includes(key) && value) {
+            data.append(key, value.toString());
+          }
+        });
+      }
+
       data.append('location', JSON.stringify(locationObj));
       data.append('status', submitStatus);
 
-      images.forEach((uri, index) => {
-        if (uri.startsWith("http://") || uri.startsWith("https://")) {
-          data.append("images", uri);
-        } else {
-          const filename = uri.split('/').pop() || `image_${index}.jpg`;
-          const match = /\.(\w+)$/.exec(filename);
-          const type = match ? `image/${match[1]}` : `image/jpeg`;
-          data.append("images", { uri, name: filename, type } as any);
-        }
-      });
+      if (images.length === 0 && submitStatus === "DRAFT") {
+        data.append("images", "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800");
+      } else {
+        images.forEach((uri, index) => {
+          if (uri.startsWith("http://") || uri.startsWith("https://")) {
+            data.append("images", uri);
+          } else {
+            const filename = uri.split('/').pop() || `image_${index}.jpg`;
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1]}` : `image/jpeg`;
+            data.append("images", { uri, name: filename, type } as any);
+          }
+        });
+      }
       
       if (editingDraftId) {
         await propertyService.updateBuilderProperty(editingDraftId, data);

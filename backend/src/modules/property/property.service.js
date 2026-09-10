@@ -89,7 +89,7 @@ async function createProperty({
       purchasedUnits: 0,
       category,
       youtubeVideoUrl,
-      builderId,
+      ...(builderId ? { builder: { connect: { id: builderId } } } : {}),
       termPeriodYears: termPeriodYears ? parseInt(termPeriodYears) : null,
       priceHistory: {
         create: {
@@ -120,6 +120,13 @@ async function updateProperty(id, data) {
 
   // Always strip manually-supplied minInvestment — it is auto-computed from perUnitPrice
   delete data.minInvestment;
+
+  if (data.builderId !== undefined) {
+    if (data.builderId) {
+      data.builder = { connect: { id: data.builderId } };
+    }
+    delete data.builderId;
+  }
 
   // Parse totalSize if provided
   if (data.totalSize !== undefined) {

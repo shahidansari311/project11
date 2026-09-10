@@ -97,7 +97,7 @@ export default function ImageCarousel({
   };
 
   // Check if current slide is the video slide
-  const isVideoSlide = hasVideo && activeIndex === displayImages.length;
+  const isVideoSlide = hasVideo && activeIndex === 0;
 
   return (
     <View style={[styles.container, { width, height }]}>
@@ -111,9 +111,19 @@ export default function ImageCarousel({
           scrollEventThrottle={16}
           nestedScrollEnabled={true}
         >
+          {/* ── YouTube Video Slide (first slide) ── */}
+          {hasVideo && (
+            <YouTubeSlide
+              url={youtubeVideoUrl!}
+              width={width}
+              height={height}
+              isActive={isVideoSlide}
+            />
+          )}
+
           {displayImages.map((img, index) => (
             <Pressable
-              key={index}
+              key={`img-${index}`}
               style={{ width, height }}
               onPress={() => onPress?.(index)}
               disabled={!onPress}
@@ -131,16 +141,6 @@ export default function ImageCarousel({
               />
             </Pressable>
           ))}
-
-          {/* ── YouTube Video Slide (last slide) ── */}
-          {hasVideo && (
-            <YouTubeSlide
-              url={youtubeVideoUrl!}
-              width={width}
-              height={height}
-              isActive={isVideoSlide}
-            />
-          )}
         </ScrollView>
 
         {/* ── Arrow Controls ── */}
@@ -181,7 +181,7 @@ export default function ImageCarousel({
                     styles.dot,
                     activeIndex === index ? styles.activeDot : styles.inactiveDot,
                     // Make the video dot a different color
-                    hasVideo && index === totalSlides - 1 && activeIndex !== index
+                    hasVideo && index === 0 && activeIndex !== index
                       ? styles.videoDot
                       : null,
                   ]}
@@ -199,19 +199,22 @@ export default function ImageCarousel({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.thumbnailsContainer}
         >
-          {displayImages.map((img, index) => (
-            <TouchableOpacity
-              key={index}
-              activeOpacity={0.8}
-              onPress={() => handleThumbnailPress(index)}
-              style={[
-                styles.thumbnailWrapper,
-                activeIndex === index && styles.thumbnailActive,
-              ]}
-            >
-              <Image source={imageSources[index]} style={styles.thumbnailImage} contentFit="cover" />
-            </TouchableOpacity>
-          ))}
+          {displayImages.map((img, index) => {
+            const slideIndex = hasVideo ? index + 1 : index;
+            return (
+              <TouchableOpacity
+                key={`thumb-${index}`}
+                activeOpacity={0.8}
+                onPress={() => handleThumbnailPress(slideIndex)}
+                style={[
+                  styles.thumbnailWrapper,
+                  activeIndex === slideIndex && styles.thumbnailActive,
+                ]}
+              >
+                <Image source={imageSources[index]} style={styles.thumbnailImage} contentFit="cover" />
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       )}
     </View>
@@ -240,6 +243,7 @@ function YouTubeSlide({
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [scrubberWidth, setScrubberWidth] = useState(0);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
   const fadeAnim = useRef(new RNAnimated.Value(1)).current;
 
   useEffect(() => {
@@ -250,8 +254,9 @@ function YouTubeSlide({
     }).start();
   }, [playing]);
 
-  // Auto-play/pause when user scrolls to/from this slide
+  // Auto-play/pause when user scrolls to/from this slide or when player becomes ready
   useEffect(() => {
+    if (!isPlayerReady) return;
     if (isActive) {
       setPlaying(true);
       webViewRef.current?.injectJavaScript(`if(player && player.playVideo) player.playVideo(); true;`);
@@ -259,7 +264,7 @@ function YouTubeSlide({
       setPlaying(false);
       webViewRef.current?.injectJavaScript(`if(player && player.pauseVideo) player.pauseVideo(); true;`);
     }
-  }, [isActive]);
+  }, [isActive, isPlayerReady]);
 
   if (!videoId) {
     return (
@@ -309,6 +314,7 @@ function YouTubeSlide({
               width: '100%',
               videoId: '${videoId}',
               playerVars: {
+                'autoplay': ${isActive ? 1 : 0},
                 'playsinline': 1,
                 'controls': 0,
                 'rel': 0,
@@ -321,6 +327,7 @@ function YouTubeSlide({
               },
               events: {
                 'onReady': function(event) {
+                  window.ReactNativeWebView.postMessage('ready');
                   setInterval(function() {
                     if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
                       window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -353,7 +360,10 @@ function YouTubeSlide({
   const handleMessage = (event: any) => {
     try {
       const msg = event.nativeEvent.data;
-      if (msg === 'playing') {
+      if (msg === 'ready') {
+        setIsPlayerReady(true);
+      }
+      else if (msg === 'playing') {
         setPlaying(true);
         if (!hasStarted) setHasStarted(true);
       }

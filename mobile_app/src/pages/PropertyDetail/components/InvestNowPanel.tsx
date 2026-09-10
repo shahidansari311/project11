@@ -70,7 +70,10 @@ export default function InvestNowPanel({
   const perUnitPrice   = investmentInfo?.perUnitPrice ?? 0;
   const totalUnits     = investmentInfo?.totalUnits ?? 0;
   const purchasedUnits = investmentInfo?.purchasedUnits ?? 0;
-  const isAvailable    = investmentInfo?.status === "AVAILABLE";
+
+  // Sold out if backend says so OR if no units remain
+  const isSoldOut   = investmentInfo?.status === "SOLD" || (!!investmentInfo && remainingUnits <= 0);
+  const isAvailable = investmentInfo?.status === "AVAILABLE" && !isSoldOut;
 
   const investAmount = units * perUnitPrice;
   const occupancyPct = totalUnits > 0 ? (purchasedUnits / totalUnits) * 100 : 0;
@@ -85,7 +88,7 @@ export default function InvestNowPanel({
       onRequireLogin();
       return;
     }
-    if (!isAvailable) return;
+    if (!isAvailable || isSoldOut) return;
 
     LayoutAnimation.configureNext(
       LayoutAnimation.create(
@@ -131,6 +134,10 @@ export default function InvestNowPanel({
       onRequireLogin();
       return;
     }
+    if (isSoldOut || remainingUnits <= 0) {
+      Alert.alert("Sold Out", "All units for this property have been purchased.");
+      return;
+    }
     const result = investUnitsSchema.safeParse(units);
     if (!result.success || units > remainingUnits) {
       Alert.alert("Invalid units", `Please select between 1 and ${remainingUnits} units.`);
@@ -149,16 +156,13 @@ export default function InvestNowPanel({
   };
 
   // ── Status pill label ──
-  // Only show a status text when we have info AND it's blocking investment
   const statusLabel = () => {
-    if (isLoading)    return null;          // show spinner instead
-    if (!investmentInfo) return null;       // wait for data
-    if (!isAvailable) return investmentInfo.status.replace("_", " ");
-    if (remainingUnits <= 0) return "Sold Out";
+    if (isLoading)    return null;
+    if (!investmentInfo) return null;
+    if (isSoldOut) return "Sold Out";
+    if (!isAvailable) return investmentInfo.status.replace(/_/g, " ");
     return null;
   };
-
-  const isSoldOut = isAvailable && remainingUnits <= 0;
 
   return (
     <View style={styles.container}>

@@ -11,6 +11,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { uploadService } from "../../services/upload.service";
 import { signatureStore } from "../../utils/signatureStore";
 import { useToast } from "@/components/Toast";
+import { propertyService } from "../../services/property.service";
 
 export default function PaymentMethodPage() {
   const router = useRouter();
@@ -20,14 +21,18 @@ export default function PaymentMethodPage() {
   
   const propertyId = params.propertyId as string;
   const units = params.units ? parseInt(params.units as string, 10) : 1;
-  const amountToPay = params.amount ? parseFloat(params.amount as string) : 250000;
+  const initialAmountToPay = params.amount ? parseFloat(params.amount as string) : 250000;
+  
+  const [amountToPay, setAmountToPay] = useState<number>(initialAmountToPay);
   
   const isRazorpayDisabled = amountToPay > 100000;
 
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showKycModal, setShowKycModal] = useState(false);
+  const [showUnderVerificationModal, setShowUnderVerificationModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingAmount, setIsLoadingAmount] = useState(true);
   
   const [paymentProofUrl, setPaymentProofUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -41,10 +46,27 @@ export default function PaymentMethodPage() {
   );
 
   useEffect(() => {
+    async function fetchAmount() {
+      try {
+        setIsLoadingAmount(true);
+        const res = await propertyService.calculateInvestmentAmount(propertyId, units);
+        setAmountToPay(res.data.finalAmount);
+      } catch (err) {
+        console.error("Failed to fetch calculation", err);
+      } finally {
+        setIsLoadingAmount(false);
+      }
+    }
+    if (propertyId) {
+      fetchAmount();
+    }
+  }, [propertyId, units]);
+
+  useEffect(() => {
     if (isRazorpayDisabled && activeTab === "razorpay") {
       setActiveTab("bank");
     }
-  }, [isRazorpayDisabled]);
+  }, [isRazorpayDisabled, activeTab]);
 
   const handleTabPress = (tab: "razorpay" | "bank") => {
     if (tab === "razorpay" && isRazorpayDisabled) {
@@ -110,18 +132,24 @@ export default function PaymentMethodPage() {
       );
       
       // 2. Check KYC status
-      await refreshAuth(); // Ensure we have latest profile
-      const hasAadhar = userProfile?.documents?.some(d => d.documentType === "AADHAAR" && d.status === "APPROVED");
-      const hasPan = userProfile?.documents?.some(d => d.documentType === "PAN" && d.status === "APPROVED");
+      const latestProfile = await refreshAuth(); // Ensure we have latest profile
+      const docs = latestProfile?.documents || userProfile?.documents || [];
       
-      const isKycVerified = hasAadhar && hasPan;
+      const hasApprovedAadhar = docs.some(d => d.documentType === "AADHAAR" && d.status === "APPROVED");
+      const hasApprovedPan = docs.some(d => d.documentType === "PAN" && d.status === "APPROVED");
       
-      if (!isKycVerified) {
-        // Show KYC warning popup
-        setShowKycModal(true);
-      } else {
-        // Show success popup
+      const hasUploadedAadhar = docs.some(d => d.documentType === "AADHAAR");
+      const hasUploadedPan = docs.some(d => d.documentType === "PAN");
+      
+      const isKycVerified = hasApprovedAadhar && hasApprovedPan;
+      const isKycUploaded = hasUploadedAadhar && hasUploadedPan;
+      
+      if (isKycVerified) {
         setShowSuccessModal(true);
+      } else if (isKycUploaded) {
+        setShowUnderVerificationModal(true);
+      } else {
+        setShowKycModal(true);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Failed to submit investment. Please try again.";
@@ -151,10 +179,13 @@ export default function PaymentMethodPage() {
         {/* Summary Card */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Amount Due</Text>
-          <Text style={styles.summaryAmount}>
-            {/* Simple formatter for the dummy value */}
-            ₹{amountToPay.toLocaleString('en-IN')}
-          </Text>
+          {isLoadingAmount ? (
+            <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 8 }} />
+          ) : (
+            <Text style={styles.summaryAmount}>
+              ₹{amountToPay.toLocaleString('en-IN')}
+            </Text>
+          )}
           
           <View style={styles.summaryDivider} />
           
@@ -373,6 +404,37 @@ export default function PaymentMethodPage() {
               activeOpacity={0.8}
             >
               <Text style={[styles.modalButtonText, { color: Colors.primary }]}>Do it Later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Under Verification Modal */}
+      <Modal
+        visible={showUnderVerificationModal}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={[styles.modalIconCircle, { backgroundColor: Colors.tertiary }]}>
+              <Ionicons name="time" size={32} color={Colors.onTertiary} />
+            </View>
+            
+            <Text style={styles.modalTitle}>Verification Pending</Text>
+            <Text style={styles.modalMessage}>
+              Your investment request has been recorded. Your uploaded Aadhar and PAN cards are currently under verification by the admin. You'll be notified once approved.
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: Colors.tertiary }]}
+              onPress={() => {
+                setShowUnderVerificationModal(false);
+                router.replace("/(tabs)/portfolio");
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalButtonText}>Go to Portfolio</Text>
             </TouchableOpacity>
           </View>
         </View>

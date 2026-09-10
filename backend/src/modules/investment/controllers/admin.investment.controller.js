@@ -1,11 +1,7 @@
-const investmentService = require("./investment.service");
-const storageService = require("../../services/storage.service");
-const { successResponse, errorResponse } = require("../../utils/apiResponse");
-
-const { sendPushNotification } = require("../../services/push.service");
-
-// ─── Helpers ───────────────────────────────────────────────────────────────
-
+const investmentService = require("../services/admin.investment.service");
+const storageService = require("../../../services/storage.service");
+const { successResponse, errorResponse } = require("../../../utils/apiResponse");
+const { sendPushNotification } = require("../../../services/push.service");
 
 function handleError(res, err, next) {
   const msg = err.message || "";
@@ -18,123 +14,6 @@ function handleError(res, err, next) {
   next(err);
 }
 
-// ─── User Controllers ──────────────────────────────────────────────────────
-
-/**
- * POST /user/property/:propertyId/invest
- * Body: { units: number }
- */
-async function createInvestment(req, res, next) {
-  try {
-    const { propertyId } = req.params;
-    const { units, paymentProofUrl, signatureBase64, placeOfSignature } = req.body || {};
-    const userId         = req.user.id;
-
-    const investment = await investmentService.createInvestment(
-      userId, 
-      propertyId, 
-      Number(units),
-      paymentProofUrl,
-      signatureBase64,
-      placeOfSignature
-    );
-    
-    // Send push notification asynchronously
-    sendPushNotification(
-      userId, 
-      "Purchase Pending", 
-      `Your request to purchase ${units} unit(s) has been received and is pending admin approval.`
-    );
-
-    return successResponse(res, 201, investment, "Investment created successfully. Awaiting admin approval.");
-  } catch (err) {
-    handleError(res, err, next);
-  }
-}
-
-/**
- * POST /user/investments/:id/sign
- * Body: { signatureBase64, placeOfSignature }
- */
-async function signAdminInvestment(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { signatureBase64, placeOfSignature } = req.body || {};
-    const userId = req.user.id;
-
-    const investment = await investmentService.signAdminInvestment(
-      userId,
-      id,
-      signatureBase64,
-      placeOfSignature
-    );
-
-    return successResponse(res, 200, investment, "Agreement signed successfully.");
-  } catch (err) {
-    handleError(res, err, next);
-  }
-}
-
-/**
- * DELETE /user/investments/:id
- * Cancels a PENDING investment (releases locked units).
- */
-async function cancelInvestment(req, res, next) {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    const investment = await investmentService.cancelInvestment(userId, id);
-    return successResponse(res, 200, investment, "Investment cancelled successfully.");
-  } catch (err) {
-    handleError(res, err, next);
-  }
-}
-
-/**
- * GET /user/investments
- * Query: ?page=1&limit=20&status=PENDING
- */
-async function getUserInvestments(req, res, next) {
-  try {
-    const userId = req.user.id;
-    const page   = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const { status, search } = req.query;
-
-    const result = await investmentService.getUserInvestments(userId, {
-      page,
-      limit,
-      status,
-      search,
-    });
-    return successResponse(res, 200, result, "Investments retrieved successfully.");
-  } catch (err) {
-    next(err);
-  }
-}
-
-/**
- * GET /user/investments/:id
- */
-async function getUserInvestmentById(req, res, next) {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    const investment = await investmentService.getUserInvestmentById(userId, id);
-    return successResponse(res, 200, investment, "Investment details retrieved successfully.");
-  } catch (err) {
-    handleError(res, err, next);
-  }
-}
-
-// ─── Admin Controllers ─────────────────────────────────────────────────────
-
-/**
- * POST /admin/investments/buy-on-behalf
- * Body: { userId, propertyId, units }
- */
 async function createInvestmentOnBehalf(req, res, next) {
   try {
     const adminId = req.user.id;
@@ -151,7 +30,6 @@ async function createInvestmentOnBehalf(req, res, next) {
       Number(units)
     );
 
-    // Send push notification to the user
     sendPushNotification(
       userId,
       "Investment Assigned \uD83C\uDF89",
@@ -164,10 +42,6 @@ async function createInvestmentOnBehalf(req, res, next) {
   }
 }
 
-/**
- * GET /admin/investments
- * Query: ?page=&limit=&status=&propertyId=&userId=
- */
 async function getAllInvestments(req, res, next) {
   try {
     const page   = Math.max(1, parseInt(req.query.page)  || 1);
@@ -188,9 +62,6 @@ async function getAllInvestments(req, res, next) {
   }
 }
 
-/**
- * GET /admin/investments/stats
- */
 async function getInvestmentStats(req, res, next) {
   try {
     const stats = await investmentService.getInvestmentStats();
@@ -200,9 +71,6 @@ async function getInvestmentStats(req, res, next) {
   }
 }
 
-/**
- * GET /admin/investments/:id
- */
 async function getInvestmentById(req, res, next) {
   try {
     const { id } = req.params;
@@ -213,9 +81,6 @@ async function getInvestmentById(req, res, next) {
   }
 }
 
-/**
- * GET /admin/investments/property/:propertyId
- */
 async function getInvestmentsByProperty(req, res, next) {
   try {
     const { propertyId } = req.params;
@@ -230,9 +95,6 @@ async function getInvestmentsByProperty(req, res, next) {
   }
 }
 
-/**
- * GET /admin/investments/user/:userId
- */
 async function getInvestmentsByUser(req, res, next) {
   try {
     const { userId } = req.params;
@@ -247,18 +109,14 @@ async function getInvestmentsByUser(req, res, next) {
   }
 }
 
-/**
- * PATCH /admin/investments/:id/approve
- */
 async function approveInvestment(req, res, next) {
   try {
     const { id }  = req.params;
     const adminId = req.user.id;
-    const { amountReceived } = req.body || {}; // Default to {} if no body sent (full approval)
+    const { amountReceived } = req.body || {};
 
     const investment = await investmentService.approveInvestment(adminId, id, amountReceived);
     
-    // Send push notification
     if (investment && investment.userId) {
       const isPartial = investment.status === "PARTIAL_PAID";
       sendPushNotification(
@@ -274,10 +132,6 @@ async function approveInvestment(req, res, next) {
   }
 }
 
-/**
- * PATCH /admin/investments/:id/reject
- * Body: { remark?: string }
- */
 async function rejectInvestment(req, res, next) {
   try {
     const { id }    = req.params;
@@ -286,7 +140,6 @@ async function rejectInvestment(req, res, next) {
 
     const investment = await investmentService.rejectInvestment(adminId, id, remark);
 
-    // Send push notification
     if (investment && investment.userId) {
       sendPushNotification(
         investment.userId,
@@ -301,57 +154,6 @@ async function rejectInvestment(req, res, next) {
   }
 }
 
-/**
- * POST /user/investments/:id/pay-remaining
- */
-async function payRemainingInvestment(req, res, next) {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-    const { paymentProofUrl } = req.body || {};
-
-    const investment = await investmentService.payRemainingInvestment(userId, id, paymentProofUrl);
-    return successResponse(res, 200, investment, "Payment proof uploaded and submitted for review.");
-  } catch (err) {
-    handleError(res, err, next);
-  }
-}
-
-/**
- * POST /user/investments/:id/refund
- */
-async function requestRefund(req, res, next) {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-    const { refundBankDetails } = req.body || {};
-
-    const investment = await investmentService.requestRefund(userId, id, refundBankDetails);
-    return successResponse(res, 200, investment, "Refund requested successfully. Our team will process it soon.");
-  } catch (err) {
-    handleError(res, err, next);
-  }
-}
-
-/**
- * POST /user/investments/:id/request-withdrawal
- */
-async function requestWithdrawal(req, res, next) {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-    const { refundBankDetails } = req.body || {};
-
-    const investment = await investmentService.requestWithdrawal(userId, id, refundBankDetails);
-    return successResponse(res, 200, investment, "Withdrawal requested successfully. Our team will process it soon.");
-  } catch (err) {
-    handleError(res, err, next);
-  }
-}
-
-/**
- * POST /admin/investments/:id/refund
- */
 async function processRefund(req, res, next) {
   try {
     const { id } = req.params;
@@ -373,12 +175,10 @@ async function processRefund(req, res, next) {
 
     const investment = await investmentService.processRefund(adminId, id, refundProofUrl);
     
-    // Remove agreementUrl from response
     if (investment && investment.agreementUrl) {
       delete investment.agreementUrl;
     }
     
-    // Send push notification
     if (investment && investment.userId) {
       sendPushNotification(
         investment.userId,
@@ -393,9 +193,6 @@ async function processRefund(req, res, next) {
   }
 }
 
-/**
- * POST /admin/investments/:id/process-withdrawal
- */
 async function processWithdrawal(req, res, next) {
   try {
     const { id } = req.params;
@@ -417,7 +214,6 @@ async function processWithdrawal(req, res, next) {
 
     const investment = await investmentService.processWithdrawal(adminId, id, paymentProofUrl);
     
-    // Send push notification
     if (investment && investment.userId) {
       sendPushNotification(
         investment.userId,
@@ -433,23 +229,14 @@ async function processWithdrawal(req, res, next) {
 }
 
 module.exports = {
-  createInvestment,
   createInvestmentOnBehalf,
-  signAdminInvestment,
-  getUserInvestments,
-  getUserInvestmentById,
-  cancelInvestment,
+  getAllInvestments,
+  getInvestmentStats,
+  getInvestmentById,
   getInvestmentsByProperty,
   getInvestmentsByUser,
-  getInvestmentStats,
-  getAllInvestments,
-  getInvestmentById,
   approveInvestment,
   rejectInvestment,
-  payRemainingInvestment,
-  requestRefund,
   processRefund,
-  requestWithdrawal,
   processWithdrawal,
 };
-

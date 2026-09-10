@@ -84,12 +84,22 @@ async function getAllProperties(req, res, next) {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     let { status, category, search, minPrice, maxPrice, location, area, minArea, maxArea } = req.query;
 
+    // Parse comma-separated strings from mobile app
+    if (status && typeof status === 'string') {
+      status = status.split(',');
+    }
+    if (location && typeof location === 'string') {
+      location = location.split(',');
+    }
+
     // Security: Restrict public API to only show approved listings
     const allowedStatuses = ["AVAILABLE", "SOLD", "COMING_SOON"];
     if (status) {
-      if (!allowedStatuses.includes(status)) {
-        // If they ask for something like DRAFT, fallback to AVAILABLE
-        status = "AVAILABLE";
+      if (Array.isArray(status)) {
+        status = status.filter(s => allowedStatuses.includes(s));
+        if (status.length === 0) status = allowedStatuses;
+      } else {
+        if (!allowedStatuses.includes(status)) status = allowedStatuses;
       }
     } else {
       // By default, show all approved statuses

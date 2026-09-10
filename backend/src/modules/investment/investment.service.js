@@ -38,6 +38,28 @@ async function updatePropertyInvestorsCount(tx, propertyId) {
   });
 }
 
+/**
+ * Automatically transitions a property to SOLD or AVAILABLE
+ * based on the updated property object returned from a prior update call.
+ * Accepts the full updatedProperty so no extra DB read is needed.
+ */
+async function syncPropertyStatus(tx, updatedProperty) {
+  const { id, purchasedUnits, totalUnits, status } = updatedProperty;
+
+  if (purchasedUnits >= totalUnits && ["AVAILABLE", "COMING_SOON"].includes(status)) {
+    await tx.property.update({
+      where: { id },
+      data: { status: "SOLD" },
+    });
+  } else if (purchasedUnits < totalUnits && status === "SOLD") {
+    await tx.property.update({
+      where: { id },
+      data: { status: "AVAILABLE" },
+    });
+  }
+}
+
+
 // ---------------------------------------------------------------------------
 // User-facing services
 // ---------------------------------------------------------------------------
@@ -87,7 +109,7 @@ async function createInvestment(userId, propertyId, units, paymentProofUrl, sign
     }
 
     const unitPriceAtTime = property.perUnitPrice;
-    const finalTotalAmount = units * unitPriceAtTime;
+    const finalTotalAmount = Math.ceil(units * unitPriceAtTime);
     
     const targetReturnAtTime = property.targetReturn || 0;
     const promisedReturnAmount = finalTotalAmount * (targetReturnAtTime / 100);
@@ -115,10 +137,11 @@ async function createInvestment(userId, propertyId, units, paymentProofUrl, sign
     });
 
     // Lock units by incrementing purchasedUnits counter
-    await tx.property.update({
+    const updatedPropCreate = await tx.property.update({
       where: { id: propertyId },
       data:  { purchasedUnits: { increment: units } },
     });
+    await syncPropertyStatus(tx, updatedPropCreate);
 
     return investment;
   });
@@ -152,7 +175,7 @@ async function createInvestmentOnBehalf(adminId, userId, propertyId, units) {
     }
 
     const unitPriceAtTime = property.perUnitPrice;
-    const finalTotalAmount = units * unitPriceAtTime;
+    const finalTotalAmount = Math.ceil(units * unitPriceAtTime);
     
     const targetReturnAtTime = property.targetReturn || 0;
     const promisedReturnAmount = finalTotalAmount * (targetReturnAtTime / 100);
@@ -182,10 +205,11 @@ async function createInvestmentOnBehalf(adminId, userId, propertyId, units) {
     });
 
     // Lock units
-    await tx.property.update({
+    const updatedPropOnBehalf = await tx.property.update({
       where: { id: propertyId },
       data:  { purchasedUnits: { increment: units } },
     });
+    await syncPropertyStatus(tx, updatedPropOnBehalf);
 
     // Mark user as having purchased a property
     await tx.user.update({
@@ -271,10 +295,11 @@ async function cancelInvestment(userId, investmentId) {
     });
 
     // Release locked units
-    await tx.property.update({
+    const updatedPropCancel = await tx.property.update({
       where: { id: investment.propertyId },
       data:  { purchasedUnits: { decrement: investment.units } },
     });
+    await syncPropertyStatus(tx, updatedPropCancel);
 
     return updated;
   });
@@ -536,10 +561,11 @@ async function rejectInvestment(adminId, investmentId, remark) {
     });
 
     // Release units back to property
-    await tx.property.update({
+    const updatedPropReject = await tx.property.update({
       where: { id: investment.propertyId },
       data:  { purchasedUnits: { decrement: investment.units } },
     });
+    await syncPropertyStatus(tx, updatedPropReject);
 
     return updated;
   });
@@ -671,13 +697,31 @@ async function getInvestmentStats() {
   sixMonthsAgo.setDate(1);
   sixMonthsAgo.setHours(0, 0, 0, 0);
 
-  const [total, pending, approved, rejected, cancelled, valueAgg, pendingValueAgg, recentInvestments] =
-    await Promise.all([
-      getInvestmentModel().count(),
-      getInvestmentModel().count({ where: { status: "PENDING" } }),
-      getInvestmentModel().count({ where: { status: "APPROVED" } }),
-      getInvestmentModel().count({ where: { status: "REJECTED" } }),
-      getInvestmentModel().count({ where: { status: "CANCELLED" } }),
+  const [
+    total,
+    pending,
+    approved,
+    rejected,
+    cancelled,
+    partialPaid,
+    refundRequested,
+    refunded,
+    withdrawalRequested,
+    withdrawn,
+    valueAgg,
+    pendingValueAgg,
+    recentInvestments
+  ] = await Promise.all([
+    getInvestmentModel().count(),
+    getInvestmentModel().count({ where: { status: "PENDING" } }),
+    getInvestmentModel().count({ where: { status: "APPROVED" } }),
+    getInvestmentModel().count({ where: { status: "REJECTED" } }),
+    getInvestmentModel().count({ where: { status: "CANCELLED" } }),
+    getInvestmentModel().count({ where: { status: "PARTIAL_PAID" } }),
+    getInvestmentModel().count({ where: { status: "REFUND_REQUESTED" } }),
+    getInvestmentModel().count({ where: { status: "REFUNDED" } }),
+    getInvestmentModel().count({ where: { status: "WITHDRAWAL_REQUESTED" } }),
+    getInvestmentModel().count({ where: { status: "WITHDRAWN" } }),
       getInvestmentModel().aggregate({
         where:    { status: "APPROVED" },
         _sum:     { totalAmount: true },
@@ -732,6 +776,11 @@ async function getInvestmentStats() {
     approvedInvestments:  approved,
     rejectedInvestments:  rejected,
     cancelledInvestments: cancelled,
+    partialPaidInvestments: partialPaid,
+    refundRequestedInvestments: refundRequested,
+    refundedInvestments: refunded,
+    withdrawalRequestedInvestments: withdrawalRequested,
+    withdrawnInvestments: withdrawn,
     totalValueApproved:   valueAgg._sum.totalAmount    || 0,
     totalValuePending:    pendingValueAgg._sum.totalAmount || 0,
     monthlyTrends
@@ -830,12 +879,11 @@ async function processRefund(adminId, investmentId, refundProofUrl) {
     });
 
     // Release units back to property
-    await tx.property.update({
+    const updatedPropRefund = await tx.property.update({
       where: { id: investment.propertyId },
-      data: { 
-        purchasedUnits: { decrement: investment.units },
-      },
+      data: { purchasedUnits: { decrement: investment.units } },
     });
+    await syncPropertyStatus(tx, updatedPropRefund);
     
     // Dynamically update unique investors count
     await updatePropertyInvestorsCount(tx, investment.propertyId);
@@ -865,12 +913,11 @@ async function processWithdrawal(adminId, investmentId, paymentProofUrl) {
     });
 
     // Release units back to property
-    await tx.property.update({
+    const updatedPropWithdraw = await tx.property.update({
       where: { id: investment.propertyId },
-      data: { 
-        purchasedUnits: { decrement: investment.units },
-      },
+      data: { purchasedUnits: { decrement: investment.units } },
     });
+    await syncPropertyStatus(tx, updatedPropWithdraw);
     
     // Dynamically update unique investors count
     await updatePropertyInvestorsCount(tx, investment.propertyId);
@@ -879,23 +926,40 @@ async function processWithdrawal(adminId, investmentId, paymentProofUrl) {
   });
 }
 
+async function calculateInvestmentAmount(propertyId, units) {
+  const property = await prisma.property.findUnique({ where: { id: propertyId } });
+  if (!property) throw new AppError("Property not found", 404);
+
+  const exactAmount = units * property.perUnitPrice;
+  const finalAmount = Math.ceil(exactAmount);
+
+  return {
+    propertyId,
+    units,
+    perUnitPrice: property.perUnitPrice,
+    exactAmount,
+    finalAmount,
+  };
+}
+
 module.exports = {
   createInvestment,
   createInvestmentOnBehalf,
   signAdminInvestment,
+  cancelInvestment,
   getUserInvestments,
   getUserInvestmentById,
-  cancelInvestment,
-  getInvestmentsByProperty,
-  getInvestmentsByUser,
-  getInvestmentStats,
   getAllInvestments,
   getInvestmentById,
+  getInvestmentsByProperty,
+  getInvestmentsByUser,
   approveInvestment,
   rejectInvestment,
   payRemainingInvestment,
   requestRefund,
   processRefund,
+  getInvestmentStats,
   requestWithdrawal,
   processWithdrawal,
+  calculateInvestmentAmount,
 };

@@ -222,13 +222,15 @@ async function getAllProperties({ page = 1, limit = 10, status, category, search
   if (category) where.category = category;
   
   if (location) {
-    const locArr = Array.isArray(location) ? location : [location];
-    where.AND = where.AND || [];
-    where.AND.push({
-      OR: locArr.map(loc => ({
-        location: { contains: loc, mode: 'insensitive' }
-      }))
-    });
+    const locArr = Array.isArray(location) ? location : (typeof location === 'string' ? location.split(',') : [location]);
+    if (locArr.length > 0) {
+      where.AND = where.AND || [];
+      where.AND.push({
+        OR: locArr.map(loc => ({
+          location: { contains: loc.trim(), mode: 'insensitive' }
+        }))
+      });
+    }
   }
 
   if (area) where.totalSize = area;
@@ -242,9 +244,12 @@ async function getAllProperties({ page = 1, limit = 10, status, category, search
   }
   
   if (minPrice !== undefined || maxPrice !== undefined) {
-    where.totalPrice = {};
-    if (minPrice !== undefined) where.totalPrice.gte = Number(minPrice);
-    if (maxPrice !== undefined) where.totalPrice.lte = Number(maxPrice);
+    where.perUnitPrice = {};
+    if (minPrice !== undefined && minPrice !== "") where.perUnitPrice.gte = Number(minPrice);
+    if (maxPrice !== undefined && maxPrice !== "") where.perUnitPrice.lte = Number(maxPrice);
+    
+    // If empty object, remove it
+    if (Object.keys(where.perUnitPrice).length === 0) delete where.perUnitPrice;
   }
   if (search && search.trim()) {
     where.AND = where.AND || [];

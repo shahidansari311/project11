@@ -109,7 +109,7 @@ async function createInvestment(userId, propertyId, units, paymentProofUrl, sign
     }
 
     const unitPriceAtTime = property.perUnitPrice;
-    const finalTotalAmount = units * unitPriceAtTime;
+    const finalTotalAmount = Math.ceil(units * unitPriceAtTime);
     
     const targetReturnAtTime = property.targetReturn || 0;
     const promisedReturnAmount = finalTotalAmount * (targetReturnAtTime / 100);
@@ -175,7 +175,7 @@ async function createInvestmentOnBehalf(adminId, userId, propertyId, units) {
     }
 
     const unitPriceAtTime = property.perUnitPrice;
-    const finalTotalAmount = units * unitPriceAtTime;
+    const finalTotalAmount = Math.ceil(units * unitPriceAtTime);
     
     const targetReturnAtTime = property.targetReturn || 0;
     const promisedReturnAmount = finalTotalAmount * (targetReturnAtTime / 100);
@@ -926,23 +926,40 @@ async function processWithdrawal(adminId, investmentId, paymentProofUrl) {
   });
 }
 
+async function calculateInvestmentAmount(propertyId, units) {
+  const property = await prisma.property.findUnique({ where: { id: propertyId } });
+  if (!property) throw new AppError("Property not found", 404);
+
+  const exactAmount = units * property.perUnitPrice;
+  const finalAmount = Math.ceil(exactAmount);
+
+  return {
+    propertyId,
+    units,
+    perUnitPrice: property.perUnitPrice,
+    exactAmount,
+    finalAmount,
+  };
+}
+
 module.exports = {
   createInvestment,
   createInvestmentOnBehalf,
   signAdminInvestment,
+  cancelInvestment,
   getUserInvestments,
   getUserInvestmentById,
-  cancelInvestment,
-  getInvestmentsByProperty,
-  getInvestmentsByUser,
-  getInvestmentStats,
   getAllInvestments,
   getInvestmentById,
+  getInvestmentsByProperty,
+  getInvestmentsByUser,
   approveInvestment,
   rejectInvestment,
   payRemainingInvestment,
   requestRefund,
   processRefund,
+  getInvestmentStats,
   requestWithdrawal,
   processWithdrawal,
+  calculateInvestmentAmount,
 };

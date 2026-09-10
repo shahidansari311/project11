@@ -55,20 +55,20 @@ router.patch("/admin/builders/:id", verifyAuth, requireRole("admin"), imageUploa
 router.delete("/admin/builders/:id", verifyAuth, requireRole("admin"), authController.deleteUserByAdmin);
 
 
-const propertyController = require("../modules/property/property.controller");
+const publicPropertyController = require("../modules/property/controllers/public.property.controller");
 
 // Public property routes (No authentication required)
-router.get("/public/property/filters",           propertyController.getPropertyFilters);
-router.get("/public/property/locations/suggestions", propertyController.getLocationSuggestions);
-router.get("/public/property",                   propertyController.getAllProperties);
-router.get("/public/property/:id",               propertyController.getPropertyById);
+router.get("/public/property/filters",           publicPropertyController.getPropertyFilters);
+router.get("/public/property/locations/suggestions", publicPropertyController.getLocationSuggestions);
+router.get("/public/property",                   publicPropertyController.getAllProperties);
+router.get("/public/property/:id",               publicPropertyController.getPropertyById);
 // Investment info (unit price, remaining units, min/max investment)
-router.get("/public/property/:id/investment-info", propertyController.getPropertyInvestmentInfo);
+router.get("/public/property/:id/investment-info", publicPropertyController.getPropertyInvestmentInfo);
 
 // User property routes (protected for registered users)
-router.get("/user/property",                     verifyAuth, requireRole("user", "builder"), propertyController.getAllProperties);
-router.get("/user/property/:id",                 verifyAuth, requireRole("user", "builder"), propertyController.getPropertyById);
-router.get("/user/property/:id/investment-info", verifyAuth, requireRole("user", "builder"), propertyController.getPropertyInvestmentInfo);
+router.get("/user/property",                     verifyAuth, requireRole("user", "builder"), publicPropertyController.getAllProperties);
+router.get("/user/property/:id",                 verifyAuth, requireRole("user", "builder"), publicPropertyController.getPropertyById);
+router.get("/user/property/:id/investment-info", verifyAuth, requireRole("user", "builder"), publicPropertyController.getPropertyInvestmentInfo);
 
 router.get("/user/profile", verifyAuth, requireRole("user", "builder"), authController.getProfile);
 router.use("/user/favorites", verifyAuth, requireRole("user", "builder"), favoriteRoutes);

@@ -1,5 +1,5 @@
 const prisma = require("../../config/db");
-const { generateAgreementPdf } = require("../../utils/pdfGenerator");
+const { generateAgreementPdf, generateInvoicePdf } = require("../../utils/pdfGenerator");
 const storageService = require("../../services/storage.service");
 const AppError = require("../../utils/AppError");
 
@@ -180,6 +180,43 @@ async function createInvestmentOnBehalf(adminId, userId, propertyId, units) {
     const targetReturnAtTime = property.targetReturn || 0;
     const promisedReturnAmount = finalTotalAmount * (targetReturnAtTime / 100);
 
+    // Generate Invoice PDF for this cash payment
+    let newInvoiceUrl = null;
+    try {
+      const dateObj = new Date();
+      const invoiceData = {
+        invoiceNumber: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        date: dateObj.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
+        userFullName: user.fullName || "User",
+        userEmail: user.email,
+        propertyTitle: property.title || "Property",
+        propertyLocation: property.location,
+        units: units,
+        unitPriceAtTime: unitPriceAtTime,
+        totalAmount: finalTotalAmount,
+        previousPaidAmount: 0,
+        currentPaymentAmount: finalTotalAmount,
+        remainingBalance: 0,
+        paymentHistory: [{ date: dateObj.toISOString(), amount: finalTotalAmount }]
+      };
+      const invoiceBuffer = await generateInvoicePdf(invoiceData);
+      const filename = `invoice_onbehalf_${userId}_${Date.now()}.pdf`;
+      newInvoiceUrl = await storageService.uploadFile(
+        invoiceBuffer,
+        filename,
+        "application/pdf",
+        "invoices"
+      );
+    } catch (err) {
+      console.error("Failed to generate invoice PDF:", err.message);
+    }
+
+    const paymentHistoryItem = {
+      date: new Date().toISOString(),
+      amount: finalTotalAmount,
+      invoiceUrl: newInvoiceUrl,
+    };
+
     // Create the investment record
     const investment = await tx.investment.create({
       data: {
@@ -188,8 +225,11 @@ async function createInvestmentOnBehalf(adminId, userId, propertyId, units) {
         units,
         unitPriceAtTime,
         totalAmount: finalTotalAmount,
+        paidAmount: finalTotalAmount,
         paymentProofs: ["admin_cash"],
         paymentRef: "CASH",
+        paymentHistory: [paymentHistoryItem],
+        invoices: newInvoiceUrl ? [newInvoiceUrl] : [],
         signatureBase64: null,
         placeOfSignature: null,
         agreementUrl: null, // User must sign later
@@ -218,7 +258,7 @@ async function createInvestmentOnBehalf(adminId, userId, propertyId, units) {
     });
 
     return investment;
-  });
+  }, { timeout: 20000 });
 }
 
 /**
@@ -447,7 +487,7 @@ async function approveInvestment(adminId, investmentId, amountReceived) {
   return prisma.$transaction(async (tx) => {
     const investment = await tx.investment.findUnique({
       where: { id: investmentId },
-      include: { user: true },
+      include: { user: true, property: true },
     });
 
     if (!investment) throw new AppError("Investment not found", 404);
@@ -475,40 +515,97 @@ async function approveInvestment(adminId, investmentId, amountReceived) {
     let maturityDate = null;
     let newAgreementUrl = null;
 
-    if (finalStatus === "APPROVED") {
-      const property = await tx.property.findUnique({ where: { id: investment.propertyId } });
-      if (property && property.termPeriodYears) {
-        const d = new Date();
-        d.setFullYear(d.getFullYear() + property.termPeriodYears);
-        maturityDate = d;
-      }
+    const property = investment.property;
+    if (finalStatus === "APPROVED" && property && property.termPeriodYears) {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + property.termPeriodYears);
+      maturityDate = d;
+    }
 
-      // Generate PDF if not yet generated and user has signed
-      if (!investment.agreementUrl && investment.signatureBase64 && investment.placeOfSignature) {
-        try {
-          const pdfBuffer = await generateAgreementPdf({
-            userName: investment.user.fullName || "User",
-            userEmail: investment.user.email || "N/A",
-            userPhone: investment.user.phone || "N/A",
-            propertyTitle: property?.title || "Property",
-            units: investment.units,
-            totalAmount: investment.totalAmount,
-            placeOfSignature: investment.placeOfSignature,
-            signatureBase64: investment.signatureBase64
-          });
+    // Generate PDF if not yet generated and user has signed
+    if (finalStatus === "APPROVED" && !investment.agreementUrl && investment.signatureBase64 && investment.placeOfSignature) {
+      try {
+        const pdfBuffer = await generateAgreementPdf({
+          userName: investment.user.fullName || "User",
+          userEmail: investment.user.email || "N/A",
+          userPhone: investment.user.phone || "N/A",
+          propertyTitle: property?.title || "Property",
+          units: investment.units,
+          totalAmount: investment.totalAmount,
+          placeOfSignature: investment.placeOfSignature,
+          signatureBase64: investment.signatureBase64
+        });
 
-          const filename = `agreement_${investment.userId}_${investment.propertyId}_${Date.now()}.pdf`;
-          newAgreementUrl = await storageService.uploadFile(
-            pdfBuffer,
-            filename,
-            "application/pdf",
-            "agreements"
-          );
-        } catch (err) {
-          console.error("Failed to generate agreement PDF on approval:", err.message);
-          // Non-fatal, admin can still approve, PDF generation might fail
-        }
+        const filename = `agreement_${investment.userId}_${investment.propertyId}_${Date.now()}.pdf`;
+        newAgreementUrl = await storageService.uploadFile(
+          pdfBuffer,
+          filename,
+          "application/pdf",
+          "agreements"
+        );
+      } catch (err) {
+        console.error("Failed to generate agreement PDF on approval:", err.message);
+        // Non-fatal, admin can still approve, PDF generation might fail
       }
+    }
+
+    let existingHistory = [];
+    if (investment.paymentHistory) {
+      try {
+        existingHistory = typeof investment.paymentHistory === 'string' 
+          ? JSON.parse(investment.paymentHistory) 
+          : investment.paymentHistory;
+        if (!Array.isArray(existingHistory)) existingHistory = [];
+      } catch (e) {
+        existingHistory = [];
+      }
+    }
+
+    // Generate Invoice PDF for this specific approved payment
+    let newInvoiceUrl = null;
+    if (received > 0) {
+      try {
+        const dateObj = new Date();
+        const invoiceData = {
+          invoiceNumber: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          date: dateObj.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
+          userFullName: investment.user.fullName || "User",
+          userEmail: investment.user.email,
+          userPhone: investment.user.phone || "",
+          propertyTitle: property?.title || "Property",
+          propertyLocation: property?.location || "",
+          units: investment.units,
+          unitPriceAtTime: investment.unitPriceAtTime,
+          totalAmount: investment.totalAmount,
+          previousPaidAmount: investment.paidAmount,
+          currentPaymentAmount: received,
+          remainingBalance: investment.totalAmount - newPaidAmount,
+          paymentHistory: [...existingHistory, { date: dateObj.toISOString(), amount: received }]
+        };
+        const invoiceBuffer = await generateInvoicePdf(invoiceData);
+        const filename = `invoice_${investmentId}_${Date.now()}.pdf`;
+        newInvoiceUrl = await storageService.uploadFile(
+          invoiceBuffer,
+          filename,
+          "application/pdf",
+          "invoices"
+        );
+      } catch (err) {
+        console.error("Failed to generate invoice PDF:", err.message);
+      }
+    }
+
+    if (received > 0) {
+      existingHistory.push({
+        date: new Date().toISOString(),
+        amount: received,
+        invoiceUrl: newInvoiceUrl,
+      });
+    }
+    
+    const newInvoices = investment.invoices || [];
+    if (newInvoiceUrl) {
+      newInvoices.push(newInvoiceUrl);
     }
 
     const updated = await tx.investment.update({
@@ -516,6 +613,8 @@ async function approveInvestment(adminId, investmentId, amountReceived) {
       data:  { 
         status: finalStatus,
         paidAmount: newPaidAmount,
+        paymentHistory: existingHistory,
+        invoices: newInvoices,
         ...(maturityDate && { maturityDate }),
         ...(newAgreementUrl && { agreementUrl: newAgreementUrl })
       },
@@ -535,7 +634,7 @@ async function approveInvestment(adminId, investmentId, amountReceived) {
     await updatePropertyInvestorsCount(tx, investment.propertyId);
 
     return updated;
-  });
+  }, { timeout: 20000 });
 }
 
 /**

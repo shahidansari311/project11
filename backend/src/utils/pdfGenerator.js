@@ -1,4 +1,4 @@
-const PDFDocument = require("pdfkit");
+const PDFDocument = require("pdfkit-table");
 const fs = require("fs");
 const path = require("path");
 
@@ -99,6 +99,145 @@ async function generateAgreementPdf(data) {
   });
 }
 
+/**
+ * Generates an Invoice PDF for an investment payment.
+ * data includes:
+ * - invoiceNumber, date
+ * - userFullName, userEmail
+ * - propertyTitle, propertyLocation
+ * - units, unitPriceAtTime
+ * - previousPaidAmount, currentPaymentAmount, remainingBalance, totalAmount
+ */
+async function generateInvoicePdf(data) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      const buffers = [];
+
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => resolve(Buffer.concat(buffers)));
+
+      // Add logo or company name top left
+      doc.fontSize(16).fillColor("#8e44ad").font("Helvetica-Bold").text("SILVER REAL ESTATE", 50, 50);
+
+      // BILL TO (Left)
+      doc.fontSize(10).fillColor("#8e44ad").font("Helvetica-Bold").text("BILL TO", 50, 100);
+      doc.fillColor("black").font("Helvetica");
+      doc.text(data.userFullName || "", 50, 115);
+      if (data.userEmail) doc.text(data.userEmail, 50, 130);
+      if (data.userPhone) doc.text(data.userPhone, 50, 145);
+
+      // FROM (Right)
+      doc.fillColor("#8e44ad").font("Helvetica-Bold").text("FROM", 350, 100);
+      doc.fillColor("black").font("Helvetica");
+      doc.text("Silver Real Estate", 350, 115);
+      doc.text("123 Business Avenue, Tech Park", 350, 130);
+      doc.text("Sector 42, New Delhi, India", 350, 145);
+      doc.text("support@silverrealestate.com", 350, 160);
+
+      // Dates (Left)
+      doc.font("Helvetica").text(`Invoice Date: ${data.date}`, 50, 190);
+      doc.font("Helvetica-Bold").text(`Due Date: ${data.date}`, 50, 205);
+
+      // Bank details (Right)
+      doc.font("Helvetica").text("Bank Name: Axis Bank", 350, 190);
+      doc.text("IFSC: UTIB000XXXX", 350, 205);
+      doc.text("Account: 9283749283749", 350, 220);
+
+      // INVOICE NUMBER (Center)
+      doc.moveDown(4);
+      const invNum = data.invoiceNumber.split('-').length > 1 ? data.invoiceNumber.split('-')[1] : data.invoiceNumber;
+      doc.fontSize(24).font("Helvetica-Bold").text(`Invoice # ${invNum}`, { align: 'center' });
+      doc.moveDown(2);
+
+      // Main Table
+      const table = {
+        title: "",
+        headers: [
+          { label: "DESCRIPTION", property: "desc", width: 250 },
+          { label: "QTY", property: "qty", width: 50 },
+          { label: "UNIT PRICE", property: "price", width: 100 },
+          { label: "SUBTOTAL", property: "subtotal", width: 100 }
+        ],
+        datas: [
+          {
+            desc: `Real estate fractional ownership - ${data.propertyTitle}`,
+            qty: data.units.toString(),
+            price: data.unitPriceAtTime.toLocaleString("en-IN", { minimumFractionDigits: 2 }),
+            subtotal: data.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })
+          }
+        ],
+      };
+
+      await doc.table(table, {
+        prepareHeader: () => doc.font("Helvetica-Bold").fontSize(10),
+        prepareRow: () => doc.font("Helvetica").fontSize(10)
+      });
+
+      // Totals
+      const tableY = doc.y;
+      doc.font("Helvetica").text("SUBTOTAL", 350, tableY + 10);
+      doc.text(data.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }), 450, tableY + 10, { width: 100, align: 'right' });
+      
+      doc.text("TAX", 350, tableY + 25);
+      doc.text("0.00", 450, tableY + 25, { width: 100, align: 'right' });
+
+      doc.font("Helvetica-Bold").text("Total", 350, tableY + 40);
+      doc.text(data.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }), 450, tableY + 40, { width: 100, align: 'right' });
+
+      doc.moveDown(4);
+      
+      // Calculate totals from payment history
+      let totalPaid = 0;
+      if (data.paymentHistory) {
+        data.paymentHistory.forEach(p => totalPaid += Number(p.amount));
+      } else {
+        totalPaid = data.previousPaidAmount + data.currentPaymentAmount;
+      }
+
+      // Payment History Table
+      if (data.paymentHistory && data.paymentHistory.length > 0) {
+        doc.fontSize(14).font("Helvetica-Bold").text("Payment History", 50, doc.y + 40);
+        doc.moveDown(0.5);
+
+        const historyDatas = data.paymentHistory.map((payment, idx) => ({
+          date: new Date(payment.date).toLocaleDateString("en-IN", { year: 'numeric', month: 'long', day: 'numeric' }),
+          desc: `Payment ${idx + 1}`,
+          amount: payment.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })
+        }));
+
+        const historyTable = {
+          title: "",
+          headers: [
+            { label: "DATE", property: "date", width: 150 },
+            { label: "DESCRIPTION", property: "desc", width: 200 },
+            { label: "AMOUNT PAID", property: "amount", width: 150 }
+          ],
+          datas: historyDatas
+        };
+
+        await doc.table(historyTable, {
+          prepareHeader: () => doc.font("Helvetica-Bold").fontSize(10),
+          prepareRow: () => doc.font("Helvetica").fontSize(10)
+        });
+
+        const historyY = doc.y;
+        doc.font("Helvetica-Bold").text("Total Paid", 300, historyY + 10);
+        doc.text(totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 }), 400, historyY + 10, { width: 100, align: 'right' });
+        
+        doc.font("Helvetica-Bold").text("Remaining Balance", 300, historyY + 25);
+        const rem = data.totalAmount - totalPaid;
+        doc.text(rem.toLocaleString("en-IN", { minimumFractionDigits: 2 }), 400, historyY + 25, { width: 100, align: 'right' });
+      }
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 module.exports = {
-  generateAgreementPdf
+  generateAgreementPdf,
+  generateInvoicePdf
 };

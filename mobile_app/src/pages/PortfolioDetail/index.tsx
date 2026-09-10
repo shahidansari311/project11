@@ -797,12 +797,41 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
                     </View>
                     <View style={styles.docInfo}>
                       <Text style={styles.docTitle}>{proofUrl === "admin_cash" ? "Cash Payment (Admin)" : isRazorpay ? "Razorpay Payment" : `Payment Proof ${index + 1}`}</Text>
-                      <Text style={styles.docSubtitle}>{isRazorpay ? "Verified" : (investment.status === "APPROVED" ? "Verified by Admin" : "Uploaded")}</Text>
+                      <Text style={styles.docSubtitle}>{isRazorpay ? "Verified" : (investment.status === "APPROVED" || investment.status === "PARTIAL_PAID" ? "Verified by Admin" : "Uploaded")}</Text>
                     </View>
                     {!isRazorpay && <Ionicons name="eye-outline" size={20} color={Colors.primary} />}
                   </TouchableOpacity>
                 );
               })}
+            </View>
+          )}
+
+          {investment.paymentHistory && investment.paymentHistory.length > 0 && (
+            <View style={{ marginTop: 16 }}>
+              <Text style={styles.sectionSubtitle}>Approved Payments & Invoices</Text>
+              {investment.paymentHistory.map((payment, index) => (
+                <TouchableOpacity
+                  key={`payment-${index}`}
+                  style={[styles.docRow, { marginTop: 8 }]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (payment.invoiceUrl) {
+                      Linking.openURL(payment.invoiceUrl);
+                    }
+                  }}
+                >
+                  <View style={styles.docIconBox}>
+                    <Ionicons name="cash" size={20} color={Colors.primary} />
+                  </View>
+                  <View style={styles.docInfo}>
+                    <Text style={styles.docTitle}>₹{payment.amount.toLocaleString('en-IN')}</Text>
+                    <Text style={styles.docSubtitle}>{formatDate(payment.date)}</Text>
+                  </View>
+                  {payment.invoiceUrl && (
+                    <Ionicons name="download-outline" size={20} color={Colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
           )}
 

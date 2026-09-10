@@ -57,6 +57,11 @@ export const propertyService = {
     return response.data;
   },
 
+  async calculateInvestmentAmount(id: string, units: number): Promise<{ data: { finalAmount: number, exactAmount: number, perUnitPrice: number, propertyId: string, units: number }; message: string }> {
+    const response = await api.get(`/public/property/${id}/calculate?units=${units}`);
+    return response.data;
+  },
+
   async getLocationSuggestions(query: string): Promise<{ data: string[]; message: string }> {
     const response = await api.get("/public/property/locations/suggestions", {
       params: { query, _t: Date.now() }

@@ -64,6 +64,7 @@ router.get("/public/property",                   publicPropertyController.getAll
 router.get("/public/property/:id",               publicPropertyController.getPropertyById);
 // Investment info (unit price, remaining units, min/max investment)
 router.get("/public/property/:id/investment-info", publicPropertyController.getPropertyInvestmentInfo);
+router.get("/public/property/:id/calculate", publicPropertyController.calculateInvestmentAmount);
 
 // User property routes (protected for registered users)
 router.get("/user/property",                     verifyAuth, requireRole("user", "builder"), publicPropertyController.getAllProperties);

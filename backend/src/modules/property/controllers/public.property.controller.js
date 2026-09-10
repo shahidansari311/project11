@@ -81,10 +81,26 @@ async function getPropertyInvestmentInfo(req, res, next) {
   }
 }
 
+async function calculateInvestmentAmount(req, res, next) {
+  try {
+    const { id } = req.params;
+    const units = Math.max(1, parseInt(req.query.units) || 1);
+    
+    const calculation = await propertyService.calculateInvestmentAmount(id, units);
+    return successResponse(res, 200, calculation, "Investment amount calculated successfully");
+  } catch (err) {
+    if (err.message && err.message.includes("not found")) {
+      return errorResponse(res, 404, err.message);
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   getAllProperties,
   getPropertyById,
   getPropertyFilters,
   getLocationSuggestions,
   getPropertyInvestmentInfo,
+  calculateInvestmentAmount,
 };

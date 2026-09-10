@@ -24,6 +24,9 @@ router.patch("/:id/verification", validate(verifyPropertySchema), adminControlle
 // GET /admin/property/:id — get single property by ID
 router.get("/:id", publicController.getPropertyById);
 
+// GET /public/property/:id/calculate — get calculated investment amount
+router.get("/:id/calculate", publicController.calculateInvestmentAmount);
+
 // POST /admin/property/add — create a new property listing
 router.post("/add", imageUpload.array("images", 10), uploadPropertyImages, validate(createPropertySchema), adminController.createProperty);
 

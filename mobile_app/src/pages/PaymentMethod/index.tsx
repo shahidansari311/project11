@@ -11,6 +11,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { uploadService } from "../../services/upload.service";
 import { signatureStore } from "../../utils/signatureStore";
 import { useToast } from "@/components/Toast";
+import { propertyService } from "../../services/property.service";
 
 export default function PaymentMethodPage() {
   const router = useRouter();
@@ -20,7 +21,9 @@ export default function PaymentMethodPage() {
   
   const propertyId = params.propertyId as string;
   const units = params.units ? parseInt(params.units as string, 10) : 1;
-  const amountToPay = params.amount ? parseFloat(params.amount as string) : 250000;
+  const initialAmountToPay = params.amount ? parseFloat(params.amount as string) : 250000;
+  
+  const [amountToPay, setAmountToPay] = useState<number>(initialAmountToPay);
   
   const isRazorpayDisabled = amountToPay > 100000;
 
@@ -29,6 +32,7 @@ export default function PaymentMethodPage() {
   const [showUnderVerificationModal, setShowUnderVerificationModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingAmount, setIsLoadingAmount] = useState(true);
   
   const [paymentProofUrl, setPaymentProofUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -42,10 +46,27 @@ export default function PaymentMethodPage() {
   );
 
   useEffect(() => {
+    async function fetchAmount() {
+      try {
+        setIsLoadingAmount(true);
+        const res = await propertyService.calculateInvestmentAmount(propertyId, units);
+        setAmountToPay(res.data.finalAmount);
+      } catch (err) {
+        console.error("Failed to fetch calculation", err);
+      } finally {
+        setIsLoadingAmount(false);
+      }
+    }
+    if (propertyId) {
+      fetchAmount();
+    }
+  }, [propertyId, units]);
+
+  useEffect(() => {
     if (isRazorpayDisabled && activeTab === "razorpay") {
       setActiveTab("bank");
     }
-  }, [isRazorpayDisabled]);
+  }, [isRazorpayDisabled, activeTab]);
 
   const handleTabPress = (tab: "razorpay" | "bank") => {
     if (tab === "razorpay" && isRazorpayDisabled) {
@@ -158,10 +179,13 @@ export default function PaymentMethodPage() {
         {/* Summary Card */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Amount Due</Text>
-          <Text style={styles.summaryAmount}>
-            {/* Simple formatter for the dummy value */}
-            ₹{amountToPay.toLocaleString('en-IN')}
-          </Text>
+          {isLoadingAmount ? (
+            <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 8 }} />
+          ) : (
+            <Text style={styles.summaryAmount}>
+              ₹{amountToPay.toLocaleString('en-IN')}
+            </Text>
+          )}
           
           <View style={styles.summaryDivider} />
           

@@ -70,6 +70,7 @@ export default function HomeTab() {
           <DashboardHeader 
             properties={properties} 
             onRequireLogin={() => setShowLoginPrompt(true)} 
+            isRefreshing={isRefreshing}
           />
         </ScrollView>
       )}
@@ -77,10 +78,6 @@ export default function HomeTab() {
       <LoginPromptModal
         visible={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        onLogin={() => {
-          setShowLoginPrompt(false);
-          router.push("/");
-        }}
       />
     </View>
   );
@@ -92,6 +89,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   scrollContent: {
-    paddingBottom: 110,
+    paddingBottom: 55,
   },
 });

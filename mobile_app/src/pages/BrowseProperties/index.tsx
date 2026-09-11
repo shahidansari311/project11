@@ -60,10 +60,10 @@ export default function BrowsePropertiesPage() {
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   const [activeCategory, setActiveCategory] = useState<string>("ALL ASSETS");
-  const [categories, setCategories] = useState<string[]>(["ALL ASSETS", ...STATIC_FILTER_DATA.categories]);
+  const [categories, setCategories] = useState<string[]>(["ALL ASSETS"]);
   
   // Modal & Active Filters State
-  const [filterData, setFilterData] = useState<FilterData>(STATIC_FILTER_DATA);
+  const [filterData, setFilterData] = useState<FilterData | null>(null);
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
   
   const hasActiveFilters = useMemo(() => {
@@ -87,7 +87,19 @@ export default function BrowsePropertiesPage() {
   const { refreshFavorites } = useFavorites();
   const { isGuest, refreshAuth, isLoading: authLoading } = useAuth();
 
-  // Filters are now static, no need to fetch them from backend on mount.
+  const fetchFilters = useCallback(async () => {
+    try {
+      const res = await propertyService.getPropertyFilters();
+      if (res?.data) {
+        setFilterData(res.data);
+        if (res.data.categories) {
+          setCategories(["ALL ASSETS", ...res.data.categories]);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch property filters:", err);
+    }
+  }, []);
 
   const fetchProperties = useCallback(async (pageNum: number, isRefresh: boolean = false) => {
     try {
@@ -115,6 +127,10 @@ export default function BrowsePropertiesPage() {
   }, [debouncedSearch, activeCategory, activeFilters]);
 
   useEffect(() => {
+    fetchFilters();
+  }, [fetchFilters]);
+
+  useEffect(() => {
     let ignore = false;
     setIsFetchingProperties(true);
     setPage(1);
@@ -122,7 +138,7 @@ export default function BrowsePropertiesPage() {
       if (!ignore && mounted.current) setIsFetchingProperties(false);
     });
     return () => { ignore = true; };
-  }, [debouncedSearch, activeCategory, fetchProperties]);
+  }, [debouncedSearch, activeCategory, fetchProperties, activeFilters]);
 
   const handleLoadMore = () => {
     if (!hasMore || isFetchingMore || isFetchingProperties) return;
@@ -135,9 +151,9 @@ export default function BrowsePropertiesPage() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     setPage(1);
-    await Promise.all([fetchProperties(1, true), refreshAuth(), refreshFavorites()]);
+    await Promise.all([fetchFilters(), fetchProperties(1, true), refreshAuth(), refreshFavorites()]);
     setRefreshing(false);
-  }, [fetchProperties, refreshAuth, refreshFavorites]);
+  }, [fetchProperties, fetchFilters, refreshAuth, refreshFavorites]);
 
   const handleRequireLogin = useCallback(() => {
     setShowLoginPrompt(true);
@@ -310,10 +326,6 @@ export default function BrowsePropertiesPage() {
       <LoginPromptModal
         visible={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        onLogin={() => {
-          setShowLoginPrompt(false);
-          router.push("/");
-        }}
       />
 
       {/* ── Filter Modal ── */}

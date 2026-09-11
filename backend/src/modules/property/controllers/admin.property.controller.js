@@ -14,15 +14,16 @@ async function createProperty(req, res, next) {
 async function updateProperty(req, res, next) {
   try {
     const { id } = req.params;
-    const { title, images, youtubeVideoUrl, totalPrice, status } = req.body;
     
-    // Admin only allowed to edit these fields
+    const { title, description, category, images, youtubeVideoUrl } = req.body;
+    
+    // Admin is only allowed to edit these specific fields
     const restrictedData = {
       ...(title !== undefined && { title }),
+      ...(description !== undefined && { description }),
+      ...(category !== undefined && { category }),
       ...(images !== undefined && { images }),
-      ...(youtubeVideoUrl !== undefined && { youtubeVideoUrl }),
-      ...(totalPrice !== undefined && { totalPrice }),
-      ...(status !== undefined && { status })
+      ...(youtubeVideoUrl !== undefined && { youtubeVideoUrl })
     };
 
     const property = await propertyService.updateProperty(id, restrictedData);

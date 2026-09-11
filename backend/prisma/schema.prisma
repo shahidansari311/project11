@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -189,4 +190,12 @@ enum InvestmentStatus {
   CANCELLED         // user cancelled before admin acted (units released back)
   WITHDRAWAL_REQUESTED // user requested withdrawal after maturity
   WITHDRAWN
+}
+
+model AppSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

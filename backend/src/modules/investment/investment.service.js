@@ -189,6 +189,7 @@ async function createInvestmentOnBehalf(adminId, userId, propertyId, units) {
         date: dateObj.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
         userFullName: user.fullName || "User",
         userEmail: user.email,
+        userPhone: user.phone || "",
         propertyTitle: property.title || "Property",
         propertyLocation: property.location,
         units: units,

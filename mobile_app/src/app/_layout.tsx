@@ -5,6 +5,7 @@ import { FavoritesProvider } from "../contexts/FavoritesContext";
 import { AuthProvider } from "../contexts/AuthContext";
 import { ToastProvider } from "../components/Toast";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import GlobalAlertModal from "../components/GlobalAlertModal";
 import "../../global.css";
 
 export default function RootLayout() {
@@ -64,6 +65,7 @@ export default function RootLayout() {
                 options={{ animation: "fade", gestureEnabled: true }}
               />
             </Stack>
+            <GlobalAlertModal />
           </FavoritesProvider>
         </ToastProvider>
       </AuthProvider>

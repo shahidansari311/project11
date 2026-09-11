@@ -1,18 +1,21 @@
-import { useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useMemo, useState, useEffect } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { Property } from '../data';
 import HorizontalPropertyCard from './HorizontalPropertyCard';
+import TutorialVideoPlayer from './TutorialVideoPlayer';
 import { useAuth } from '@/contexts/AuthContext';
+import { settingService } from '@/services/setting.service';
 
 interface DashboardHeaderProps {
   properties: Property[];
   onRequireLogin: () => void;
+  isRefreshing?: boolean;
 }
 
-export default function DashboardHeader({ properties, onRequireLogin }: DashboardHeaderProps) {
+export default function DashboardHeader({ properties, onRequireLogin, isRefreshing }: DashboardHeaderProps) {
   const { userProfile, isGuest } = useAuth();
   const router = useRouter();
   
@@ -27,6 +30,22 @@ export default function DashboardHeader({ properties, onRequireLogin }: Dashboar
     if (!properties || properties.length === 0) return [];
     return [...properties].sort((a, b) => (b.investors || 0) - (a.investors || 0)).slice(0, 5);
   }, [properties]);
+
+  const [tutorialVideoUrl, setTutorialVideoUrl] = useState<string>("");
+
+  useEffect(() => {
+    const fetchTutorial = async () => {
+      try {
+        const response = await settingService.getTutorialVideo();
+        if (response?.data?.url) {
+          setTutorialVideoUrl(response.data.url);
+        }
+      } catch (err) {
+        console.log("Failed to fetch tutorial video.", err);
+      }
+    };
+    fetchTutorial();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -63,6 +82,18 @@ export default function DashboardHeader({ properties, onRequireLogin }: Dashboar
               />
             ))}
           </ScrollView>
+        </View>
+      )}
+
+      {/* ── Tutorial Video Section ── */}
+      {!!tutorialVideoUrl && (
+        <View style={styles.tutorialContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>How to Invest with Us</Text>
+          </View>
+          <View style={styles.videoWrapper}>
+            <TutorialVideoPlayer url={tutorialVideoUrl} isRefreshing={isRefreshing} />
+          </View>
         </View>
       )}
 
@@ -276,5 +307,38 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
+  },
+
+  /* Tutorial Video Section */
+  tutorialContainer: {
+    marginBottom: 24,
+  },
+  videoWrapper: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    aspectRatio: 16 / 9,
+    backgroundColor: Colors.surfaceContainerLowest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    position: 'relative',
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  videoLoader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+    backgroundColor: Colors.surfaceContainerLowest,
   },
 });

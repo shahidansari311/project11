@@ -25,6 +25,8 @@ import * as DocumentPicker from "expo-document-picker";
 import { uploadService } from "../../services/upload.service";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
+import { WebView } from "react-native-webview";
+import { GlobalAlert } from '@/components/GlobalAlertModal';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { investmentService } from "@/services/investment.service";
 import { propertyService } from "@/services/property.service";
@@ -42,7 +44,8 @@ const formatCurrency = (value: number, currencySymbol: string = "₹") => {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value).replace("₹", currencySymbol);
 };
 
@@ -273,10 +276,10 @@ export default function MyPortfolioPage() {
       );
 
       setPaymentProofUrl(response.data.url);
-      Alert.alert("Uploaded", "Document uploaded successfully.");
+      GlobalAlert.alert("Uploaded", "Document uploaded successfully.");
     } catch (err: any) {
       console.log("Upload error:", err);
-      Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to upload document.");
+      GlobalAlert.alert("Error", err?.response?.data?.message || err?.message || "Failed to upload document.");
     } finally {
       setIsUploading(false);
     }
@@ -286,7 +289,7 @@ export default function MyPortfolioPage() {
     // If Razorpay tab is active, we just use a dummy URL for now, or real Razorpay if integrated. 
     // Just like PaymentMethod, if it's Razorpay, proof url might be omitted or set to a placeholder
     if (activePayTab === "bank" && !paymentProofUrl) {
-      return Alert.alert("Required", "Please upload your payment proof document.");
+      return GlobalAlert.alert("Required", "Please upload your payment proof document.");
     }
     
     setIsSubmitting(true);
@@ -294,41 +297,41 @@ export default function MyPortfolioPage() {
       // For Razorpay we pass undefined or dummy, for bank we pass the URL
       const proofToSubmit = activePayTab === "razorpay" ? "razorpay_direct_payment" : paymentProofUrl;
       await investmentService.payRemainingInvestment(selectedInv!.id, proofToSubmit);
-      Alert.alert("Submitted ✅", activePayTab === "razorpay" ? "Payment processed via Razorpay." : "Your payment proof has been submitted for admin review.");
+      GlobalAlert.alert("Submitted ✅", activePayTab === "razorpay" ? "Payment processed via Razorpay." : "Your payment proof has been submitted for admin review.");
       setShowPayModal(false);
       loadInvestments(true);
     } catch (e: any) {
-      Alert.alert("Error", e?.response?.data?.message || "Failed to submit.");
+      GlobalAlert.alert("Error", e?.response?.data?.message || "Failed to submit.");
     } finally { setIsSubmitting(false); }
   };
 
   const handleRequestRefund = async () => {
     if (!selectedInv) return;
     const { accountName, bankName, accountNumber, ifscCode } = refundDetails;
-    if (!accountName || !bankName || !accountNumber || !ifscCode) return Alert.alert("Required", "Please fill all bank details.");
+    if (!accountName || !bankName || !accountNumber || !ifscCode) return GlobalAlert.alert("Required", "Please fill all bank details.");
     setIsSubmitting(true);
     try {
       await investmentService.requestRefund(selectedInv.id, refundDetails);
-      Alert.alert("Requested ✅", "Your refund request has been submitted.");
+      GlobalAlert.alert("Requested ✅", "Your refund request has been submitted.");
       setShowRefundModal(false);
       loadInvestments(true);
     } catch (e: any) {
-      Alert.alert("Error", e?.response?.data?.message || "Failed to submit.");
+      GlobalAlert.alert("Error", e?.response?.data?.message || "Failed to submit.");
     } finally { setIsSubmitting(false); }
   };
 
   const handleRequestWithdrawal = async () => {
     if (!selectedInv) return;
     const { accountName, bankName, accountNumber, ifscCode } = refundDetails;
-    if (!accountName || !bankName || !accountNumber || !ifscCode) return Alert.alert("Required", "Please fill all bank details.");
+    if (!accountName || !bankName || !accountNumber || !ifscCode) return GlobalAlert.alert("Required", "Please fill all bank details.");
     setIsSubmitting(true);
     try {
       await investmentService.requestWithdrawal(selectedInv.id, refundDetails);
-      Alert.alert("Requested ✅", "Your withdrawal request has been submitted.");
+      GlobalAlert.alert("Requested ✅", "Your withdrawal request has been submitted.");
       setShowWithdrawalModal(false);
       loadInvestments(true);
     } catch (e: any) {
-      Alert.alert("Error", e?.response?.data?.message || "Failed to submit.");
+      GlobalAlert.alert("Error", e?.response?.data?.message || "Failed to submit.");
     } finally { setIsSubmitting(false); }
   };
 

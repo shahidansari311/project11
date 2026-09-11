@@ -10,6 +10,9 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from "react
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { useAuth } from "../../contexts/AuthContext";
+import LoginPromptModal from "../LoginPromptModal";
+import { GlobalAlert } from "@/components/GlobalAlertModal";
 import { Colors } from "@/constants/colors";
 
 interface VisualTab {
@@ -97,31 +100,55 @@ const BUILDER_TABS: VisualTab[] = [
   }
 ];
 
+const GUEST_TABS: VisualTab[] = [
+  {
+    id: "home",
+    label: "Home",
+    icon: "home-outline",
+    activeIcon: "home",
+    routeName: "home",
+  },
+  {
+    id: "explore",
+    label: "Explore",
+    icon: "search-outline",
+    activeIcon: "search",
+    routeName: "explore",
+  },
+];
+
 interface AppTabBarProps {
   /** Current active route name from the Tabs navigator (e.g. "home" or "profile"). */
   activeRouteName: string;
   userProfileUrl?: string | null;
   role?: string;
+  isGuest?: boolean;
   onTabPress: (routeName: string) => void;
 }
 
-export default function AppTabBar({ activeRouteName, userProfileUrl, role, onTabPress }: AppTabBarProps) {
+export default function AppTabBar({ activeRouteName, userProfileUrl, role, isGuest, onTabPress }: AppTabBarProps) {
   const insets = useSafeAreaInsets();
 
   const handlePress = (tab: VisualTab) => {
     if (!tab.routeName) {
-      Alert.alert("Coming Soon", `The ${tab.label} feature is coming soon!`);
+      GlobalAlert.alert("Coming Soon", `The ${tab.label} feature is coming soon!`);
       return;
     }
     onTabPress(tab.routeName);
   };
+
+  const tabsToRender = isGuest 
+    ? GUEST_TABS 
+    : role === "BUILDER" 
+      ? BUILDER_TABS 
+      : VISUAL_TABS;
 
   return (
     <View style={[
       styles.container,
       { bottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) }
     ]}>
-      {(role === "BUILDER" ? BUILDER_TABS : VISUAL_TABS).map((tab) => {
+      {tabsToRender.map((tab) => {
         const isActive = tab.routeName === activeRouteName;
         return (
           <TouchableOpacity

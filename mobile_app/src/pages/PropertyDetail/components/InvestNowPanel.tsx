@@ -37,7 +37,8 @@ const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value);
 
 const formatNumber = (value: number) =>
@@ -544,7 +545,7 @@ const styles = StyleSheet.create({
     height: 36,
     padding: 0,
     backgroundColor: "#ffffff",
-    borderRadius: 10,
+    borderRadius: 16,
     color: Colors.primary,
     fontSize: 16,
     fontWeight: "800",

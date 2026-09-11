@@ -16,13 +16,13 @@ export default function Skeleton({ width, height, borderRadius = 8, style }: Ske
     Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
-          toValue: 0.7,
-          duration: 800,
+          toValue: 0.6,
+          duration: 600,
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
-          toValue: 0.3,
-          duration: 800,
+          toValue: 0.2,
+          duration: 600,
           useNativeDriver: true,
         }),
       ])

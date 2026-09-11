@@ -31,7 +31,8 @@ const formatCurrency = (val: number, currencySymbol: string = "₹") => {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(val).replace("₹", currencySymbol);
 };
 

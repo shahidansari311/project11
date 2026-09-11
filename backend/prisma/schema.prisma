@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -160,7 +161,9 @@ model Investment {
   placeOfSignature String?         // saved place of signature
   agreementUrl    String?          // generated PDF agreement URL (only set when APPROVED)
   adminRemark     String?          // admin note on approve/reject
-  paidAmount      Float            @default(0) // actual amount approved by admin
+  paidAmount      Float            @default(0) // cumulative amount approved by admin
+  paymentHistory  Json             @default("[]") // track individual approved payments [{ date, amount }]
+  invoices        String[]         @default([]) // array of generated invoice PDF URLs
   refundBankDetails Json?          // stored structured bank details for refund
   refundProofUrl  String?          // admin's proof of refund payment
   maturityDate    DateTime?        // calculated term maturity date
@@ -187,4 +190,12 @@ enum InvestmentStatus {
   CANCELLED         // user cancelled before admin acted (units released back)
   WITHDRAWAL_REQUESTED // user requested withdrawal after maturity
   WITHDRAWN
+}
+
+model AppSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

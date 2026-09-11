@@ -61,7 +61,8 @@ async function createProperty({
 
   // Unit math: totalUnits = totalSize (1 unit = 1 sq ft), perUnitPrice = totalPrice / totalUnits
   const totalUnits = Math.max(1, Math.floor(areaFloat));
-  const perUnitPrice = totalPrice / totalUnits;
+  const perUnitPrice = Number((totalPrice / totalUnits).toFixed(2));
+  const roundedTotalPrice = Number(Number(totalPrice).toFixed(2));
 
   let finalLocationStr = location;
   let finalMapLocation = null;
@@ -82,7 +83,7 @@ async function createProperty({
       targetReturn,
       minInvestment:  perUnitPrice,  // auto: 1 unit price
       investors:      0,             // always starts at 0
-      totalPrice,
+      totalPrice:     roundedTotalPrice,
       totalSize:      areaFloat,
       totalUnits,
       perUnitPrice,
@@ -93,7 +94,7 @@ async function createProperty({
       termPeriodYears: termPeriodYears ? parseInt(termPeriodYears) : null,
       priceHistory: {
         create: {
-          price: totalPrice,
+          price: roundedTotalPrice,
           date: new Date(),
         }
       }
@@ -152,10 +153,15 @@ async function updateProperty(id, data) {
 
   if (data.totalPrice !== undefined || data.totalSize !== undefined) {
     const newTotalUnits  = Math.max(1, Math.floor(newTotalSize));
-    const newPerUnitPrice = newTotalPrice / newTotalUnits;
+    const newPerUnitPrice = Number((newTotalPrice / newTotalUnits).toFixed(2));
+    
     data.totalUnits   = newTotalUnits;
     data.perUnitPrice = newPerUnitPrice;
     data.minInvestment = newPerUnitPrice; // always 1 unit
+    
+    if (data.totalPrice !== undefined) {
+      data.totalPrice = Number(Number(data.totalPrice).toFixed(2));
+    }
   }
 
   // Calculate status automatically based on units if not explicitly overriding to something else
@@ -415,7 +421,7 @@ async function getPropertyFilters() {
   const propertyModel = getPropertyModel();
   
   // Fetch distinct categories, statuses, locations, and areas, plus min/max prices
-  const [categoryResult, statusResult, locationResult, areaResult, priceResult] = await Promise.all([
+  const [categoryResult, statusResult, locationResult, priceResult, areaResult] = await Promise.all([
     propertyModel.findMany({
       distinct: ['category'],
       select: { category: true }
@@ -428,23 +434,42 @@ async function getPropertyFilters() {
       distinct: ['location'],
       select: { location: true }
     }),
-    propertyModel.findMany({
-      distinct: ['totalSize'],
-      select: { totalSize: true }
+    propertyModel.aggregate({
+      _min: { perUnitPrice: true },
+      _max: { perUnitPrice: true }
     }),
     propertyModel.aggregate({
-      _min: { totalPrice: true },
-      _max: { totalPrice: true }
+      _min: { totalSize: true },
+      _max: { totalSize: true }
     })
   ]);
+
+  // Clean locations
+  const parsedLocations = new Set();
+  for (const row of locationResult) {
+    if (!row.location) continue;
+    let locStr = row.location;
+    try {
+      const parsed = JSON.parse(locStr);
+      if (parsed && parsed.address) {
+        // Extract a shortened version for the popular locations, like city or state
+        const parts = parsed.address.split(',');
+        locStr = parts.length > 2 ? parts[parts.length - 3].trim() : parts[0].trim();
+      }
+    } catch(e) {}
+    if (locStr && locStr !== "Unknown Location") {
+      parsedLocations.add(locStr);
+    }
+  }
 
   return {
     categories: categoryResult.map(c => c.category).filter(Boolean),
     statuses: statusResult.map(s => s.status).filter(Boolean),
-    locations: locationResult.map(l => l.location).filter(Boolean),
-    areas: areaResult.map(a => a.totalSize).filter(Boolean),
-    minPrice: priceResult._min.totalPrice || 0,
-    maxPrice: priceResult._max.totalPrice || 0,
+    locations: Array.from(parsedLocations).slice(0, 4), // Limit to 4 as requested
+    minPrice: priceResult._min.perUnitPrice || 0,
+    maxPrice: priceResult._max.perUnitPrice || 0,
+    minArea: areaResult._min.totalSize || 0,
+    maxArea: areaResult._max.totalSize || 0,
   };
 }
 
@@ -539,7 +564,7 @@ async function getPropertyInvestmentInfo(propertyId) {
     const areaFloat = parseFloat(String(property.totalSize).replace(/[^0-9.]/g, ""));
     if (areaFloat && areaFloat > 0 && property.totalPrice > 0) {
       totalUnits   = Math.max(1, Math.floor(areaFloat));
-      perUnitPrice = property.totalPrice / totalUnits;
+      perUnitPrice = Number((property.totalPrice / totalUnits).toFixed(2));
 
       // Persist computed values so future calls are instant (fire-and-forget)
       propertyModel.update({
@@ -565,7 +590,7 @@ async function getPropertyInvestmentInfo(propertyId) {
     purchasedUnits: purchasedUnits || 0,
     remainingUnits,
     minInvestment:  perUnitPrice,                      // 1 unit price
-    maxInvestment:  remainingUnits * perUnitPrice,
+    maxInvestment:  Number((remainingUnits * perUnitPrice).toFixed(2)),
   };
 }
 

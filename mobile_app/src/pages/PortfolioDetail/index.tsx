@@ -17,6 +17,9 @@ import {
 import * as DocumentPicker from "expo-document-picker";
 import { uploadService } from "@/services/upload.service";
 import { Ionicons } from "@expo/vector-icons";
+import * as Print from "expo-print";
+import { shareAsync } from "expo-sharing";
+import { GlobalAlert } from '@/components/GlobalAlertModal';
 import { useRouter } from "expo-router";
 import { WebView } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -109,7 +112,8 @@ const formatCurrency = (value: number, currencySymbol: string = "₹") => {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value).replace("₹", currencySymbol);
 };
 
@@ -295,10 +299,10 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
       );
 
       setPaymentProofUrl(response.data.url);
-      Alert.alert("Uploaded", "Document uploaded successfully.");
+      GlobalAlert.alert("Uploaded", "Document uploaded successfully.");
     } catch (err: any) {
       console.log("Upload error:", err);
-      Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to upload document.");
+      GlobalAlert.alert("Error", err?.response?.data?.message || err?.message || "Failed to upload document.");
     } finally {
       setIsUploading(false);
     }
@@ -306,19 +310,19 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
 
   const handlePayRemaining = async () => {
     if (activePayTab === "bank" && !paymentProofUrl) {
-      Alert.alert("Required", "Please upload a payment proof document.");
+      GlobalAlert.alert("Required", "Please upload a payment proof document.");
       return;
     }
     setIsSubmitting(true);
     try {
       const proofToSubmit = activePayTab === "razorpay" ? "razorpay_direct_payment" : paymentProofUrl;
       await investmentService.payRemainingInvestment(investment!.id, proofToSubmit);
-      Alert.alert("Success", activePayTab === "razorpay" ? "Payment processed via Razorpay." : "Payment proof submitted for review.");
+      GlobalAlert.alert("Success", activePayTab === "razorpay" ? "Payment processed via Razorpay." : "Payment proof submitted for review.");
       setShowPayRemaining(false);
       setPaymentProofUrl("");
       loadData(true);
     } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.message || "Failed to submit payment proof.");
+      GlobalAlert.alert("Error", error.response?.data?.message || "Failed to submit payment proof.");
     } finally {
       setIsSubmitting(false);
     }
@@ -327,17 +331,17 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
   const handleRequestRefund = async () => {
     const { accountName, bankName, accountNumber, ifscCode } = refundBankDetails;
     if (!accountName || !bankName || !accountNumber || !ifscCode) {
-      Alert.alert("Required", "Please fill all bank details.");
+      GlobalAlert.alert("Required", "Please fill all bank details.");
       return;
     }
     setIsSubmitting(true);
     try {
       await investmentService.requestRefund(investment!.id, refundBankDetails);
-      Alert.alert("Success", "Refund request submitted. Our team will process it shortly.");
+      GlobalAlert.alert("Success", "Refund request submitted. Our team will process it shortly.");
       setShowRequestRefund(false);
       loadData(true);
     } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.message || "Failed to request refund.");
+      GlobalAlert.alert("Error", error.response?.data?.message || "Failed to request refund.");
     } finally {
       setIsSubmitting(false);
     }
@@ -742,7 +746,7 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
               activeOpacity={0.7}
               onPress={() => {
                 if (!isKycVerified) {
-                  Alert.alert("KYC Required", "Please verify your Aadhar and PAN card before signing the agreement.");
+                  GlobalAlert.alert("KYC Required", "Please verify your Aadhar and PAN card before signing the agreement.");
                   return;
                 }
                 router.push({ 
@@ -797,12 +801,41 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
                     </View>
                     <View style={styles.docInfo}>
                       <Text style={styles.docTitle}>{proofUrl === "admin_cash" ? "Cash Payment (Admin)" : isRazorpay ? "Razorpay Payment" : `Payment Proof ${index + 1}`}</Text>
-                      <Text style={styles.docSubtitle}>{isRazorpay ? "Verified" : (investment.status === "APPROVED" ? "Verified by Admin" : "Uploaded")}</Text>
+                      <Text style={styles.docSubtitle}>{isRazorpay ? "Verified" : (investment.status === "APPROVED" || investment.status === "PARTIAL_PAID" ? "Verified by Admin" : "Uploaded")}</Text>
                     </View>
                     {!isRazorpay && <Ionicons name="eye-outline" size={20} color={Colors.primary} />}
                   </TouchableOpacity>
                 );
               })}
+            </View>
+          )}
+
+          {investment.paymentHistory && investment.paymentHistory.length > 0 && (
+            <View style={{ marginTop: 16 }}>
+              <Text style={styles.sectionSubtitle}>Approved Payments & Invoices</Text>
+              {investment.paymentHistory.map((payment, index) => (
+                <TouchableOpacity
+                  key={`payment-${index}`}
+                  style={[styles.docRow, { marginTop: 8 }]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (payment.invoiceUrl) {
+                      Linking.openURL(payment.invoiceUrl);
+                    }
+                  }}
+                >
+                  <View style={styles.docIconBox}>
+                    <Ionicons name="cash" size={20} color={Colors.primary} />
+                  </View>
+                  <View style={styles.docInfo}>
+                    <Text style={styles.docTitle}>₹{payment.amount.toLocaleString('en-IN')}</Text>
+                    <Text style={styles.docSubtitle}>{formatDate(payment.date)}</Text>
+                  </View>
+                  {payment.invoiceUrl && (
+                    <Ionicons name="download-outline" size={20} color={Colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
           )}
 
@@ -1022,17 +1055,17 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
                 disabled={isSubmitting}
                 onPress={async () => {
                   if (!refundDetails.accountName || !refundDetails.bankName || !refundDetails.accountNumber || !refundDetails.ifscCode) {
-                    Alert.alert("Error", "Please fill all bank details");
+                    GlobalAlert.alert("Error", "Please fill all bank details");
                     return;
                   }
                   setIsSubmitting(true);
                   try {
                     await investmentService.requestWithdrawal(investment.id, refundDetails);
-                    Alert.alert("Success", "Withdrawal requested successfully.");
+                    GlobalAlert.alert("Success", "Withdrawal requested successfully.");
                     setShowWithdrawalModal(false);
                     loadData(true);
                   } catch (err: any) {
-                    Alert.alert("Error", err?.response?.data?.message || "Failed to request withdrawal");
+                    GlobalAlert.alert("Error", err?.response?.data?.message || "Failed to request withdrawal");
                   } finally {
                     setIsSubmitting(false);
                   }

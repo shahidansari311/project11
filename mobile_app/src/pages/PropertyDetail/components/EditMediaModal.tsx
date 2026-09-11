@@ -17,6 +17,9 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { Colors } from "@/constants/colors";
 import api from "../../../utils/api";
+import { propertyService } from "@/services/property.service";
+import { uploadService } from "@/services/upload.service";
+import { GlobalAlert } from '@/components/GlobalAlertModal';
 import { Property, CATEGORIES } from "../../BrowseProperties/data";
 import { youtubeUrlSchema } from "@/utils/validationSchemas";
 
@@ -55,10 +58,10 @@ export default function EditMediaModal({ visible, onClose, property, onUpdate }:
     setIsUpdatingInfo(true);
     try {
       await api.patch(`/builder/property/builder/${property.id}`, { youtubeVideoUrl, title, category });
-      Alert.alert("Success", "Property info updated successfully");
+      GlobalAlert.alert("Success", "Property info updated successfully");
       onUpdate();
     } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.message || "Failed to update info");
+      GlobalAlert.alert("Error", error.response?.data?.message || "Failed to update info");
     } finally {
       setIsUpdatingInfo(false);
     }
@@ -76,7 +79,7 @@ export default function EditMediaModal({ visible, onClose, property, onUpdate }:
 
       for (const asset of result.assets) {
         if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
-          Alert.alert("File Too Large", "One or more images exceed the 2MB limit. Please select smaller images.");
+          GlobalAlert.alert("File Too Large", "One or more images exceed the 2MB limit. Please select smaller images.");
           return;
         }
       }

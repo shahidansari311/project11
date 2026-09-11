@@ -356,10 +356,6 @@ export default function PropertyDetailPage({ id }: { id: string }) {
       <LoginPromptModal
         visible={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        onLogin={() => {
-          setShowLoginPrompt(false);
-          router.push("/");
-        }}
       />
 
       {/* ── Fullscreen Image Viewer Modal ── */}

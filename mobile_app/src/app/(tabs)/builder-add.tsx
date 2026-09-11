@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList, BackHandler, KeyboardAvoidingView, Platform, Keyboard, Modal, Animated } from "react-native";
+import { GlobalAlert } from '@/components/GlobalAlertModal';
 import { propertyService } from "@/services/property.service";
 import { Colors } from "@/constants/colors";
 import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -190,7 +191,7 @@ export default function BuilderAddTab() {
     useCallback(() => {
       const onBackPress = () => {
         if (hasUnsavedChanges) {
-          Alert.alert(
+          GlobalAlert.alert(
             "Unsaved Changes",
             "You have unsaved changes. Are you sure you want to go back? You can save as a Draft instead.",
             [
@@ -274,7 +275,7 @@ export default function BuilderAddTab() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert("Permission Denied", "Location permission is required to use GPS.");
+        GlobalAlert.alert("Permission Denied", "Location permission is required to use GPS.");
         return;
       }
 
@@ -291,7 +292,7 @@ export default function BuilderAddTab() {
       `);
       fetchAddressFromCoords(lat, lon);
     } catch (err) {
-      Alert.alert("GPS Error", "Failed to get current location.");
+      GlobalAlert.alert("GPS Error", "Failed to get current location.");
     } finally {
       setIsLocatingGPS(false);
     }
@@ -333,7 +334,7 @@ export default function BuilderAddTab() {
   const handleSubmit = async (submitStatus: "PENDING_APPROVAL" | "DRAFT") => {
     if (submitStatus === "PENDING_APPROVAL") {
       if (!validateForm()) {
-        Alert.alert("Validation Error", "Please fill all required fields before submitting for approval.");
+        GlobalAlert.alert("Validation Error", "Please fill all required fields before submitting for approval.");
         return;
       }
     } else {
@@ -348,7 +349,7 @@ export default function BuilderAddTab() {
         images.length > 0;
 
       if (!hasAnyData) {
-        Alert.alert("Empty Form", "Please fill in at least one field or upload a photo to save as a draft.");
+        GlobalAlert.alert("Empty Form", "Please fill in at least one field or upload a photo to save as a draft.");
         return;
       }
     }
@@ -427,15 +428,15 @@ export default function BuilderAddTab() {
       setHasUnsavedChanges(false);
       
       if (submitStatus === "DRAFT") {
-        Alert.alert("Draft Saved", "Property saved to your Drafts tab successfully.");
+        GlobalAlert.alert("Draft Saved", "Property saved to your Drafts tab successfully.");
         router.replace("/(tabs)/builder-drafts");
       } else {
-        Alert.alert("Success", "Property submitted for admin verification.");
+        GlobalAlert.alert("Success", "Property submitted for admin verification.");
         router.replace("/(tabs)/builder-pending");
       }
       
     } catch (error: any) {
-      Alert.alert("Submission Failed", error?.response?.data?.message || "An error occurred.");
+      GlobalAlert.alert("Submission Failed", error?.response?.data?.message || "An error occurred.");
     } finally {
       clearTimeout(step1Timer);
       clearTimeout(step2Timer);
@@ -608,7 +609,7 @@ export default function BuilderAddTab() {
           style={styles.cancelBtn}
           onPress={() => {
             if (hasUnsavedChanges) {
-              Alert.alert(
+              GlobalAlert.alert(
                 "Discard Changes?",
                 "You have unsaved changes. Are you sure you want to exit?",
                 [
@@ -859,7 +860,7 @@ export default function BuilderAddTab() {
         <View style={styles.perUnitBox}>
           <Text style={styles.perUnitLabel}>Per Unit Price:</Text>
           <Text style={styles.perUnitValue}>
-            ₹{perUnitPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            ₹{perUnitPrice.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
           </Text>
         </View>
         

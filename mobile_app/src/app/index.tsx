@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { View } from "react-native";
 import { Colors } from "@/constants/colors";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 
 import LoginPage from "@/pages/Login";
@@ -12,6 +12,7 @@ let hasAppLaunched = false;
 
 export default function AuthScreen() {
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const [activePage, setActivePage] = useState<"login" | "otp">("login");
   const [phoneForOtp, setPhoneForOtp] = useState<string>("");
   const { isGuest, isLoading, userProfile } = useAuth();
@@ -24,15 +25,17 @@ export default function AuthScreen() {
       hasAppLaunched = true;
       if (!isGuest) {
         hasNavigated.current = true;
-        // Logged in -> Route to Main App based on role
-        if (userProfile?.role === "BUILDER") {
+        // Logged in -> Route back to previous page or default role page
+        if (returnTo) {
+          router.replace(returnTo as any);
+        } else if (userProfile?.role === "BUILDER") {
           router.replace("/(tabs)/builder-live" as any);
         } else {
           router.replace("/(tabs)/home" as any);
         }
       }
     }
-  }, [isLoading, isGuest, userProfile, router]);
+  }, [isLoading, isGuest, userProfile, router, returnTo]);
 
   // Show Splash Screen ONLY on first app launch while auth state is resolving
   const isInitialLoading = isLoading && !hasAppLaunched;

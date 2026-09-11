@@ -16,6 +16,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import api from "../../../utils/api";
+import { propertyService } from "@/services/property.service";
+import { GlobalAlert } from '@/components/GlobalAlertModal';
 import { Property } from "../../BrowseProperties/data";
 import EditMediaModal from "./EditMediaModal";
 import { updatePriceSchema } from "@/utils/validationSchemas";
@@ -29,7 +31,8 @@ const formatCurrency = (value: number, currencySymbol: string = "₹") => {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value).replace("₹", currencySymbol);
 };
 
@@ -63,11 +66,11 @@ export default function BuilderActionPanel({ property, onUpdate }: BuilderAction
     setIsSubmitting(true);
     try {
       await api.post(`/builder/property/builder/${property.id}/price-history`, { price: priceNum });
-      Alert.alert("Success", "Property valuation has been updated successfully.");
+      GlobalAlert.alert("Success", "Property valuation has been updated successfully.");
       setIsPriceModalOpen(false);
       onUpdate();
     } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.message || "Failed to update price. Please try again.");
+      GlobalAlert.alert("Error", error.response?.data?.message || "Failed to update price. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

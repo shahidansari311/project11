@@ -14,7 +14,7 @@
 
 import { useCallback } from "react";
 import { View, StyleSheet, StatusBar } from "react-native";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments, usePathname } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "../../contexts/AuthContext";
@@ -44,9 +44,11 @@ export default function TabsLayout() {
     router.navigate("/(tabs)/profile" as any);
   }, [router]);
 
+  const pathname = usePathname();
+
   const handleLoginPress = useCallback(() => {
-    router.replace("/");
-  }, [router]);
+    router.replace({ pathname: "/", params: { returnTo: pathname } });
+  }, [router, pathname]);
 
   // Guests are allowed to browse the home screen.
   // Certain features like Portfolio or Profile will prompt them to log in when interacted with.
@@ -81,14 +83,13 @@ export default function TabsLayout() {
       </View>
 
       {/* ── Persistent Tab Bar — never unmounts ── */}
-      {!isGuest && (
-        <AppTabBar
-          activeRouteName={activeRouteName}
-          userProfileUrl={userProfileUrl}
-          role={userProfile?.role}
-          onTabPress={handleTabPress}
-        />
-      )}
+      <AppTabBar
+        activeRouteName={activeRouteName}
+        userProfileUrl={userProfileUrl}
+        role={userProfile?.role}
+        isGuest={isGuest}
+        onTabPress={handleTabPress}
+      />
     </SafeAreaView>
   );
 }

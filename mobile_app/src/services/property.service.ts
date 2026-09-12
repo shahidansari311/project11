@@ -23,7 +23,7 @@ export const propertyService = {
     page?: number;
     limit?: number;
     status?: string | string[];
-    category?: string;
+    category?: string | string[];
     search?: string;
     location?: string | string[];
     area?: string;
@@ -40,6 +40,9 @@ export const propertyService = {
     
     if (Array.isArray(cleanParams.status)) {
       cleanParams.status = cleanParams.status.join(",");
+    }
+    if (Array.isArray(cleanParams.category)) {
+      cleanParams.category = cleanParams.category.join(",");
     }
     if (Array.isArray(cleanParams.location)) {
       cleanParams.location = cleanParams.location.join(",");
@@ -100,6 +103,11 @@ export const propertyService = {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return response.data;
+  },
+
+  async deleteBuilderProperty(id: string): Promise<{ message: string }> {
+    const response = await api.delete(`/builder/property/builder/${id}`);
     return response.data;
   }
 };

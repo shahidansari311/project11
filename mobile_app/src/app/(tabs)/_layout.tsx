@@ -12,8 +12,8 @@
  *   </SafeAreaView>
  */
 
-import { useCallback } from "react";
-import { View, StyleSheet, StatusBar } from "react-native";
+import { useCallback, useState, useEffect } from "react";
+import { View, StyleSheet, StatusBar, Keyboard, Platform } from "react-native";
 import { Stack, useRouter, useSegments, usePathname } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
@@ -27,6 +27,21 @@ export default function TabsLayout() {
   const segments = useSegments();
   const { isGuest, userProfile } = useAuth();
   const userProfileUrl = userProfile?.profileUrl || null;
+
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Determine which tab is currently active from the URL segments.
   // segments looks like: ["(tabs)", "home"] or ["(tabs)", "profile"]
@@ -82,14 +97,16 @@ export default function TabsLayout() {
         </Stack>
       </View>
 
-      {/* ── Persistent Tab Bar — never unmounts ── */}
-      <AppTabBar
-        activeRouteName={activeRouteName}
-        userProfileUrl={userProfileUrl}
-        role={userProfile?.role}
-        isGuest={isGuest}
-        onTabPress={handleTabPress}
-      />
+      {/* ── Persistent Tab Bar — hidden when keyboard is open ── */}
+      {!isKeyboardVisible && (
+        <AppTabBar
+          activeRouteName={activeRouteName}
+          userProfileUrl={userProfileUrl}
+          role={userProfile?.role}
+          isGuest={isGuest}
+          onTabPress={handleTabPress}
+        />
+      )}
     </SafeAreaView>
   );
 }

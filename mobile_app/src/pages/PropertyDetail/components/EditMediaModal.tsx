@@ -11,7 +11,6 @@ import {
   Platform,
   ScrollView,
   Image,
-  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -99,17 +98,17 @@ export default function EditMediaModal({ visible, onClose, property, onUpdate }:
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      Alert.alert("Success", "Images uploaded successfully");
+      GlobalAlert.alert("Success", "Images uploaded successfully");
       onUpdate();
     } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.message || "Failed to upload images");
+      GlobalAlert.alert("Error", error.response?.data?.message || "Failed to upload images");
     } finally {
       setIsUploadingImage(false);
     }
   };
 
   const handleDeleteImage = (imageUrl: string) => {
-    Alert.alert("Delete Image", "Are you sure you want to remove this image?", [
+    GlobalAlert.alert("Delete Image", "Are you sure you want to remove this image?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -120,10 +119,10 @@ export default function EditMediaModal({ visible, onClose, property, onUpdate }:
             await api.delete(`/builder/property/builder/${property.id}/image`, {
               data: { imageUrl },
             });
-            Alert.alert("Success", "Image removed");
+            GlobalAlert.alert("Success", "Image removed");
             onUpdate();
           } catch (error: any) {
-            Alert.alert("Error", error.response?.data?.message || "Failed to remove image");
+            GlobalAlert.alert("Error", error.response?.data?.message || "Failed to remove image");
           } finally {
             setDeletingImage(null);
           }
@@ -133,8 +132,8 @@ export default function EditMediaModal({ visible, onClose, property, onUpdate }:
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.overlay}>
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "padding"} style={styles.overlay}>
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>Edit Property</Text>

@@ -177,7 +177,9 @@ async function adminGetAllUsersDocumentsOverview({
   const skip = (page - 1) * limit;
 
   const where = {};
-  const andConditions = [];
+  const andConditions = [
+    { role: "USER" } // Exclude BUILDERs from the KYC queue
+  ];
 
   if (search && search.trim()) {
     andConditions.push({

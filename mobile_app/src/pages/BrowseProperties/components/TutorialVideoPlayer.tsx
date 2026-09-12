@@ -17,6 +17,7 @@ export default function TutorialVideoPlayer({ url, isRefreshing }: TutorialVideo
   const [playing, setPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [loadVideo, setLoadVideo] = useState(false); // Defer webview load
   
   // Scrubber state
   const [progress, setProgress] = useState(0);
@@ -122,6 +123,8 @@ export default function TutorialVideoPlayer({ url, isRefreshing }: TutorialVideo
       const msg = event.nativeEvent.data;
       if (msg === 'ready') {
         setIsPlayerReady(true);
+        // Play automatically once player is ready (since it was deferred)
+        webViewRef.current?.injectJavaScript(`if(player && player.playVideo) player.playVideo(); true;`);
       } else if (msg === 'playing') {
         setPlaying(true);
         setIsLoading(false);
@@ -166,6 +169,12 @@ export default function TutorialVideoPlayer({ url, isRefreshing }: TutorialVideo
   }, [isRefreshing, playing]);
 
   const togglePlay = () => {
+    if (!loadVideo) {
+      setLoadVideo(true);
+      setIsLoading(true);
+      return;
+    }
+
     if (!playing) {
       setIsLoading(true);
       webViewRef.current?.injectJavaScript(`if(player && player.playVideo) player.playVideo(); true;`);
@@ -201,19 +210,21 @@ export default function TutorialVideoPlayer({ url, isRefreshing }: TutorialVideo
         </Pressable>
       )}
 
-      <View pointerEvents="none" style={{ flex: 1, backgroundColor: '#000' }}>
-        <WebView
-          ref={webViewRef}
-          source={{ html, baseUrl: 'https://silverrealestate.com/' }}
-          style={{ flex: 1, backgroundColor: '#000' }}
-          scrollEnabled={false}
-          allowsInlineMediaPlayback={true}
-          mediaPlaybackRequiresUserAction={false}
-          javaScriptEnabled={true}
-          originWhitelist={["*"]}
-          onMessage={handleMessage}
-        />
-      </View>
+      {loadVideo && (
+        <View pointerEvents="none" style={{ flex: 1, backgroundColor: '#000' }}>
+          <WebView
+            ref={webViewRef}
+            source={{ html, baseUrl: 'https://silverrealestate.com/' }}
+            style={{ flex: 1, backgroundColor: '#000' }}
+            scrollEnabled={false}
+            allowsInlineMediaPlayback={true}
+            mediaPlaybackRequiresUserAction={false}
+            javaScriptEnabled={true}
+            originWhitelist={["*"]}
+            onMessage={handleMessage}
+          />
+        </View>
+      )}
 
       {/* Invisible overlay to toggle play/pause by tapping the video */}
       {hasStarted && (

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import * as SecureStore from "expo-secure-store";
 import { authService, UserProfile } from "../services/auth.service";
+import { registerForPushNotificationsAsync, sendPushTokenToBackend } from "../services/push.service";
 
 interface AuthContextType {
   isGuest: boolean;
@@ -32,11 +33,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUserProfile(null);
         return null;
       }
-      setIsGuest(false);
 
       const res = await authService.getProfile();
       if (res && res.data) {
         setUserProfile(res.data);
+        setIsGuest(false);
+
+        // Register push token and send to backend
+        // (Commented out temporarily because rebuilding the app is required to use Firebase on Android)
+        /*
+        registerForPushNotificationsAsync().then((pushToken) => {
+          if (pushToken) {
+            sendPushTokenToBackend(pushToken);
+          }
+        });
+        */
+
         return res.data;
       }
       return null;

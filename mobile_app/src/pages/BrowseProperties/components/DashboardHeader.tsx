@@ -11,11 +11,12 @@ import { settingService } from '@/services/setting.service';
 
 interface DashboardHeaderProps {
   properties: Property[];
+  tutorialVideoUrl?: string;
   onRequireLogin: () => void;
   isRefreshing?: boolean;
 }
 
-export default function DashboardHeader({ properties, onRequireLogin, isRefreshing }: DashboardHeaderProps) {
+export default function DashboardHeader({ properties, tutorialVideoUrl = "", onRequireLogin, isRefreshing }: DashboardHeaderProps) {
   const { userProfile, isGuest } = useAuth();
   const router = useRouter();
   
@@ -31,21 +32,7 @@ export default function DashboardHeader({ properties, onRequireLogin, isRefreshi
     return [...properties].sort((a, b) => (b.investors || 0) - (a.investors || 0)).slice(0, 5);
   }, [properties]);
 
-  const [tutorialVideoUrl, setTutorialVideoUrl] = useState<string>("");
 
-  useEffect(() => {
-    const fetchTutorial = async () => {
-      try {
-        const response = await settingService.getTutorialVideo();
-        if (response?.data?.url) {
-          setTutorialVideoUrl(response.data.url);
-        }
-      } catch (err) {
-        console.log("Failed to fetch tutorial video.", err);
-      }
-    };
-    fetchTutorial();
-  }, []);
 
   return (
     <View style={styles.container}>

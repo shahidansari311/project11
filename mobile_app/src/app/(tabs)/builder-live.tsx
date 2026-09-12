@@ -1,11 +1,13 @@
 import { useState, useCallback } from "react";
+import { BackHandler } from "react-native";
 import { propertyService } from "@/services/property.service";
 import { Property } from "@/pages/BrowseProperties/data";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import BuilderPropertyListLayout from "@/components/layout/BuilderPropertyListLayout";
 import { Colors } from "@/constants/colors";
 
 export default function BuilderLiveTab() {
+  const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -27,8 +29,15 @@ export default function BuilderLiveTab() {
   useFocusEffect(
     useCallback(() => {
       loadProperties();
+      const onBackPress = () => {
+        BackHandler.exitApp();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => subscription.remove();
     }, [loadProperties])
   );
+
 
   const onRefresh = () => {
     setIsRefreshing(true);

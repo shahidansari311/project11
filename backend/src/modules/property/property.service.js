@@ -55,7 +55,7 @@ async function createProperty({
 
   // Parse area — support both numeric and legacy string (e.g. "2000")
   const areaFloat = parseFloat(String(totalSize).replace(/[^0-9.]/g, ""));
-  if (!areaFloat || areaFloat <= 0) {
+  if (status !== "DRAFT" && (!areaFloat || areaFloat <= 0)) {
     throw new Error("totalSize must be a positive numeric area (e.g. 2000 for 2000 sq.ft)");
   }
 
@@ -131,11 +131,11 @@ async function updateProperty(id, data) {
 
   // Parse totalSize if provided
   if (data.totalSize !== undefined) {
-    const parsed = parseFloat(String(data.totalSize).replace(/[^0-9.]/g, ""));
-    if (!parsed || parsed <= 0) {
+    const areaFloat = parseFloat(String(data.totalSize).replace(/[^0-9.]/g, ""));
+    if (data.status !== "DRAFT" && (!areaFloat || areaFloat <= 0)) {
       throw new Error("totalSize must be a positive numeric area");
     }
-    data.totalSize = parsed;
+    data.totalSize = areaFloat;
   }
 
   if (data.location !== undefined) {
@@ -209,7 +209,7 @@ async function deleteProperty(id) {
   return { success: true, message: "Property deleted successfully" };
 }
 
-async function getAllProperties({ page = 1, limit = 10, status, category, search = "", minPrice, maxPrice, location, area, minArea, maxArea, builderId, onlyBuilderSubmissions = false, excludeRejected = true } = {}) {
+async function getAllProperties({ page = 1, limit = 10, status, category, search = "", minPrice, maxPrice, location, area, minArea, maxArea, builderId, onlyBuilderSubmissions = false, excludeRejected = true, excludeDrafts = true } = {}) {
   const propertyModel = getPropertyModel();
   const skip = (page - 1) * limit;
 
@@ -221,9 +221,18 @@ async function getAllProperties({ page = 1, limit = 10, status, category, search
     } else {
       where.status = status;
     }
+  } else {
+    const notStatuses = [];
+    if (excludeDrafts) notStatuses.push("DRAFT");
+    if (excludeRejected) notStatuses.push("REJECTED");
+
+    if (notStatuses.length === 1) {
+      where.status = { not: notStatuses[0] };
+    } else if (notStatuses.length > 1) {
+      where.status = { notIn: notStatuses };
+    }
   }
-  // If not explicitly asking for rejected, and no status specified, hide rejected
-  else if (excludeRejected) where.status = { not: "REJECTED" };
+
 
   if (category) where.category = category;
   
@@ -358,7 +367,7 @@ async function getLocationSuggestions(query) {
     const properties = await propertyModel.findMany({
       where: {
         location: { contains: query, mode: "insensitive" },
-        status: { not: "REJECTED" }
+        status: { notIn: ["REJECTED", "DRAFT"] }
       },
       select: { location: true },
       distinct: ['location'],
@@ -419,30 +428,37 @@ async function removePropertyImage(id, imageUrlToRemove) {
 
 async function getPropertyFilters() {
   const propertyModel = getPropertyModel();
+  const validStatusFilter = { status: { notIn: ["DRAFT", "REJECTED"] } };
   
   // Fetch distinct categories, statuses, locations, and areas, plus min/max prices
   const [categoryResult, statusResult, locationResult, priceResult, areaResult] = await Promise.all([
     propertyModel.findMany({
+      where: validStatusFilter,
       distinct: ['category'],
       select: { category: true }
     }),
     propertyModel.findMany({
+      where: validStatusFilter,
       distinct: ['status'],
       select: { status: true }
     }),
     propertyModel.findMany({
+      where: validStatusFilter,
       distinct: ['location'],
       select: { location: true }
     }),
     propertyModel.aggregate({
+      where: validStatusFilter,
       _min: { perUnitPrice: true },
       _max: { perUnitPrice: true }
     }),
     propertyModel.aggregate({
+      where: validStatusFilter,
       _min: { totalSize: true },
       _max: { totalSize: true }
     })
   ]);
+
 
   // Clean locations
   const parsedLocations = new Set();

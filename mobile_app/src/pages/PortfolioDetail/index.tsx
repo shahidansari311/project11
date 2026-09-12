@@ -904,8 +904,9 @@ export default function PortfolioDetailPage({ id }: { id: string }) {
                   </View>
                   
                   {isRazorpayDisabled && activePayTab === "razorpay" && (
-                     <Text style={{color: "red", fontSize: 12, marginBottom: 10}}>Razorpay is disabled for amounts > ₹1,00,000. Use Bank Transfer.</Text>
+                     <Text style={{color: "red", fontSize: 12, marginBottom: 10}}>Razorpay is disabled for amounts &gt; ₹1,00,000. Use Bank Transfer.</Text>
                   )}
+
 
                   {activePayTab === "bank" && (
                     <View style={{ marginBottom: 16 }}>

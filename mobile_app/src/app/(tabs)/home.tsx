@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
-import { useRouter } from "expo-router";
+import { useState, useEffect, useCallback } from "react";
+import { View, ScrollView, StyleSheet, RefreshControl, BackHandler } from "react-native";
+import { useRouter, useFocusEffect } from "expo-router";
 import DashboardHeader from "@/pages/BrowseProperties/components/DashboardHeader";
 import HomePageSkeleton from "@/pages/BrowseProperties/components/HomePageSkeleton";
 import { propertyService } from "@/services/property.service";
+import { settingService } from "@/services/setting.service";
 import { Property } from "@/pages/BrowseProperties/data";
 import { Colors } from "@/constants/colors";
 import LoginPromptModal from "@/components/LoginPromptModal";
@@ -11,26 +12,47 @@ import LoginPromptModal from "@/components/LoginPromptModal";
 export default function HomeTab() {
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
+  const [tutorialVideoUrl, setTutorialVideoUrl] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        BackHandler.exitApp();
+        return true;
+      };
+      
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
+
+      return () => subscription.remove();
+    }, [])
+  );
+
   useEffect(() => {
     let mounted = true;
-    const loadProperties = async () => {
+    const loadData = async () => {
       try {
-        const res = await propertyService.getProperties({ limit: 7 });
-        if (mounted && res?.data?.properties) {
-          setProperties(res.data.properties);
+        const [propsRes, tutRes] = await Promise.all([
+          propertyService.getProperties({ limit: 7 }),
+          settingService.getTutorialVideo()
+        ]);
+        if (mounted) {
+          if (propsRes?.data?.properties) setProperties(propsRes.data.properties);
+          if (tutRes?.data?.url) setTutorialVideoUrl(tutRes.data.url);
         }
       } catch (error) {
-        console.error("Failed to load featured properties:", error);
+        console.error("Failed to load home data:", error);
       } finally {
         if (mounted) setIsLoading(false);
       }
     };
 
-    loadProperties();
+    loadData();
     return () => {
       mounted = false;
     };
@@ -39,12 +61,14 @@ export default function HomeTab() {
   const onRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const res = await propertyService.getProperties({ limit: 7 });
-      if (res?.data?.properties) {
-        setProperties(res.data.properties);
-      }
+      const [propsRes, tutRes] = await Promise.all([
+        propertyService.getProperties({ limit: 7 }),
+        settingService.getTutorialVideo()
+      ]);
+      if (propsRes?.data?.properties) setProperties(propsRes.data.properties);
+      if (tutRes?.data?.url) setTutorialVideoUrl(tutRes.data.url);
     } catch (error) {
-      console.error("Failed to refresh featured properties:", error);
+      console.error("Failed to refresh home data:", error);
     } finally {
       setIsRefreshing(false);
     }
@@ -69,6 +93,7 @@ export default function HomeTab() {
         >
           <DashboardHeader 
             properties={properties} 
+            tutorialVideoUrl={tutorialVideoUrl}
             onRequireLogin={() => setShowLoginPrompt(true)} 
             isRefreshing={isRefreshing}
           />

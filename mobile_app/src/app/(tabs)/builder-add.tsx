@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList, BackHandler, KeyboardAvoidingView, Platform, Keyboard, Modal, Animated } from "react-native";
+import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList, BackHandler, KeyboardAvoidingView, Platform, Keyboard, Modal, Animated, RefreshControl } from "react-native";
 import { GlobalAlert } from '@/components/GlobalAlertModal';
 import { propertyService } from "@/services/property.service";
 import { Colors } from "@/constants/colors";
@@ -17,14 +17,14 @@ const CATEGORIES = [
   { id: "COMMERCIAL", label: "Commercial" },
   { id: "INDUSTRIAL", label: "Industrial" },
   { id: "LAND", label: "Land/Plot" },
-  { id: "VILLA", label: "Villa" },
+  { id: "OTHERS", label: "Others" },
 ];
 
 export default function BuilderAddTab() {
   const router = useRouter();
   const params = useLocalSearchParams<{ draftId?: string }>();
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
-  const [isLoadingDraft, setIsLoadingDraft] = useState(false);
+  const [isLoadingDraft, setIsLoadingDraft] = useState(!!params.draftId);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -44,7 +44,8 @@ export default function BuilderAddTab() {
   });
   
   const [images, setImages] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -62,6 +63,18 @@ export default function BuilderAddTab() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [submitStep, setSubmitStep] = useState("Preparing submission...");
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const isFormDisabled = isSavingDraft || isSubmittingApproval || isLoadingDraft;
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    // User requested to "hold that data" when refreshing, so we simply simulate 
+    // a small delay to provide the refresh UX without wiping their form progress.
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1000);
+  }, []);
 
   // Load draft data if draftId is provided
   useEffect(() => {
@@ -87,20 +100,18 @@ export default function BuilderAddTab() {
             const lon = Number(loc.longitude) || 77.2090;
 
             const isPlaceholderImg = (imgUrl: string) => imgUrl.includes("photo-1560518883-ce09059eeffa");
-            const isDummyValuation = (p.totalPrice === 1 && (p.totalSize === 1 || p.totalUnits === 1) && p.targetReturn === 1);
-            const isDummyDesc = (p.description === "Draft description");
-            const isDummyTitle = (p.title === "Untitled Draft");
 
             setFormData({
-              title: isDummyTitle ? "" : (p.title || ""),
-              description: isDummyDesc ? "" : (p.description || ""),
+              title: p.title || "",
+              description: p.description || "",
               address: loc.address === "Draft Location" ? "" : (loc.address || ""),
               city: loc.city || "",
               state: loc.state || "",
               postalCode: loc.postalCode || "",
-              totalSize: isDummyValuation ? "" : (p.totalUnits ? p.totalUnits.toString() : (p.totalSize ? p.totalSize.toString() : "")),
-              totalPrice: isDummyValuation ? "" : (p.totalPrice ? p.totalPrice.toString() : (p.minInvestment ? p.minInvestment.toString() : "")),
-              targetReturn: isDummyValuation ? "" : (p.targetReturn ? p.targetReturn.toString() : ""),
+              totalSize: p.totalSize === 0 ? "" : (p.totalUnits ? p.totalUnits.toString() : (p.totalSize ? p.totalSize.toString() : "")),
+              totalPrice: p.totalPrice === 0 ? "" : (p.totalPrice ? p.totalPrice.toString() : (p.minInvestment ? p.minInvestment.toString() : "")),
+              targetReturn: p.targetReturn === 0 ? "" : (p.targetReturn ? p.targetReturn.toString() : ""),
+              termPeriodYears: (p as any).termPeriodYears === 0 ? "" : ((p as any).termPeriodYears ? (p as any).termPeriodYears.toString() : ""),
               category: p.category || "RESIDENTIAL",
               youtubeVideoUrl: (p as any).youtubeVideoUrl || "",
               latitude: lat,
@@ -134,7 +145,7 @@ export default function BuilderAddTab() {
 
   useEffect(() => {
     let animLoop: Animated.CompositeAnimation | null = null;
-    if (isSubmitting) {
+    if (isSubmittingApproval) {
       animLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.15, duration: 700, useNativeDriver: true }),
@@ -148,28 +159,68 @@ export default function BuilderAddTab() {
     return () => {
       if (animLoop) animLoop.stop();
     };
-  }, [isSubmitting, pulseAnim]);
+  }, [isSubmittingApproval, pulseAnim]);
+
+  const cardY = useRef<Record<string, number>>({});
+  const groupY = useRef<Record<string, number>>({});
+  const activeField = useRef<{ fieldKey: string; cardKey: string } | null>(null);
+
+  const calculateMinimalScrollY = useCallback((fieldKey: string, cardKey: string, currentKHeight: number) => {
+    const cY = cardY.current[cardKey] || 0;
+    const gY = groupY.current[fieldKey] || 0;
+    const targetY = cY + gY;
+
+    // If the input is in the upper part of the card, do not force any upward scroll at all
+    if (targetY < 350) {
+      return 0;
+    }
+    
+    // For lower inputs, shift up by just enough to stay visible above the soft keyboard
+    const kh = currentKHeight || 280;
+    return Math.max(0, targetY - Math.max(180, 520 - kh));
+  }, []);
+
+  const scrollToField = useCallback((fieldKey: string, cardKey: string) => {
+    activeField.current = { fieldKey, cardKey };
+    const idealY = calculateMinimalScrollY(fieldKey, cardKey, keyboardHeight);
+
+    scrollRef.current?.scrollTo({
+      y: idealY,
+      animated: true,
+    });
+  }, [keyboardHeight, calculateMinimalScrollY]);
 
   useEffect(() => {
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const showSub = Keyboard.addListener(showEvent, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
+      const h = e.endCoordinates ? e.endCoordinates.height : 280;
+      setKeyboardHeight(h);
+      if (activeField.current) {
+        const { fieldKey, cardKey } = activeField.current;
+        setTimeout(() => {
+          const idealY = calculateMinimalScrollY(fieldKey, cardKey, h);
+          scrollRef.current?.scrollTo({
+            y: idealY,
+            animated: true,
+          });
+        }, 100);
+      }
     });
+
     const hideSub = Keyboard.addListener(hideEvent, () => {
       setKeyboardHeight(0);
+      activeField.current = null;
     });
 
     return () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [calculateMinimalScrollY]);
 
-  const scrollToInput = (yOffset: number) => {
-    scrollRef.current?.scrollTo({ y: yOffset, animated: true });
-  };
+
 
   const handleZoomIn = () => {
     webViewRef.current?.injectJavaScript(`if (typeof map !== 'undefined') { map.zoomIn(); } true;`);
@@ -179,36 +230,42 @@ export default function BuilderAddTab() {
     webViewRef.current?.injectJavaScript(`if (typeof map !== 'undefined') { map.zoomOut(); } true;`);
   };
 
-  // Mark as unsaved on any change
-  useEffect(() => {
-    if (formData.title || formData.description || images.length > 0) {
-      setHasUnsavedChanges(true);
-    }
-  }, [formData, images]);
-
   // Handle back button for unsaved changes
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
+        const targetRoute = editingDraftId ? "/(tabs)/builder-drafts" : "/(tabs)/builder-live";
         if (hasUnsavedChanges) {
           GlobalAlert.alert(
             "Unsaved Changes",
             "You have unsaved changes. Are you sure you want to go back? You can save as a Draft instead.",
             [
               { text: "Cancel", style: "cancel" },
-              { text: "Discard", style: "destructive", onPress: () => router.back() },
+              { 
+                text: "Discard", 
+                style: "destructive", 
+                onPress: () => {
+                  setHasUnsavedChanges(false);
+                  router.navigate(targetRoute as any);
+                } 
+              },
               { text: "Save as Draft", onPress: () => handleSubmit("DRAFT") }
             ]
           );
           return true; // prevent default behavior
         }
-        return false;
+        
+        // Even if no unsaved changes, prevent default back from going through tab history
+        setHasUnsavedChanges(false);
+        router.navigate(targetRoute as any);
+        return true;
       };
 
       const backHandler = BackHandler.addEventListener("hardwareBackPress", onBackPress);
       return () => backHandler.remove();
-    }, [hasUnsavedChanges, formData, images])
+    }, [hasUnsavedChanges, editingDraftId])
   );
+
 
   const fetchAddressFromCoords = async (lat: number, lon: number) => {
     setIsReverseGeocoding(true);
@@ -354,7 +411,11 @@ export default function BuilderAddTab() {
       }
     }
     
-    setIsSubmitting(true);
+    if (submitStatus === "DRAFT") {
+      setIsSavingDraft(true);
+    } else {
+      setIsSubmittingApproval(true);
+    }
     setSubmitStep(submitStatus === "DRAFT" ? (editingDraftId ? "Updating draft property..." : "Saving draft property...") : "Uploading property photos & media...");
 
     const step1Timer = setTimeout(() => {
@@ -368,46 +429,32 @@ export default function BuilderAddTab() {
     try {
       const data = new FormData();
       
-      const locationObj = {
-        address: formData.address || "Draft Location",
-        city: formData.city || "",
-        state: formData.state || "",
-        postalCode: formData.postalCode || "",
-        latitude: formData.latitude,
-        longitude: formData.longitude
-      };
-      
-      if (submitStatus === "DRAFT") {
-        const draftTitle = formData.title.trim() || (formData.address ? `Draft: ${formData.address.slice(0, 25)}` : "Untitled Draft");
-        const draftDesc = formData.description.trim() || "Draft description";
-        const draftCategory = formData.category || "RESIDENTIAL";
-        const draftPrice = formData.totalPrice.trim() ? formData.totalPrice.trim() : "1";
-        const draftSize = formData.totalSize.trim() ? formData.totalSize.trim() : "1";
-        const draftTargetReturn = formData.targetReturn.trim() ? formData.targetReturn.trim() : "1";
-
-        data.append('title', draftTitle);
-        data.append('description', draftDesc);
-        data.append('category', draftCategory);
-        data.append('totalPrice', draftPrice);
-        data.append('totalSize', draftSize);
-        data.append('targetReturn', draftTargetReturn);
-        if (formData.youtubeVideoUrl?.trim()) {
-          data.append('youtubeVideoUrl', formData.youtubeVideoUrl.trim());
-        }
-      } else {
-        Object.entries(formData).forEach(([key, value]) => {
-          if (!['address', 'city', 'state', 'postalCode', 'latitude', 'longitude'].includes(key) && value) {
-            data.append(key, value.toString());
-          }
-        });
+      let locationPayload = "";
+      if (formData.address && formData.address.trim() !== "") {
+        const locationObj = {
+          address: formData.address || "",
+          city: formData.city || "",
+          state: formData.state || "",
+          postalCode: formData.postalCode || "",
+          latitude: formData.latitude,
+          longitude: formData.longitude
+        };
+        locationPayload = JSON.stringify(locationObj);
       }
+      
+      Object.entries(formData).forEach(([key, value]) => {
+        if (!['address', 'city', 'state', 'postalCode', 'latitude', 'longitude'].includes(key) && value) {
+          data.append(key, value.toString());
+        }
+      });
 
-      data.append('location', JSON.stringify(locationObj));
+      if (locationPayload) {
+        data.append('location', locationPayload);
+      }
+      
       data.append('status', submitStatus);
 
-      if (images.length === 0 && submitStatus === "DRAFT") {
-        data.append("images", "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800");
-      } else {
+      if (images.length > 0) {
         images.forEach((uri, index) => {
           if (uri.startsWith("http://") || uri.startsWith("https://")) {
             data.append("images", uri);
@@ -440,8 +487,37 @@ export default function BuilderAddTab() {
     } finally {
       clearTimeout(step1Timer);
       clearTimeout(step2Timer);
-      setIsSubmitting(false);
+      if (submitStatus === "DRAFT") {
+        setIsSavingDraft(false);
+      } else {
+        setIsSubmittingApproval(false);
+      }
     }
+  };
+
+  const handleDeleteDraft = () => {
+    GlobalAlert.alert(
+      "Delete Draft",
+      "Are you sure you want to delete this draft permanently?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              if (editingDraftId) {
+                await propertyService.deleteBuilderProperty(editingDraftId);
+                GlobalAlert.alert("Deleted", "Draft deleted successfully.");
+                router.replace("/(tabs)/builder-drafts");
+              }
+            } catch (error) {
+              GlobalAlert.alert("Error", "Failed to delete draft.");
+            }
+          }
+        }
+      ]
+    );
   };
 
   const numPrice = Number(formData.totalPrice) || 0;
@@ -558,9 +634,16 @@ export default function BuilderAddTab() {
 
             map.on('click', function(e) {
                 map.panTo(e.latlng, { animate: true });
+                if (window.ReactNativeWebView) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                        lat: e.latlng.lat,
+                        lon: e.latlng.lng,
+                        zoom: map.getZoom()
+                    }));
+                }
             });
 
-            map.on('moveend', function() {
+            map.on('dragend', function() {
                 var center = map.getCenter();
                 var zoom = map.getZoom();
                 updateZoomBadge();
@@ -588,13 +671,16 @@ export default function BuilderAddTab() {
         style={styles.root}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : 160 }
+          { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 40 : 120 }
         ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+        automaticallyAdjustKeyboardInsets={false}
         nestedScrollEnabled={true}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
       >
       <View style={styles.headerRow}>
         <View>
@@ -608,20 +694,30 @@ export default function BuilderAddTab() {
         <TouchableOpacity 
           style={styles.cancelBtn}
           onPress={() => {
+            const targetRoute = editingDraftId ? "/(tabs)/builder-drafts" : "/(tabs)/builder-live";
             if (hasUnsavedChanges) {
               GlobalAlert.alert(
                 "Discard Changes?",
                 "You have unsaved changes. Are you sure you want to exit?",
                 [
                   { text: "No", style: "cancel" },
-                  { text: "Yes, Discard", style: "destructive", onPress: () => router.back() }
+                  { 
+                    text: "Yes, Discard", 
+                    style: "destructive", 
+                    onPress: () => {
+                      setHasUnsavedChanges(false);
+                      router.navigate(targetRoute as any);
+                    } 
+                  }
                 ]
               );
             } else {
-              router.back();
+              setHasUnsavedChanges(false);
+              router.navigate(targetRoute as any);
             }
           }}
         >
+
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </TouchableOpacity>
       </View>
@@ -638,29 +734,39 @@ export default function BuilderAddTab() {
           </View>
         </View>
       )}
-
+      
       {isLoadingDraft && (
         <View style={styles.loadingDraftCard}>
           <ActivityIndicator size="small" color={Colors.primary} />
           <Text style={styles.loadingDraftText}>Loading draft details...</Text>
         </View>
       )}
-      
-      {/* Basic Info */}
-      <View style={styles.card}>
+
+      {isLoadingDraft ? (
+        <View style={{ paddingHorizontal: 0, gap: 16, marginTop: 16 }}>
+          <View style={styles.skeletonCard} />
+          <View style={[styles.skeletonCard, { height: 350 }]} />
+          <View style={[styles.skeletonCard, { height: 250 }]} />
+          <View style={[styles.skeletonCard, { height: 180 }]} />
+        </View>
+      ) : (
+        <>
+          {/* Basic Info */}
+      <View style={styles.card} onLayout={(e) => cardY.current['basic'] = e.nativeEvent.layout.y}>
         <View style={styles.cardHeader}>
           <Ionicons name="business" size={18} color={Colors.primary} />
           <Text style={styles.cardTitle}>Basic Information</Text>
         </View>
 
-        <View style={styles.formGroup}>
+        <View style={styles.formGroup} onLayout={(e) => groupY.current['title'] = e.nativeEvent.layout.y}>
           <Text style={styles.label}>Property Title *</Text>
           <TextInput 
-            style={[styles.input, errors.title && styles.inputError]} 
-            placeholder="e.g. Silver Heights 3BHK Luxury Apartments"
+            style={[styles.input, errors.title && styles.inputError, isFormDisabled && { opacity: 0.7 }]} 
+            placeholder="e.g. Silver Heights 3BHK"
+            editable={!isFormDisabled}
             placeholderTextColor="#9CA3AF"
             value={formData.title}
-            onFocus={() => scrollToInput(0)}
+            onFocus={() => scrollToField('title', 'basic')}
             onChangeText={(val) => {
               setFormData(prev => ({...prev, title: val}));
               if (errors.title) setErrors(prev => ({ ...prev, title: "" }));
@@ -671,7 +777,7 @@ export default function BuilderAddTab() {
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Category</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsContainer}>
+          <View style={styles.chipsContainer}>
             {CATEGORIES.map(cat => (
               <TouchableOpacity
                 key={cat.id}
@@ -683,20 +789,21 @@ export default function BuilderAddTab() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
         </View>
 
-        <View style={styles.formGroup}>
+        <View style={styles.formGroup} onLayout={(e) => groupY.current['description'] = e.nativeEvent.layout.y}>
           <Text style={styles.label}>Description *</Text>
           <TextInput 
-            style={[styles.input, styles.textArea, errors.description && styles.inputError]} 
-            placeholder="Detailed overview: key features, floor area, luxury amenities, road access, and builder specifications..."
+            style={[styles.input, styles.textArea, errors.description && styles.inputError, isFormDisabled && { opacity: 0.7 }]} 
+            placeholder="Property description..."
+            editable={!isFormDisabled}
             placeholderTextColor="#9CA3AF"
             multiline
             numberOfLines={4}
             textAlignVertical="top"
             value={formData.description}
-            onFocus={() => scrollToInput(120)}
+            onFocus={() => scrollToField('description', 'basic')}
             onChangeText={(val) => {
               setFormData(prev => ({...prev, description: val}));
               if (errors.description) setErrors(prev => ({ ...prev, description: "" }));
@@ -705,14 +812,15 @@ export default function BuilderAddTab() {
           {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
         </View>
 
-        <View style={styles.formGroup}>
+        <View style={styles.formGroup} onLayout={(e) => groupY.current['youtube'] = e.nativeEvent.layout.y}>
           <Text style={styles.label}>YouTube Video / Virtual Tour URL</Text>
           <TextInput 
-            style={[styles.input, errors.youtubeVideoUrl && styles.inputError]} 
-            placeholder="e.g. https://www.youtube.com/watch?v=xyz123 (Optional)"
+            style={[styles.input, errors.youtubeVideoUrl && styles.inputError, isFormDisabled && { opacity: 0.7 }]} 
+            placeholder="YouTube URL (optional)"
+            editable={!isFormDisabled}
             placeholderTextColor="#9CA3AF"
             value={formData.youtubeVideoUrl}
-            onFocus={() => scrollToInput(250)}
+            onFocus={() => scrollToField('youtube', 'basic')}
             onChangeText={(val) => {
               setFormData(prev => ({...prev, youtubeVideoUrl: val}));
               if (errors.youtubeVideoUrl) setErrors(prev => ({ ...prev, youtubeVideoUrl: "" }));
@@ -723,21 +831,22 @@ export default function BuilderAddTab() {
       </View>
 
       {/* Map & Location */}
-      <View style={styles.card}>
+      <View style={styles.card} onLayout={(e) => cardY.current['location'] = e.nativeEvent.layout.y}>
         <View style={styles.cardHeader}>
           <Ionicons name="location" size={18} color={Colors.primary} />
           <Text style={styles.cardTitle}>Property Location & Coordinates</Text>
         </View>
 
-        <View style={styles.searchRow}>
+        <View style={styles.searchRow} onLayout={(e) => groupY.current['search'] = e.nativeEvent.layout.y}>
           <View style={styles.searchInputContainer}>
             <Ionicons name="search" size={16} color="#9CA3AF" style={styles.searchIcon} />
             <TextInput
-              style={[styles.searchInput, searchQuery.length > 0 && { paddingRight: 36 }]}
-              placeholder="Search area, landmark, street, city or PIN code..."
+              style={[styles.searchInput, searchQuery.length > 0 && { paddingRight: 36 }, isFormDisabled && { opacity: 0.7 }]}
+              placeholder="Search area, city or PIN code..."
+              editable={!isFormDisabled}
               placeholderTextColor="#9CA3AF"
               value={searchQuery}
-              onFocus={() => scrollToInput(400)}
+              onFocus={() => scrollToField('search', 'location')}
               onChangeText={handleSearchChange}
             />
             {isSearching ? (
@@ -804,7 +913,7 @@ export default function BuilderAddTab() {
           <Text style={styles.label}>Formatted Address *</Text>
           <TextInput 
             style={[styles.input, styles.inputDisabled, errors.address && styles.inputError]} 
-            placeholder="Address will auto-fill when location is selected on map"
+            placeholder="Auto-filled from map selection"
             placeholderTextColor="#9CA3AF"
             value={formData.address}
             editable={false}
@@ -816,22 +925,23 @@ export default function BuilderAddTab() {
       </View>
 
       {/* Financials */}
-      <View style={styles.card}>
+      <View style={styles.card} onLayout={(e) => cardY.current['financials'] = e.nativeEvent.layout.y}>
         <View style={styles.cardHeader}>
           <Ionicons name="cash" size={18} color={Colors.primary} />
           <Text style={styles.cardTitle}>Investment & Valuation</Text>
         </View>
 
         <View style={styles.row}>
-          <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+          <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]} onLayout={(e) => groupY.current['totalPrice'] = e.nativeEvent.layout.y}>
             <Text style={styles.label}>Total Valuation (INR ₹) *</Text>
             <TextInput 
-              style={[styles.input, errors.totalPrice && styles.inputError]} 
-              placeholder="e.g. 50000000 (₹5 Cr)"
+              style={[styles.input, errors.totalPrice && styles.inputError, isFormDisabled && { opacity: 0.7 }]} 
+              placeholder="e.g. 50000000"
+              editable={!isFormDisabled}
               placeholderTextColor="#9CA3AF"
               keyboardType="numeric"
               value={formData.totalPrice}
-              onFocus={() => scrollToInput(760)}
+              onFocus={() => scrollToField('totalPrice', 'financials')}
               onChangeText={(val) => {
                 setFormData(prev => ({...prev, totalPrice: val}));
                 if (errors.totalPrice) setErrors(prev => ({ ...prev, totalPrice: "" }));
@@ -839,15 +949,16 @@ export default function BuilderAddTab() {
             />
             {errors.totalPrice && <Text style={styles.errorText}>{errors.totalPrice}</Text>}
           </View>
-          <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+          <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]} onLayout={(e) => groupY.current['totalSize'] = e.nativeEvent.layout.y}>
             <Text style={styles.label}>Total Fractional Units *</Text>
             <TextInput 
-              style={[styles.input, errors.totalSize && styles.inputError]} 
-              placeholder="e.g. 1000 (Units)"
+              style={[styles.input, errors.totalSize && styles.inputError, isFormDisabled && { opacity: 0.7 }]} 
+              placeholder="e.g. 1000"
+              editable={!isFormDisabled}
               placeholderTextColor="#9CA3AF"
               keyboardType="numeric"
               value={formData.totalSize}
-              onFocus={() => scrollToInput(760)}
+              onFocus={() => scrollToField('totalSize', 'financials')}
               onChangeText={(val) => {
                 setFormData(prev => ({...prev, totalSize: val}));
                 if (errors.totalSize) setErrors(prev => ({ ...prev, totalSize: "" }));
@@ -864,15 +975,16 @@ export default function BuilderAddTab() {
           </Text>
         </View>
         
-        <View style={styles.formGroup}>
+        <View style={styles.formGroup} onLayout={(e) => groupY.current['targetReturn'] = e.nativeEvent.layout.y}>
           <Text style={styles.label}>Target Return (% p.a.)</Text>
           <TextInput 
-            style={[styles.input, errors.targetReturn && styles.inputError]} 
-            placeholder="e.g. 12.5 (% per year)"
+            style={[styles.input, errors.targetReturn && styles.inputError, isFormDisabled && { opacity: 0.7 }]} 
+            placeholder="e.g. 12.5"
+            editable={!isFormDisabled}
             placeholderTextColor="#9CA3AF"
             keyboardType="numeric"
             value={formData.targetReturn}
-            onFocus={() => scrollToInput(860)}
+            onFocus={() => scrollToField('targetReturn', 'financials')}
             onChangeText={(val) => {
               setFormData(prev => ({...prev, targetReturn: val}));
               if (errors.targetReturn) setErrors(prev => ({ ...prev, targetReturn: "" }));
@@ -881,13 +993,16 @@ export default function BuilderAddTab() {
           {errors.targetReturn && <Text style={styles.errorText}>{errors.targetReturn}</Text>}
         </View>
 
-        <View style={styles.formGroup}>
+        <View style={styles.formGroup} onLayout={(e) => groupY.current['termPeriodYears'] = e.nativeEvent.layout.y}>
           <Text style={styles.label}>Term Period (Years)</Text>
           <TextInput 
-            style={[styles.input, errors.termPeriodYears && styles.inputError]} 
+            style={[styles.input, errors.termPeriodYears && styles.inputError, isFormDisabled && { opacity: 0.7 }]} 
             placeholder="e.g. 5"
+            editable={!isFormDisabled}
             keyboardType="numeric"
+            placeholderTextColor="#9CA3AF"
             value={formData.termPeriodYears}
+            onFocus={() => scrollToField('termPeriodYears', 'financials')}
             onChangeText={(val) => {
               setFormData(prev => ({...prev, termPeriodYears: val}));
               if (errors.termPeriodYears) setErrors(prev => ({ ...prev, termPeriodYears: "" }));
@@ -896,6 +1011,9 @@ export default function BuilderAddTab() {
           {errors.termPeriodYears && <Text style={styles.errorText}>{errors.termPeriodYears}</Text>}
         </View>
       </View>
+
+
+
 
       {/* Images */}
       <View style={styles.card}>
@@ -931,26 +1049,46 @@ export default function BuilderAddTab() {
       {/* Actions */}
       <View style={styles.actionRow}>
         <TouchableOpacity 
-          style={[styles.draftButton, isSubmitting && styles.submitButtonDisabled]} 
+          style={[styles.draftButton, isSavingDraft && styles.submitButtonDisabled]} 
           onPress={() => handleSubmit("DRAFT")}
-          disabled={isSubmitting}
+          disabled={isSavingDraft || isSubmittingApproval}
         >
           <Text style={styles.draftButtonText}>
-            {editingDraftId ? "Update Draft" : "Save Draft"}
+            {isSavingDraft ? "Saving..." : (editingDraftId ? "Update Draft" : "Save Draft")}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} 
+          style={[styles.submitButton, isSubmittingApproval && styles.submitButtonDisabled]} 
           onPress={() => handleSubmit("PENDING_APPROVAL")}
-          disabled={isSubmitting}
+          disabled={isSavingDraft || isSubmittingApproval}
         >
-          <Text style={styles.submitButtonText}>{isSubmitting ? "Submitting..." : "Submit for Approval"}</Text>
+          <Text style={styles.submitButtonText}>{isSubmittingApproval ? "Submitting..." : "Submit for Approval"}</Text>
         </TouchableOpacity>
       </View>
+
+      {editingDraftId && (
+        <View style={{ marginTop: 16 }}>
+          <TouchableOpacity 
+            style={[styles.draftButton, { borderColor: '#EF4444', backgroundColor: '#FEF2F2' }]} 
+            onPress={handleDeleteDraft}
+            disabled={isSavingDraft || isSubmittingApproval}
+          >
+            <Text style={[styles.draftButtonText, { color: '#EF4444' }]}>Delete Draft</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      
+      <View style={{ marginTop: 12, alignItems: 'center' }}>
+        <Text style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>
+          ⚠️ Drafts are automatically deleted after 10 days of inactivity.
+        </Text>
+      </View>
+      </>
+      )}
     </ScrollView>
 
-    {keyboardHeight > 0 && (
+    {keyboardHeight > 0 && !isLoadingDraft && (
       <TouchableOpacity
         style={[styles.floatingDoneBtn, { bottom: Platform.OS === 'ios' ? keyboardHeight + 10 : 16 }]}
         onPress={() => Keyboard.dismiss()}
@@ -962,7 +1100,7 @@ export default function BuilderAddTab() {
     )}
 
     {/* ── Submitting Animation Overlay Modal ── */}
-    <Modal visible={isSubmitting} transparent animationType="fade" statusBarTranslucent>
+    <Modal visible={isSubmittingApproval} transparent animationType="fade" statusBarTranslucent>
       <View style={styles.submittingModalOverlay}>
         <View style={styles.submittingCard}>
           <Animated.View style={[styles.submittingIconCircle, { transform: [{ scale: pulseAnim }] }]}>
@@ -1124,6 +1262,13 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   
+  skeletonCard: {
+    height: 120,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 16,
+    opacity: 0.6,
+  },
+
   card: { backgroundColor: "#FFF", borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 },
   cardHeader: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#F3F4F6", paddingBottom: 12, marginBottom: 16, gap: 8 },
   cardTitle: { fontSize: 13, fontWeight: "700", color: "#111827", textTransform: "uppercase", letterSpacing: 0.5 },
@@ -1137,8 +1282,8 @@ const styles = StyleSheet.create({
   errorText: { color: "#EF4444", fontSize: 11, marginTop: 4 },
   textArea: { minHeight: 90 },
   
-  chipsContainer: { flexDirection: "row", marginBottom: 4 },
-  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: "#F3F4F6", marginRight: 8, borderWidth: 1, borderColor: "transparent" },
+  chipsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 },
+  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "transparent" },
   chipActive: { backgroundColor: Colors.primary + "15", borderColor: Colors.primary },
   chipText: { fontSize: 13, color: "#4B5563", fontWeight: "600" },
   chipTextActive: { color: Colors.primary },

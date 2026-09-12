@@ -21,23 +21,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Colors } from "@/constants/colors";
 
-import CategoryFilter from "./components/CategoryFilter";
 import PropertyCard from "./components/PropertyCard";
 import PropertySkeleton from "./components/PropertySkeleton";
-import FilterModal, { FilterType, ActiveFilters, FilterData } from "./components/FilterModal";
+import FilterModal, { ActiveFilters, FilterData } from "./components/FilterModal";
 import LoginPromptModal from "../../components/LoginPromptModal";
 import { CategoryFilter as CategoryFilterType, Property } from "./data";
 import { propertyService } from "../../services/property.service";
 import { useFavorites } from "../../contexts/FavoritesContext";
 import { useAuth } from "../../contexts/AuthContext";
 
-/** Generic filter chips — UI-only for now, to be wired to backend modal */
-const DUMMY_FILTERS = [
-  { label: "Price", icon: "cash-outline" as const },
-  { label: "Location", icon: "location-outline" as const },
-  { label: "Area", icon: "expand-outline" as const },
-  { label: "Status", icon: "shield-checkmark-outline" as const },
-];
+
 
 const STATIC_FILTER_DATA: FilterData = {
   categories: ["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "LAND"],
@@ -59,8 +52,7 @@ export default function BrowsePropertiesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
 
-  const [activeCategory, setActiveCategory] = useState<string>("ALL ASSETS");
-  const [categories, setCategories] = useState<string[]>(["ALL ASSETS"]);
+
   
   // Modal & Active Filters State
   const [filterData, setFilterData] = useState<FilterData | null>(null);
@@ -73,7 +65,6 @@ export default function BrowsePropertiesPage() {
     });
   }, [activeFilters]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [modalFilterType, setModalFilterType] = useState<FilterType>(null);
 
   const [properties, setProperties] = useState<Property[]>([]);
   const [isFetchingProperties, setIsFetchingProperties] = useState(true);
@@ -92,9 +83,6 @@ export default function BrowsePropertiesPage() {
       const res = await propertyService.getPropertyFilters();
       if (res?.data) {
         setFilterData(res.data);
-        if (res.data.categories) {
-          setCategories(["ALL ASSETS", ...res.data.categories]);
-        }
       }
     } catch (err) {
       console.error("Failed to fetch property filters:", err);
@@ -107,7 +95,7 @@ export default function BrowsePropertiesPage() {
         page: pageNum,
         limit: 10,
         search: debouncedSearch,
-        category: activeCategory === "ALL ASSETS" ? undefined : activeCategory,
+        category: activeFilters.category,
         ...activeFilters
       });
       
@@ -124,7 +112,7 @@ export default function BrowsePropertiesPage() {
     } catch (error) {
       if (mounted.current) console.error("Failed to fetch properties:", error);
     }
-  }, [debouncedSearch, activeCategory, activeFilters]);
+  }, [debouncedSearch, activeFilters]);
 
   useEffect(() => {
     fetchFilters();
@@ -138,7 +126,7 @@ export default function BrowsePropertiesPage() {
       if (!ignore && mounted.current) setIsFetchingProperties(false);
     });
     return () => { ignore = true; };
-  }, [debouncedSearch, activeCategory, fetchProperties, activeFilters]);
+  }, [debouncedSearch, fetchProperties, activeFilters]);
 
   const handleLoadMore = () => {
     if (!hasMore || isFetchingMore || isFetchingProperties) return;
@@ -171,7 +159,6 @@ export default function BrowsePropertiesPage() {
 
   const renderHeader = () => (
     <View style={styles.headerWrapper}>
-      <CategoryFilter categories={categories} active={activeCategory} onChange={setActiveCategory} />
       <View style={styles.sectionHeadingRow}>
         <Text style={styles.sectionTitle}>Explore Assets</Text>
       </View>
@@ -199,88 +186,48 @@ export default function BrowsePropertiesPage() {
 
   return (
     <View style={styles.root}>
-      {/* ── Search Bar & Filter Chips Header ── */}
+      {/* ── Search Bar & Filter Header ── */}
       <View style={styles.searchSection}>
-        <View style={styles.searchContainer}>
-          <Ionicons
-            name="search"
-            size={18}
-            color={Colors.primary}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search city, neighborhood, project..."
-            placeholderTextColor={Colors.outline}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery("")}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name="close-circle"
-                size={18}
-                color={Colors.outline}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Filter Pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersRow}
-        >
-          {hasActiveFilters && (
-            <TouchableOpacity
-              style={[styles.filterChip, styles.resetChip]}
-              activeOpacity={0.75}
-              onPress={() => setActiveFilters({})}
-            >
-              <Ionicons name="refresh" size={14} color={Colors.onErrorContainer} />
-              <Text style={styles.resetChipLabel}>Reset</Text>
-            </TouchableOpacity>
-          )}
-          {DUMMY_FILTERS.map((filter) => {
-            let isActive = false;
-            if (filter.label === "Price") isActive = !!(activeFilters.minPrice !== undefined || activeFilters.maxPrice !== undefined);
-            if (filter.label === "Location") isActive = !!(activeFilters.location && activeFilters.location.length > 0);
-            if (filter.label === "Area") isActive = !!(activeFilters.minArea !== undefined || activeFilters.maxArea !== undefined);
-            if (filter.label === "Status") isActive = !!(activeFilters.status && activeFilters.status.length > 0);
-
-            return (
+        <View style={styles.searchRow}>
+          <View style={styles.searchContainer}>
+            <Ionicons
+              name="search"
+              size={18}
+              color={Colors.primary}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search city, neighborhood, project..."
+              placeholderTextColor={Colors.outline}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
               <TouchableOpacity
-                key={filter.label}
-                style={[styles.filterChip, isActive && styles.filterChipActive]}
-                activeOpacity={0.75}
-                onPress={() => {
-                  setModalFilterType(filter.label as FilterType);
-                  setModalVisible(true);
-                }}
+                onPress={() => setSearchQuery("")}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Ionicons
-                  name={filter.icon}
-                  size={13}
-                  color={isActive ? Colors.onPrimary : Colors.primary}
-                />
-                <Text style={[styles.filterChipLabel, isActive && styles.filterChipLabelActive]}>
-                  {filter.label}
-                </Text>
-                <Ionicons
-                  name="chevron-down"
-                  size={11}
-                  color={isActive ? Colors.onPrimary : Colors.outline}
+                  name="close-circle"
+                  size={18}
+                  color={Colors.outline}
                 />
               </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+            )}
+          </View>
+          <TouchableOpacity 
+            style={styles.filterButton}
+            onPress={() => setModalVisible(true)}
+          >
+            <Ionicons name="options" size={24} color={Colors.onSurface} />
+            {hasActiveFilters && <View style={styles.activeFilterBadge} />}
+          </TouchableOpacity>
+        </View>
       </View>
+
+
 
       {/* ── Virtualized Property List ── */}
       {isLoading ? (
@@ -331,7 +278,6 @@ export default function BrowsePropertiesPage() {
       {/* ── Filter Modal ── */}
       <FilterModal
         visible={modalVisible}
-        filterType={modalFilterType}
         filterData={filterData}
         activeFilters={activeFilters}
         onClose={() => setModalVisible(false)}
@@ -353,13 +299,19 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     backgroundColor: Colors.surface,
   },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   searchContainer: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.surfaceContainerLowest,
     borderWidth: 1,
     borderColor: "rgba(225, 227, 228, 0.8)",
-    borderRadius: 16,
+    borderRadius: 30,
     height: 44,
     paddingHorizontal: 14,
     shadowColor: "#000",
@@ -378,47 +330,34 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     padding: 0,
   },
-  // ── Dummy Filters ──
-  filtersRow: {
-    flexDirection: "row",
-    gap: 8,
-    paddingTop: 10,
-    paddingBottom: 2,
-  },
-  filterChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.outlineVariant,
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: Colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: "rgba(225, 227, 228, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  filterChipActive: {
+  activeFilterBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  filterChipLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: Colors.onSurface,
-  },
-  filterChipLabelActive: {
-    color: Colors.onPrimary,
-  },
-  resetChip: {
-    backgroundColor: Colors.errorContainer,
-    borderColor: Colors.errorContainer,
-    borderStyle: "dashed",
-  },
-  resetChipLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Colors.onErrorContainer,
+    borderWidth: 1,
+    borderColor: Colors.surfaceContainerLowest,
   },
   // ── Scroll Content (Padding at bottom for Floating TabBar) ──
+
   scrollContent: {
     paddingTop: 2,
     paddingBottom: 110,

@@ -65,7 +65,7 @@ export default function GlobalAlertModal() {
           <Text style={styles.title}>{title}</Text>
           {!!message && <Text style={styles.message}>{message}</Text>}
           
-          <View style={styles.buttonRow}>
+          <View style={[styles.buttonRow, buttons.length > 2 && styles.buttonColumn]}>
             {buttons.map((btn, index) => {
               const isDestructive = btn.style === 'destructive';
               const isCancel = btn.style === 'cancel';
@@ -75,6 +75,7 @@ export default function GlobalAlertModal() {
                   key={index}
                   style={[
                     styles.button,
+                    buttons.length > 2 && styles.buttonColumnItem,
                     isDestructive ? styles.destructiveButton : (isCancel ? styles.cancelButton : styles.primaryButton)
                   ]}
                   onPress={() => handleButtonPress(btn.onPress)}
@@ -133,6 +134,13 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: "row",
     gap: 12,
+    width: "100%",
+  },
+  buttonColumn: {
+    flexDirection: "column",
+  },
+  buttonColumnItem: {
+    flex: 0,
     width: "100%",
   },
   button: {

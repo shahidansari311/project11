@@ -23,8 +23,8 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
-  Alert,
 } from "react-native";
+import { GlobalAlert } from "@/components/GlobalAlertModal";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { InvestmentInfo } from "../../BrowseProperties/data";
@@ -136,12 +136,12 @@ export default function InvestNowPanel({
       return;
     }
     if (isSoldOut || remainingUnits <= 0) {
-      Alert.alert("Sold Out", "All units for this property have been purchased.");
+      GlobalAlert.alert("Sold Out", "All units for this property have been purchased.");
       return;
     }
     const result = investUnitsSchema.safeParse(units);
     if (!result.success || units > remainingUnits) {
-      Alert.alert("Invalid units", `Please select between 1 and ${remainingUnits} units.`);
+      GlobalAlert.alert("Invalid units", `Please select between 1 and ${remainingUnits} units.`);
       return;
     }
 

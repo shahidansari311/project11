@@ -1,10 +1,12 @@
 import { useState, useCallback } from "react";
+import { BackHandler } from "react-native";
 import { propertyService } from "@/services/property.service";
 import { Property } from "@/pages/BrowseProperties/data";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import BuilderPropertyListLayout from "@/components/layout/BuilderPropertyListLayout";
 
 export default function BuilderTab() {
+  const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -26,8 +28,15 @@ export default function BuilderTab() {
   useFocusEffect(
     useCallback(() => {
       loadProperties();
-    }, [loadProperties])
+      const onBackPress = () => {
+        router.navigate("/(tabs)/builder-live" as any);
+        return true;
+      };
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => subscription.remove();
+    }, [loadProperties, router])
   );
+
 
   const onRefresh = () => {
     setIsRefreshing(true);

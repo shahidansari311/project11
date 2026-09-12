@@ -100,16 +100,22 @@ async function getBuilderSubmissions(req, res, next) {
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const search = req.query.search;
     
-    // We import publicPropertyService here just for list filtering
+    // Admin reviews submitted properties (e.g. PENDING_APPROVAL, AVAILABLE, REJECTED), NEVER DRAFTs
+    let status = req.query.status;
+    if (status === "DRAFT") {
+      status = undefined;
+    }
+
     const publicPropertyService = require("../services/public.property.service");
     const result = await publicPropertyService.getAllProperties({
       page,
       limit,
       search,
-      status: req.query.status,
+      status,
       builderId: req.query.builderId,
       onlyBuilderSubmissions: true,
-      excludeRejected: false
+      excludeRejected: false,
+      excludeDrafts: true
     });
     
     return successResponse(res, 200, result, "Builder submissions retrieved successfully");
@@ -117,6 +123,7 @@ async function getBuilderSubmissions(req, res, next) {
     next(error);
   }
 }
+
 
 async function verifyProperty(req, res, next) {
   try {

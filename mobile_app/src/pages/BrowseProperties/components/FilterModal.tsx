@@ -19,6 +19,7 @@ import { propertyService } from "../../../services/property.service";
 export type FilterType = "Price" | "Location" | "Area" | "Status" | null;
 
 export interface ActiveFilters {
+  category?: string[];
   minPrice?: number;
   maxPrice?: number;
   minArea?: number;
@@ -39,7 +40,6 @@ export interface FilterData {
 
 interface FilterModalProps {
   visible: boolean;
-  filterType: FilterType;
   filterData: FilterData | null;
   activeFilters: ActiveFilters;
   onClose: () => void;
@@ -48,7 +48,6 @@ interface FilterModalProps {
 
 export default function FilterModal({
   visible,
-  filterType,
   filterData,
   activeFilters,
   onClose,
@@ -117,24 +116,13 @@ export default function FilterModal({
   };
 
   const handleClear = () => {
-    if (filterType === "Price") {
-      setLocalFilters({ ...localFilters, minPrice: undefined, maxPrice: undefined });
-    } else if (filterType === "Location") {
-      setLocalFilters({ ...localFilters, location: undefined });
-      setLocationSearchQuery("");
-    } else if (filterType === "Area") {
-      setLocalFilters({ ...localFilters, minArea: undefined, maxArea: undefined });
-    } else if (filterType === "Status") {
-      setLocalFilters({ ...localFilters, status: undefined });
-    }
+    setLocalFilters({});
+    setLocationSearchQuery("");
   };
 
   const renderPriceFilter = () => {
     return (
       <View style={styles.priceContainer}>
-        <Text style={styles.priceHelp}>
-          Enter a range between ₹{(filterData?.minPrice || 0).toLocaleString()} and ₹{(filterData?.maxPrice || 0).toLocaleString()}
-        </Text>
         <View style={styles.priceInputRow}>
           <View style={styles.priceInputWrapper}>
             <Text style={styles.priceLabel}>Min Price (₹)</Text>
@@ -167,9 +155,6 @@ export default function FilterModal({
   const renderAreaFilter = () => {
     return (
       <View style={styles.priceContainer}>
-        <Text style={styles.priceHelp}>
-          Enter a range between {(filterData?.minArea || 0).toLocaleString()} and {(filterData?.maxArea || 0).toLocaleString()} sqft
-        </Text>
         <View style={styles.priceInputRow}>
           <View style={styles.priceInputWrapper}>
             <Text style={styles.priceLabel}>Min Area (sqft)</Text>
@@ -351,24 +336,46 @@ export default function FilterModal({
   };
 
   const renderContent = () => {
-    switch (filterType) {
-      case "Price":
-        return renderPriceFilter();
-      case "Location":
-        return renderLocationFilter();
-      case "Area":
-        return renderAreaFilter();
-      case "Status":
-        return renderSelectFilter(filterData?.statuses, localFilters.status, (val) => {
-          const prev = localFilters.status || [];
-          setLocalFilters({
-            ...localFilters,
-            status: prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val],
-          });
-        });
-      default:
-        return null;
-    }
+    return (
+      <View style={{ gap: 24, paddingBottom: 24 }}>
+        <View>
+          <Text style={styles.sectionTitle}>Location</Text>
+          {renderLocationFilter()}
+        </View>
+
+        <View>
+          <Text style={styles.sectionTitle}>Categories (All Assets)</Text>
+          {renderSelectFilter(filterData?.categories, localFilters.category, (val) => {
+            const prev = localFilters.category || [];
+            setLocalFilters({
+              ...localFilters,
+              category: prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val],
+            });
+          })}
+        </View>
+
+        <View>
+          <Text style={styles.sectionTitle}>Price Range</Text>
+          {renderPriceFilter()}
+        </View>
+
+        <View>
+          <Text style={styles.sectionTitle}>Area Range</Text>
+          {renderAreaFilter()}
+        </View>
+
+        <View>
+          <Text style={styles.sectionTitle}>Status</Text>
+          {renderSelectFilter(filterData?.statuses, localFilters.status, (val) => {
+            const prev = localFilters.status || [];
+            setLocalFilters({
+              ...localFilters,
+              status: prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val],
+            });
+          })}
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -379,7 +386,7 @@ export default function FilterModal({
         <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Filter by {filterType}</Text>
+            <Text style={styles.title}>All Filters</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={24} color={Colors.onSurface} />
             </TouchableOpacity>
@@ -471,10 +478,11 @@ const styles = StyleSheet.create({
     color: Colors.onSurface,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "800",
     color: Colors.onSurface,
     marginBottom: 12,
+    letterSpacing: 0.2,
   },
   // Price specific styles
   priceContainer: {

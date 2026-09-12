@@ -48,6 +48,8 @@ app.use(compression()); // Gzip response bodies
 app.use(express.json({ limit: "1mb" }));
 app.use(apiLimiter); // Apply global rate limiter
 
+const AppError = require("./utils/AppError");
+
 // Health check route
 app.get("/health", (req, res) => {
   res.status(200).json({
@@ -59,7 +61,13 @@ app.get("/health", (req, res) => {
 // Mount API routes
 app.use("/api/v1", routes);
 
+// Handle 404 for undefined routes
+app.use((req, res, next) => {
+  next(AppError.notFound(`API route ${req.originalUrl} not found`));
+});
+
 // Global Error Handler
 app.use(errorHandler);
 
 module.exports = app;
+

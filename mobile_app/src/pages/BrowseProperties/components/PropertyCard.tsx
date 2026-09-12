@@ -25,6 +25,7 @@ interface PropertyCardProps {
   property: Property;
   isGuest?: boolean;
   onRequireLogin?: () => void;
+  onDeleteDraft?: (id: string) => void;
 }
 
 const getStatusColor = (status: string) => {
@@ -59,6 +60,7 @@ export default memo(function PropertyCard({
   property,
   isGuest = false,
   onRequireLogin,
+  onDeleteDraft,
 }: PropertyCardProps) {
   const router = useRouter();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -67,7 +69,7 @@ export default memo(function PropertyCard({
 
   const handleCardPress = () => {
     if (isDraft) {
-      router.push(`/(tabs)/builder-add?draftId=${property.id}`);
+      router.navigate({ pathname: "/(tabs)/builder-add", params: { draftId: property.id } } as any);
     } else {
       router.push(`/property/${property.id}`);
     }
@@ -75,7 +77,7 @@ export default memo(function PropertyCard({
 
   const imagesList = property.images && property.images.length > 0
     ? property.images
-    : [PLACEHOLDER_IMAGE];
+    : (isDraft ? [] : [PLACEHOLDER_IMAGE]);
 
   const handleScroll = (e: any) => {
     const contentOffsetX = e.nativeEvent.contentOffset.x;
@@ -89,7 +91,16 @@ export default memo(function PropertyCard({
     <View style={[styles.cardContainer, isSoldOut && styles.soldOutCard]}>
       {/* ── Left Side Image (Swipeable Carousel) ── */}
       <View style={styles.imageWrapper}>
-        <ScrollView
+        {imagesList.length === 0 ? (
+          <TouchableOpacity 
+            style={[styles.image, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]} 
+            onPress={handleCardPress} 
+            activeOpacity={0.9}
+          >
+            <Ionicons name="image-outline" size={32} color="#D1D5DB" />
+          </TouchableOpacity>
+        ) : (
+          <ScrollView
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -112,6 +123,7 @@ export default memo(function PropertyCard({
             </TouchableOpacity>
           ))}
         </ScrollView>
+        )}
 
         {/* SOLD OUT diagonal ribbon watermark */}
         {isSoldOut && (
@@ -148,13 +160,15 @@ export default memo(function PropertyCard({
           <Text style={styles.titleText} numberOfLines={1}>
             {property.title}
           </Text>
-          <FavoriteButton
-            propertyId={property.id}
-            size={16}
-            style={styles.favoriteBtn}
-            isGuest={isGuest}
-            onRequireLogin={onRequireLogin}
-          />
+          {!isDraft && (
+            <FavoriteButton
+              propertyId={property.id}
+              size={16}
+              style={styles.favoriteBtn}
+              isGuest={isGuest}
+              onRequireLogin={onRequireLogin}
+            />
+          )}
         </View>
 
         {/* Location Row */}
@@ -172,15 +186,24 @@ export default memo(function PropertyCard({
 
         {/* Footer Metrics Row or Edit Draft Button */}
         {isDraft ? (
-          <View style={styles.draftActionRow}>
+          <View style={[styles.draftActionRow, { flexDirection: 'row', gap: 8 }]}>
             <TouchableOpacity
-              style={styles.editDraftBtn}
+              style={[styles.editDraftBtn, { flex: 1, justifyContent: 'center' }]}
               onPress={handleCardPress}
               activeOpacity={0.8}
             >
               <Ionicons name="create-outline" size={13} color="#FFFFFF" />
               <Text style={styles.editDraftBtnText}>Edit Draft</Text>
             </TouchableOpacity>
+            {onDeleteDraft && (
+              <TouchableOpacity
+                style={[styles.editDraftBtn, { backgroundColor: '#FEF2F2', borderColor: '#EF4444', borderWidth: 1, paddingHorizontal: 12 }]}
+                onPress={() => onDeleteDraft(property.id)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trash-outline" size={13} color="#EF4444" />
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <View style={styles.metricsRow}>
@@ -397,7 +420,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#6366f1",
+    backgroundColor: Colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 8,

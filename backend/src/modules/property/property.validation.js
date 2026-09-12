@@ -126,10 +126,39 @@ const updatePropertySchema = z.object({
     investors: z.coerce.number().int().min(0).optional(),
     clearImages: z.coerce.boolean().optional(),
     youtubeVideoUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
+    termPeriodYears: z.coerce.number().positive("Term period must be a positive number").optional(),
   }),
   query: z.object({}).passthrough().optional(),
   params: z.object({ id: z.string().optional() }).passthrough().optional(),
 });
+
+const safeDraftNumber = () =>
+  z.union([
+    z.number(),
+    z.string().transform((val) => (val.trim() === "" ? undefined : Number(val))),
+    z.null()
+  ])
+  .optional()
+  .transform((val) => (val === null || val === undefined || isNaN(val) ? undefined : val));
+
+const draftPropertySchema = z.object({
+  body: z.object({
+    title: z.string().trim().optional(),
+    description: z.string().trim().optional(),
+    images: z.array(z.string()).optional(),
+    location: z.any().optional(),
+    status: z.literal("DRAFT"),
+    targetReturn: safeDraftNumber(),
+    totalPrice: safeDraftNumber(),
+    totalSize: safeDraftNumber(),
+    category: z.enum(VALID_CATEGORIES).optional(),
+    youtubeVideoUrl: z.string().optional().or(z.literal('')),
+    termPeriodYears: safeDraftNumber(),
+  }).passthrough(),
+  query: z.object({}).passthrough().optional(),
+  params: z.object({ id: z.string().optional() }).passthrough().optional(),
+});
+
 
 const queryPropertySchema = z.object({
   query: z.object({
@@ -173,6 +202,7 @@ const verifyPropertySchema = z.object({
 module.exports = {
   createPropertySchema,
   updatePropertySchema,
+  draftPropertySchema,
   queryPropertySchema,
   addPriceHistorySchema,
   updatePriceHistorySchema,

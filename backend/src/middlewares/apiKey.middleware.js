@@ -22,7 +22,7 @@ const apiKeyMiddleware = (req, res, next) => {
   const apiKey = req.headers["x-api-key"];
   const validApiKey = process.env.MOBILE_APP_SECRET || "vishal-shahid-sumeet-silverrealEstate";
 
-  console.log(`[API KEY CHECK] Key Received: ${apiKey}, Expected Key: ${validApiKey}`);
+
 
   if (!apiKey || apiKey !== validApiKey) {
     return next(new AppError("Forbidden: Invalid or missing API Key", 403));

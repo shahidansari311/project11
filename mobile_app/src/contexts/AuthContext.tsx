@@ -40,14 +40,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsGuest(false);
 
         // Register push token and send to backend
-        // (Commented out temporarily because rebuilding the app is required to use Firebase on Android)
-        /*
         registerForPushNotificationsAsync().then((pushToken) => {
           if (pushToken) {
             sendPushTokenToBackend(pushToken);
           }
         });
-        */
 
         return res.data;
       }

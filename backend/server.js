@@ -1,7 +1,7 @@
-const app = require("./src/app");
 const dotenv = require("dotenv");
-const prisma = require("./src/config/db");
 dotenv.config();
+const app = require("./src/app");
+const prisma = require("./src/config/db");
 const port = process.env.PORT || 4000;
 
 process.on("uncaughtException", (err) => {

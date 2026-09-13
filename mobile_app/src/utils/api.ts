@@ -109,7 +109,10 @@ api.interceptors.response.use(
         const { data } = await axios.post(`${API_URL}/auth/user/refresh-token`, {
           refreshToken,
         }, {
-          headers: { "x-device-id": deviceId }
+          headers: { 
+            "x-device-id": deviceId,
+            "x-api-key": process.env.EXPO_PUBLIC_API_KEY || "vishal-shahid-sumeet-silverrealEstate"
+          }
         });
 
         const newAccessToken = data.data.token;

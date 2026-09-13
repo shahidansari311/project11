@@ -8,6 +8,7 @@ const api = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
+    "x-api-key": process.env.EXPO_PUBLIC_API_KEY ,
   },
   timeout: 30000, // 30 seconds API Timeout to support slow networks
 });

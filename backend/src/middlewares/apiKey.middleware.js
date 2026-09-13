@@ -7,6 +7,11 @@ const apiKeyMiddleware = (req, res, next) => {
     
   const origin = req.headers.origin;
   
+  // Allow OPTIONS preflight requests to pass through without checking the API key
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
   // If request is coming from our official web frontend, allow it.
   if (origin && allowedOrigins.includes(origin)) {
     return next();

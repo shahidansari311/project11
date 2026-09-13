@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - shahid
     # Only trigger the deployment if files in the backend change
     paths:
       - 'backend/**'

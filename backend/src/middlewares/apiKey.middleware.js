@@ -20,7 +20,9 @@ const apiKeyMiddleware = (req, res, next) => {
   // Otherwise, it must be the mobile app (or someone using Postman). 
   // We require the secret API key in the headers.
   const apiKey = req.headers["x-api-key"];
-  const validApiKey = process.env.MOBILE_APP_SECRET || "vishal-shahid-sumeet-silverrealEstate";
+  const validApiKey = process.env.MOBILE_APP_SECRET;
+
+  console.log(`[API KEY CHECK] URL: ${req.originalUrl}, Method: ${req.method}, Origin: ${origin}, Key Received: ${apiKey}`);
 
   if (!apiKey || apiKey !== validApiKey) {
     return next(new AppError("Forbidden: Invalid or missing API Key", 403));

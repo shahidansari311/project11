@@ -39,6 +39,7 @@ model Admin {
   securityQuestion String?
   securityAnswer   String?
   otp              String?
+  otp_ipAddress    String?
   otp_expiry       DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

@@ -195,7 +195,7 @@ async function refreshUserToken(oldRefreshToken, deviceFingerprint) {
   return { token, refreshToken: newRefreshToken };
 }
 
-async function loginAdminStep1(phone, password) {
+async function loginAdminStep1(phone, password, clientIp) {
   const admin = await prisma.admin.findUnique({ where: { phone } });
   
   if (!admin) {
@@ -229,7 +229,7 @@ async function loginAdminStep1(phone, password) {
   // Overwrites previous OTP with the newly generated OTP
   await prisma.admin.update({
     where: { id: admin.id },
-    data: { otp: hashedOtp, otp_expiry: otpExpiry }
+    data: { otp: hashedOtp, otp_expiry: otpExpiry, otp_ipAddress: clientIp }
   });
 
   console.log(`\n======================================================`);
@@ -239,12 +239,16 @@ async function loginAdminStep1(phone, password) {
   return { success: true, message: `OTP sent successfully to Admin` };
 }
 
-async function verifyOtpAdmin(phone, otp, deviceFingerprint) {
+async function verifyOtpAdmin(phone, otp, deviceFingerprint, clientIp) {
   const admin = await prisma.admin.findUnique({ where: { phone } });
   if (!admin) throw new AppError("Admin not found. Please login first.", 400);
 
   if (!admin.otp) {
     throw new AppError("Invalid or expired OTP.", 401);
+  }
+
+  if (admin.otp_ipAddress && admin.otp_ipAddress !== clientIp) {
+    throw new AppError("Access denied: IP address mismatch. OTP must be verified from the same IP it was requested.", 403);
   }
   
   const isValid = await bcrypt.compare(otp, admin.otp);
@@ -256,7 +260,7 @@ async function verifyOtpAdmin(phone, otp, deviceFingerprint) {
     // Clear expired OTP
     await prisma.admin.update({
       where: { id: admin.id },
-      data: { otp: null, otp_expiry: null }
+      data: { otp: null, otp_expiry: null, otp_ipAddress: null }
     });
     throw new AppError("OTP has expired. Please request a new OTP.", 400);
   }
@@ -264,7 +268,7 @@ async function verifyOtpAdmin(phone, otp, deviceFingerprint) {
   // Clear OTP immediately after successful verification
   await prisma.admin.update({
     where: { id: admin.id },
-    data: { otp: null, otp_expiry: null }
+    data: { otp: null, otp_expiry: null, otp_ipAddress: null }
   });
 
   const token = signToken({ id: admin.id, role: "admin" });
@@ -355,12 +359,7 @@ async function updateUserProfile(userId, { fullName, email, profileUrl }) {
   return { id: user.id, phone: user.phone, fullName: user.fullName, email: user.email, profileUrl: user.profileUrl, createdby_admin: user.createdby_admin };
 }
 
-async function resendOtpAdmin(phone) {
-  const fixedAdminPhone = ADMIN_PHONE || "9876543210";
-  if (phone !== fixedAdminPhone) {
-    throw new AppError("Access denied: Not an authorized Admin mobile number.", 403);
-  }
-
+async function resendOtpAdmin(phone, clientIp) {
   const admin = await prisma.admin.findUnique({ where: { phone } });
   if (!admin) {
     throw new AppError("No OTP was requested. Please use send-otp first.", 400);
@@ -380,11 +379,12 @@ async function resendOtpAdmin(phone) {
 
   // Delete old OTP and generate a fresh one
   const otp = generateOtp();
+  const hashedOtp = await bcrypt.hash(otp, 10);
   const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MS); // 5 minutes
 
   await prisma.admin.update({
     where: { id: admin.id },
-    data: { otp, otp_expiry: otpExpiry }
+    data: { otp: hashedOtp, otp_expiry: otpExpiry, otp_ipAddress: clientIp }
   });
 
   console.log(`\n======================================================`);
@@ -612,15 +612,10 @@ async function cancelOtpUser(phone) {
 }
 
 async function cancelOtpAdmin(phone) {
-  const fixedAdminPhone = ADMIN_PHONE || "9876543210";
-  if (phone !== fixedAdminPhone) {
-    throw new AppError("Access denied: Not an authorized Admin mobile number.", 403);
-  }
-
   // Idempotent — clear OTP and expiry for Admin if it exists
   await prisma.admin.update({
     where: { phone },
-    data: { otp: null, otp_expiry: null }
+    data: { otp: null, otp_expiry: null, otp_ipAddress: null }
   }).catch(() => {});
 
   return { success: true };

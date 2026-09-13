@@ -229,7 +229,7 @@ async function loginAdminStep1(phone, password, clientIp) {
   // Overwrites previous OTP with the newly generated OTP
   await prisma.admin.update({
     where: { id: admin.id },
-    data: { otp: hashedOtp, otp_expiry: otpExpiry, otp_ipAddress: clientIp }
+    data: { otp: hashedOtp, otp_expiry: otpExpiry } // temporarily removed otp_ipAddress: clientIp
   });
 
   console.log(`\n======================================================`);
@@ -247,9 +247,9 @@ async function verifyOtpAdmin(phone, otp, deviceFingerprint, clientIp) {
     throw new AppError("Invalid or expired OTP.", 401);
   }
 
-  if (admin.otp_ipAddress && admin.otp_ipAddress !== clientIp) {
-    throw new AppError("Access denied: IP address mismatch. OTP must be verified from the same IP it was requested.", 403);
-  }
+  // if (admin.otp_ipAddress && admin.otp_ipAddress !== clientIp) {
+  //   throw new AppError("Access denied: IP address mismatch. OTP must be verified from the same IP it was requested.", 403);
+  // }
   
   const isValid = await bcrypt.compare(otp, admin.otp);
   if (!isValid) {
@@ -260,7 +260,7 @@ async function verifyOtpAdmin(phone, otp, deviceFingerprint, clientIp) {
     // Clear expired OTP
     await prisma.admin.update({
       where: { id: admin.id },
-      data: { otp: null, otp_expiry: null, otp_ipAddress: null }
+      data: { otp: null, otp_expiry: null } // temporarily removed otp_ipAddress: null
     });
     throw new AppError("OTP has expired. Please request a new OTP.", 400);
   }
@@ -268,7 +268,7 @@ async function verifyOtpAdmin(phone, otp, deviceFingerprint, clientIp) {
   // Clear OTP immediately after successful verification
   await prisma.admin.update({
     where: { id: admin.id },
-    data: { otp: null, otp_expiry: null, otp_ipAddress: null }
+    data: { otp: null, otp_expiry: null } // temporarily removed otp_ipAddress: null
   });
 
   const token = signToken({ id: admin.id, role: "admin" });
@@ -384,7 +384,7 @@ async function resendOtpAdmin(phone, clientIp) {
 
   await prisma.admin.update({
     where: { id: admin.id },
-    data: { otp: hashedOtp, otp_expiry: otpExpiry, otp_ipAddress: clientIp }
+    data: { otp: hashedOtp, otp_expiry: otpExpiry } // temporarily removed otp_ipAddress: clientIp
   });
 
   console.log(`\n======================================================`);
@@ -615,7 +615,7 @@ async function cancelOtpAdmin(phone) {
   // Idempotent — clear OTP and expiry for Admin if it exists
   await prisma.admin.update({
     where: { phone },
-    data: { otp: null, otp_expiry: null, otp_ipAddress: null }
+    data: { otp: null, otp_expiry: null } // temporarily removed otp_ipAddress: null
   }).catch(() => {});
 
   return { success: true };

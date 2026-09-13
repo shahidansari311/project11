@@ -26,11 +26,12 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       const response = await favoriteService.getFavoriteIds();
-      if (response && response.data) {
-        setFavoriteIds(new Set(response.data));
-      }
-    } catch (error) {
+      setFavoriteIds(new Set(response.data.data));
+    } catch (error: any) {
       console.error("Failed to fetch favorites:", error);
+      if (error.response) {
+        console.error("Server Response:", error.response.data);
+      }
       setFavoriteIds(new Set());
     } finally {
       setIsLoading(false);

@@ -49,6 +49,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use(apiLimiter); // Apply global rate limiter
 
 const AppError = require("./utils/AppError");
+const apiKeyMiddleware = require("./middlewares/apiKey.middleware");
 
 // Health check route
 app.get("/health", (req, res) => {
@@ -57,6 +58,9 @@ app.get("/health", (req, res) => {
      timestamp: new Date().toISOString() 
     });
 });
+
+// Enforce API key for mobile apps/external access
+app.use(apiKeyMiddleware);
 
 // Mount API routes
 app.use("/api/v1", routes);

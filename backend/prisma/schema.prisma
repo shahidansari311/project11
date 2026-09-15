@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -188,3 +189,25 @@ enum InvestmentStatus {
   WITHDRAWAL_REQUESTED // user requested withdrawal after maturity
   WITHDRAWN
 }
+
+model ContactInquiry {
+  id             String        @id @default(cuid())
+  firstName      String
+  lastName       String
+  email          String
+  areaOfInterest String
+  message        String
+  status         InquiryStatus @default(NEW)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  RESOLVED
+}
+

@@ -1,0 +1,98 @@
+// =============================================================
+//  SilverReal Estate — SCSS Variables
+//  Single source of truth for all design tokens.
+//  Import this file in any component SCSS file.
+// =============================================================
+
+// ── Brand / Primary Colors ──────────────────────────────────
+$color-primary:       #005163;
+$color-primary-50:    #e0f3f7;
+$color-primary-100:   #b3e0ea;
+$color-primary-200:   #80ccdd;
+$color-primary-300:   #4db8cf;
+$color-primary-400:   #26a9c5;
+$color-primary-500:   #0099bb;
+$color-primary-600:   #005163;
+$color-primary-700:   #003a47;
+$color-primary-800:   #00232a;
+$color-primary-900:   #000c0d;
+
+// ── Semantic UI Colors ───────────────────────────────────────
+$color-white:         #ffffff;
+$color-bg:            #ffffff;
+$color-bg-muted:      #f8fafc;
+$color-bg-subtle:     #f1f5f9;
+
+$color-text:          #111827;
+$color-text-secondary:#6b7280;
+$color-text-muted:    #9ca3af;
+$color-text-disabled: #d1d5db;
+
+$color-border:        #e5e7eb;
+$color-border-light:  #f3f4f6;
+
+$color-success:       #16a34a;
+$color-warning:       #d97706;
+$color-error:         #dc2626;
+$color-info:          $color-primary;
+
+// ── Typography: Font Family ──────────────────────────────────
+$font-family-base:    'Inter', ui-sans-serif, system-ui, sans-serif;
+
+// ── Typography: Font Sizes ───────────────────────────────────
+$font-size-2xs:       0.625rem;   // 10px  — overline / badge
+$font-size-xs:        0.75rem;    // 12px  — caption / label-sm
+$font-size-sm:        0.875rem;   // 14px  — body default
+$font-size-base:      1rem;       // 16px  — body-lg
+$font-size-lg:        1.125rem;   // 18px  — heading-xs
+$font-size-xl:        1.25rem;    // 20px  — heading-sm
+$font-size-2xl:       1.375rem;   // 22px  — page title
+$font-size-3xl:       1.5rem;     // 24px  — heading-lg
+$font-size-4xl:       1.875rem;   // 30px  — heading-xl
+$font-size-stat:      2rem;       // 32px  — stat card values
+$font-size-display:   2.25rem;    // 36px  — display
+
+// ── Typography: Font Weights ─────────────────────────────────
+$font-weight-normal:   400;
+$font-weight-medium:   500;
+$font-weight-semibold: 600;
+$font-weight-bold:     700;
+
+// ── Typography: Line Heights ─────────────────────────────────
+$line-height-tight:    1.1;
+$line-height-snug:     1.25;
+$line-height-normal:   1.5;
+$line-height-relaxed:  1.6;
+
+// ── Spacing ──────────────────────────────────────────────────
+$spacing-xs:   0.25rem;    // 4px
+$spacing-sm:   0.5rem;     // 8px
+$spacing-md:   1rem;       // 16px
+$spacing-lg:   1.5rem;     // 24px
+$spacing-xl:   2rem;       // 32px
+$spacing-2xl:  3rem;       // 48px
+
+// ── Radii ────────────────────────────────────────────────────
+$radius-sm:    0.375rem;   // 6px
+$radius-md:    0.5rem;     // 8px
+$radius-lg:    0.75rem;    // 12px
+$radius-xl:    0.875rem;   // 14px
+$radius-2xl:   1rem;       // 16px
+$radius-full:  9999px;
+
+// ── Shadows ──────────────────────────────────────────────────
+$shadow-sm:   0 1px 2px rgba(0, 0, 0, 0.05);
+$shadow-md:   0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+$shadow-lg:   0 8px 32px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.06);
+
+// ── Transitions ──────────────────────────────────────────────
+$transition-fast:    150ms ease;
+$transition-base:    200ms ease;
+$transition-slow:    300ms ease;
+
+// ── Breakpoints ──────────────────────────────────────────────
+$bp-sm:   640px;
+$bp-md:   768px;
+$bp-lg:   1024px;
+$bp-xl:   1280px;
+$bp-2xl:  1536px;

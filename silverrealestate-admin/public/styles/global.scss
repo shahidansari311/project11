@@ -1,0 +1,195 @@
+// =============================================================
+//  SilverReal Estate — Global Styles
+//  Imports variables and applies all global rules:
+//    • CSS custom properties (for use in Tailwind + inline)
+//    • HeroUI component overrides
+//    • Typography utility classes
+//    • Semantic font size classes
+// =============================================================
+
+@use './variables' as *;
+
+// ── 1. CSS Custom Properties ─────────────────────────────────
+//  These are exposed as var(--brand), var(--font-stat) etc.
+//  for use anywhere CSS variables are valid (inline styles, SVG, etc.)
+
+:root {
+  // Brand
+  --brand:              #{$color-primary};
+  --brand-50:           #{$color-primary-50};
+  --brand-100:          #{$color-primary-100};
+  --brand-700:          #{$color-primary-700};
+
+  // Backgrounds
+  --bg:                 #{$color-bg};
+  --bg-muted:           #{$color-bg-muted};
+  --bg-subtle:          #{$color-bg-subtle};
+
+  // Text
+  --text:               #{$color-text};
+  --text-secondary:     #{$color-text-secondary};
+  --text-muted:         #{$color-text-muted};
+
+  // Borders
+  --border:             #{$color-border};
+  --border-light:       #{$color-border-light};
+
+  // Status
+  --success:            #{$color-success};
+  --warning:            #{$color-warning};
+  --error:              #{$color-error};
+
+  // Font sizes
+  --font-2xs:           #{$font-size-2xs};
+  --font-xs:            #{$font-size-xs};
+  --font-sm:            #{$font-size-sm};
+  --font-base:          #{$font-size-base};
+  --font-lg:            #{$font-size-lg};
+  --font-xl:            #{$font-size-xl};
+  --font-2xl:           #{$font-size-2xl};
+  --font-3xl:           #{$font-size-3xl};
+  --font-4xl:           #{$font-size-4xl};
+  --font-stat:          #{$font-size-stat};
+  --font-display:       #{$font-size-display};
+
+  // Radii
+  --radius-sm:          #{$radius-sm};
+  --radius-md:          #{$radius-md};
+  --radius-lg:          #{$radius-lg};
+  --radius-xl:          #{$radius-xl};
+  --radius-2xl:         #{$radius-2xl};
+
+  // Shadows
+  --shadow-sm:          #{$shadow-sm};
+  --shadow-md:          #{$shadow-md};
+  --shadow-lg:          #{$shadow-lg};
+}
+
+// ── 2. HeroUI Design Token Overrides ─────────────────────────
+//  HeroUI v3 maps `color="primary"` → --accent.
+//  Override here so all HeroUI buttons, inputs, focus rings
+//  automatically use $color-primary everywhere.
+
+:root,
+.light,
+.default,
+[data-theme='light'],
+[data-theme='default'] {
+  // $color-primary (#005163) in oklch ≈ oklch(36% 0.078 211)
+  --accent:                    oklch(36% 0.078 211);
+  --accent-foreground:         oklch(100% 0 0);
+  --accent-hover:              oklch(30% 0.078 211);
+  --accent-soft:               color-mix(in oklab, oklch(36% 0.078 211) 15%, transparent);
+  --accent-soft-foreground:    color-mix(in oklab, oklch(36% 0.078 211) 70%, oklch(20% 0.006 286) 30%);
+  --accent-soft-hover:         color-mix(in oklab, oklch(36% 0.078 211) 22%, transparent);
+  --focus:                     oklch(36% 0.078 211);
+}
+
+// ── 3. Base / Reset ──────────────────────────────────────────
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+}
+
+body {
+  background-color: $color-bg;
+  color: $color-text;
+  font-family: $font-family-base;
+  font-size: $font-size-sm;
+  line-height: $line-height-relaxed;
+  margin: 0;
+}
+
+// ── 4. Semantic Typography Classes ──────────────────────────
+//  Use these instead of arbitrary Tailwind text-[Xpx] values.
+
+// Display / Headings
+.type-display {
+  font-size: $font-size-display;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+}
+
+.type-h1 {
+  font-size: $font-size-4xl;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-snug;
+}
+
+.type-h2 {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-snug;
+}
+
+.type-h3 {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-snug;
+}
+
+.type-h4 {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  line-height: 1.35;
+}
+
+.type-h5 {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  line-height: 1.4;
+}
+
+.type-h6 {
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  line-height: 1.4;
+}
+
+// Body
+.type-body-lg  { font-size: $font-size-base; line-height: $line-height-relaxed; }
+.type-body     { font-size: $font-size-sm;   line-height: $line-height-normal;  }
+.type-body-sm  { font-size: $font-size-xs;   line-height: $line-height-normal;  }
+
+// Labels
+.type-label-lg { font-size: $font-size-sm;   font-weight: $font-weight-medium; letter-spacing: 0.01em; }
+.type-label    { font-size: $font-size-xs;   font-weight: $font-weight-medium; letter-spacing: 0.01em; }
+.type-label-sm { font-size: $font-size-2xs;  font-weight: $font-weight-semibold; letter-spacing: 0.06em; text-transform: uppercase; }
+
+// Stat (dashboard KPI numbers)
+.type-stat {
+  font-size: $font-size-stat;
+  font-weight: $font-weight-bold;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+
+// Caption / overline
+.type-caption  { font-size: $font-size-xs;  color: $color-text-secondary; }
+.type-overline {
+  font-size: $font-size-2xs;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $color-text-muted;
+}
+
+// ── 5. Color Utility Classes ─────────────────────────────────
+.text-brand   { color: $color-primary; }
+.bg-brand     { background-color: $color-primary; }
+.border-brand { border-color: $color-primary; }
+
+// ── 6. react-hot-toast: Clean Pill Style ─────────────────────
+[data-hot-toast] {
+  font-family: $font-family-base !important;
+  font-size: $font-size-sm !important;
+}

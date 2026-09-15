@@ -1,0 +1,71 @@
+/* ─── Tailwind v4 ─── */
+@import "tailwindcss";
+
+/* ─── HeroUI base styles ─── */
+/* Removed */
+
+/* ─── Tailwind design tokens (must live in .css, not .scss) ─── */
+@theme {
+  /* Brand color scale — mirrors $color-primary-* in variables.scss */
+  --color-primary:     #005163;
+  --color-primary-50:  #e0f3f7;
+  --color-primary-100: #b3e0ea;
+  --color-primary-200: #80ccdd;
+  --color-primary-300: #4db8cf;
+  --color-primary-400: #26a9c5;
+  --color-primary-500: #0099bb;
+  --color-primary-600: #005163;
+  --color-primary-700: #003a47;
+  --color-primary-800: #00232a;
+  --color-primary-900: #000c0d;
+
+  /* Font scale — mirrors $font-size-* in variables.scss */
+  --text-2xs:    0.625rem;
+  --text-stat:   2rem;
+  --text-2xl-px: 1.375rem;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  button, 
+  [type='button'], 
+  [type='reset'], 
+  [type='submit'],
+  [role='button'] {
+    cursor: pointer;
+  }
+}
+
+/* ─── Modern Sleek Scrollbar ─── */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(203, 213, 225, 0.6) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.6);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.8);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

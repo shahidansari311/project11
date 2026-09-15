@@ -16,12 +16,18 @@ const documentRoutes   = require("../modules/document/document.routes");
 const favoriteRoutes   = require("../modules/favorite/favorite.routes");
 const { userRouter: investmentUserRouter, adminRouter: investmentAdminRouter } =
   require("../modules/investment/investment.routes");
+const { publicRouter: publicInquiryRouter, adminRouter: adminInquiryRouter } =
+  require("../modules/inquiry/inquiry.routes");
 
 // Mount auth routes
 router.use("/auth", authRoutes);
 
 // Mount upload routes
 router.use("/upload", uploadRoutes);
+
+// Mount inquiry routes
+router.use("/public/inquiries", publicInquiryRouter);
+router.use("/admin/inquiries", adminInquiryRouter);
 
 // Mount document routes
 router.use("/", documentRoutes);

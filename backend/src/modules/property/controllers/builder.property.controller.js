@@ -1,5 +1,7 @@
 const propertyService = require("../services/builder.property.service");
 const { successResponse, errorResponse } = require("../../../utils/apiResponse");
+const { createPropertySchema, draftPropertySchema } = require("../property.validation");
+const { formatZodError } = require("../../../utils/zodErrorFormatter");
 
 async function builderAddProperty(req, res, next) {
   try {
@@ -7,13 +9,42 @@ async function builderAddProperty(req, res, next) {
     if (propertyData.status !== "DRAFT") {
       propertyData.status = "PENDING_APPROVAL";
     }
-    propertyData.builderId = req.user.id;
-    if (!propertyData.images) {
-      propertyData.images = [];
+    
+    // Conditionally validate based on status
+    let validatedData;
+    if (propertyData.status === "DRAFT") {
+      const result = draftPropertySchema.safeParse({ body: propertyData });
+      if (!result.success) {
+        const { message, errors } = formatZodError(result.error);
+        return res.status(400).json({ success: false, message, errors });
+      }
+      validatedData = result.data.body;
+      
+      // Default empty fields to 0 or "" to satisfy Prisma non-null constraints
+      validatedData.title = validatedData.title || "";
+      validatedData.description = validatedData.description || "";
+      validatedData.totalPrice = validatedData.totalPrice || 0;
+      validatedData.totalSize = validatedData.totalSize || 0;
+      validatedData.targetReturn = validatedData.targetReturn || 0;
+      validatedData.category = validatedData.category || "RESIDENTIAL";
+      validatedData.location = validatedData.location || "{}";
+      
+    } else {
+      const result = createPropertySchema.safeParse({ body: propertyData });
+      if (!result.success) {
+        const { message, errors } = formatZodError(result.error);
+        return res.status(400).json({ success: false, message, errors });
+      }
+      validatedData = result.data.body;
+    }
+
+    validatedData.builderId = req.user.id;
+    if (!validatedData.images) {
+      validatedData.images = [];
     }
     
-    const property = await propertyService.createProperty(propertyData);
-    return successResponse(res, 201, property, "Property listed successfully");
+    const property = await propertyService.createProperty(validatedData);
+    return successResponse(res, 201, property, "Property saved successfully");
   } catch (err) {
     next(err);
   }
@@ -30,11 +61,40 @@ async function builderUpdateProperty(req, res, next) {
 
     let propertyData = { ...req.body };
     
-    if (req.body.images && Array.isArray(req.body.images)) {
-      propertyData.images = req.body.images;
+    // Conditionally validate based on status
+    let validatedData;
+    if (propertyData.status === "DRAFT") {
+      const result = draftPropertySchema.safeParse({ body: propertyData });
+      if (!result.success) {
+        const { message, errors } = formatZodError(result.error);
+        return res.status(400).json({ success: false, message, errors });
+      }
+      validatedData = result.data.body;
+      
+      // Default empty fields to 0 or "" to satisfy Prisma non-null constraints
+      validatedData.title = validatedData.title || "";
+      validatedData.description = validatedData.description || "";
+      validatedData.totalPrice = validatedData.totalPrice || 0;
+      validatedData.totalSize = validatedData.totalSize || 0;
+      validatedData.targetReturn = validatedData.targetReturn || 0;
+      validatedData.category = validatedData.category || "RESIDENTIAL";
+      validatedData.location = validatedData.location || "{}";
+      
+    } else {
+      const result = createPropertySchema.safeParse({ body: propertyData });
+      if (!result.success) {
+        const { message, errors } = formatZodError(result.error);
+        return res.status(400).json({ success: false, message, errors });
+      }
+      validatedData = result.data.body;
     }
 
-    const property = await propertyService.updateProperty(id, propertyData);
+
+    if (req.body.images && Array.isArray(req.body.images)) {
+      validatedData.images = req.body.images;
+    }
+
+    const property = await propertyService.updateProperty(id, validatedData);
     return successResponse(res, 200, property, "Property updated successfully");
   } catch (err) {
     if (err.message && err.message.includes("not found")) return errorResponse(res, 404, err.message);
@@ -74,7 +134,8 @@ async function builderListProperties(req, res, next) {
       search,
       status,
       builderId: req.user.id,
-      excludeRejected: false
+      excludeRejected: false,
+      excludeDrafts: status === "DRAFT" ? false : true
     });
     
     return successResponse(res, 200, result, "Builder properties retrieved successfully");
@@ -82,6 +143,7 @@ async function builderListProperties(req, res, next) {
     next(error);
   }
 }
+
 
 async function builderAddPriceHistory(req, res, next) {
   try {

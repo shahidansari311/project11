@@ -4,10 +4,13 @@ import { Platform } from "react-native";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.29.92:4000/api/v1";
 
+console.log("Resolved API Key from env:", process.env.EXPO_PUBLIC_MOBILE_APP_SECRET);
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
+    "x-api-key": process.env.EXPO_PUBLIC_MOBILE_APP_SECRET || "vishal-shahid-sumeet-silverrealEstate",
   },
   timeout: 30000, // 30 seconds API Timeout to support slow networks
 });
@@ -108,7 +111,10 @@ api.interceptors.response.use(
         const { data } = await axios.post(`${API_URL}/auth/user/refresh-token`, {
           refreshToken,
         }, {
-          headers: { "x-device-id": deviceId }
+          headers: { 
+            "x-device-id": deviceId,
+            "x-api-key": process.env.EXPO_PUBLIC_MOBILE_APP_SECRET || "vishal-shahid-sumeet-silverrealEstate"
+          }
         });
 
         const newAccessToken = data.data.token;

@@ -28,6 +28,21 @@ export default function TabsLayout() {
   const { isGuest, userProfile } = useAuth();
   const userProfileUrl = userProfile?.profileUrl || null;
 
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   // Determine which tab is currently active from the URL segments.
   // segments looks like: ["(tabs)", "home"] or ["(tabs)", "builder-live"]
   const activeRouteName = segments[segments.length - 1] ?? "home";
@@ -85,9 +100,11 @@ export default function TabsLayout() {
     router.navigate("/(tabs)/profile" as any);
   }, [router]);
 
+  const pathname = usePathname();
+
   const handleLoginPress = useCallback(() => {
-    router.replace("/");
-  }, [router]);
+    router.replace({ pathname: "/", params: { returnTo: pathname } });
+  }, [router, pathname]);
 
   // Guests are allowed to browse the home screen.
   // Certain features like Portfolio or Profile will prompt them to log in when interacted with.
@@ -121,12 +138,13 @@ export default function TabsLayout() {
         </Stack>
       </View>
 
-      {/* ── Persistent Tab Bar — never unmounts ── */}
-      {!isGuest && (
+      {/* ── Persistent Tab Bar — hidden when keyboard is open ── */}
+      {!isKeyboardVisible && (
         <AppTabBar
           activeRouteName={activeRouteName}
           userProfileUrl={userProfileUrl}
           role={userProfile?.role}
+          isGuest={isGuest}
           onTabPress={handleTabPress}
         />
       )}

@@ -73,7 +73,8 @@ async function adminLoginStep1(req, res, next) {
     const { phone, password } = req.body;
     if (!phone || !password) return errorResponse(res, 400, "Phone and password are required");
     
-    const result = await authService.sendOtpAdmin(phone, password);
+    const clientIp = req.ip || (req.connection && req.connection.remoteAddress);
+    const result = await authService.sendOtpAdmin(phone, password, clientIp);
     return successResponse(res, 200, null, result.message);
   } catch (err) {
     next(err);
@@ -87,7 +88,8 @@ async function adminVerifyOtp(req, res, next) {
 
     if (!phone || !otp) return errorResponse(res, 400, "Phone and OTP are required");
     
-    const result = await authService.verifyOtpAdmin(phone, otp, deviceFingerprint);
+    const clientIp = req.ip || (req.connection && req.connection.remoteAddress);
+    const result = await authService.verifyOtpAdmin(phone, otp, deviceFingerprint, clientIp);
     if (result.token) {
       setAuthCookies(res, { token: result.token, refreshToken: result.refreshToken });
     }
@@ -117,7 +119,8 @@ async function adminResendOtp(req, res, next) {
     const { phone } = req.body;
     if (!phone) return errorResponse(res, 400, "Phone number is required");
     
-    const result = await authService.resendOtpAdmin(phone);
+    const clientIp = req.ip || (req.connection && req.connection.remoteAddress);
+    const result = await authService.resendOtpAdmin(phone, clientIp);
     return successResponse(res, 200, null, result.message);
   } catch (err) {
     next(err);

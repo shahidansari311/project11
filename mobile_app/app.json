@@ -18,7 +18,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.shahid310.SilverRealEstate"
+      "package": "com.shahid310.SilverRealEstate",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",

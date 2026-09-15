@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as ImagePicker from "expo-image-picker";
 import { Colors } from "@/constants/colors";
+import { GlobalAlert } from '@/components/GlobalAlertModal';
 import api from "@/utils/api";
 import { useToast } from "@/components/Toast";
 import { authService, UserProfile } from "../../services/auth.service";
@@ -255,7 +256,7 @@ export default function ProfilePage() {
               <TouchableOpacity 
                 style={styles.listItem} 
                 activeOpacity={0.7}
-                onPress={() => Alert.alert("Coming Soon", "Performance History will be available soon.")}
+                onPress={() => GlobalAlert.alert("Coming Soon", "Performance History will be available soon.")}
               >
                 <View style={styles.listItemLeft}>
                   <Ionicons name="stats-chart" size={22} color={Colors.primary} />
@@ -300,7 +301,7 @@ export default function ProfilePage() {
                 <TouchableOpacity 
                   style={[styles.listItem, styles.listItemBorder]} 
                   activeOpacity={0.7}
-                  onPress={() => Alert.alert("Coming Soon", "Property Inquiries will be available soon.")}
+                  onPress={() => GlobalAlert.alert("Coming Soon", "Property Inquiries will be available soon.")}
                 >
                   <View style={styles.listItemLeft}>
                     <Ionicons name="chatbubbles" size={22} color={Colors.primary} />
@@ -378,7 +379,7 @@ export default function ProfilePage() {
                 <TouchableOpacity
                   style={[styles.listItem, styles.listItemBorder]}
                   activeOpacity={0.7}
-                  onPress={() => Alert.alert("Coming Soon", "Sample Investor Agreement will be available soon.")}
+                  onPress={() => GlobalAlert.alert("Coming Soon", "Sample Investor Agreement will be available soon.")}
                 >
                   <View style={styles.listItemLeft}>
                     <Ionicons name="document-text" size={22} color={Colors.primary} />
@@ -391,7 +392,7 @@ export default function ProfilePage() {
               <TouchableOpacity
                 style={[styles.listItem, styles.listItemBorder]}
                 activeOpacity={0.7}
-                onPress={() => Alert.alert("Coming Soon", "Privacy Policy will be available soon.")}
+                onPress={() => GlobalAlert.alert("Coming Soon", "Privacy Policy will be available soon.")}
               >
                 <View style={styles.listItemLeft}>
                   <Ionicons name="document-text" size={22} color={Colors.primary} />
@@ -403,7 +404,7 @@ export default function ProfilePage() {
               <TouchableOpacity
                 style={[styles.listItem, userProfile?.role !== "BUILDER" && styles.listItemBorder]}
                 activeOpacity={0.7}
-                onPress={() => Alert.alert("Coming Soon", "Terms and Conditions will be available soon.")}
+                onPress={() => GlobalAlert.alert("Coming Soon", "Terms and Conditions will be available soon.")}
               >
                 <View style={styles.listItemLeft}>
                   <Ionicons name="document-text" size={22} color={Colors.primary} />
@@ -416,7 +417,7 @@ export default function ProfilePage() {
                 <TouchableOpacity
                   style={styles.listItem}
                   activeOpacity={0.7}
-                  onPress={() => Alert.alert("Coming Soon", "Refund and Cancellation Policy will be available soon.")}
+                  onPress={() => GlobalAlert.alert("Coming Soon", "Refund and Cancellation Policy will be available soon.")}
                 >
                   <View style={styles.listItemLeft}>
                     <Ionicons name="document-text" size={22} color={Colors.primary} />

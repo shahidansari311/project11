@@ -1,8 +1,16 @@
-const app = require("./src/app");
 const dotenv = require("dotenv");
-const prisma = require("./src/config/db");
 dotenv.config();
+const app = require("./src/app");
+const prisma = require("./src/config/db");
 const port = process.env.PORT || 4000;
+
+process.on("uncaughtException", (err) => {
+  console.error("🔥 Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("🔥 Unhandled Rejection:", reason);
+});
 
 app.listen(port, '0.0.0.0', async () => {
     console.log(`Server started on port ${port}`);

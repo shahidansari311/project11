@@ -28,7 +28,8 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
     });
   }
 
-  if (Device.isDevice) {
+  // Allow physical devices or Android emulators (which support FCM)
+  if (Device.isDevice || Platform.OS === 'android') {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     
@@ -55,7 +56,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
       console.error('Error fetching push token:', e);
     }
   } else {
-    console.log('Must use physical device for Push Notifications');
+    console.log('Must use physical device for Push Notifications on iOS');
   }
 
   return token;

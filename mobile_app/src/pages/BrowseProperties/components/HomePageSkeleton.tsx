@@ -15,16 +15,16 @@ export default function HomePageSkeleton() {
     >
       {/* Greeting */}
       <View style={styles.greetingContainer}>
-        <Skeleton width={100} height={14} borderRadius={6} style={{ marginBottom: 8 }} />
-        <Skeleton width={200} height={28} borderRadius={8} style={{ marginBottom: 8 }} />
-        <Skeleton width={180} height={14} borderRadius={6} />
+        <Skeleton width={120} height={16} borderRadius={4} style={{ marginBottom: 6 }} />
+        <Skeleton width={200} height={28} borderRadius={4} style={{ marginBottom: 8 }} />
+        <Skeleton width={180} height={14} borderRadius={4} />
       </View>
 
       {/* Popular Places */}
       <View style={styles.popularContainer}>
         <View style={styles.sectionHeaderRow}>
-          <Skeleton width={140} height={22} borderRadius={6} />
-          <Skeleton width={50} height={14} borderRadius={6} />
+          <Skeleton width={130} height={22} borderRadius={4} />
+          <Skeleton width={50} height={14} borderRadius={4} />
         </View>
         <ScrollView
           horizontal
@@ -34,13 +34,13 @@ export default function HomePageSkeleton() {
         >
           {[1, 2, 3].map((i) => (
             <View key={i} style={[styles.horizontalCard, { width: CARD_WIDTH }]}>
-              <Skeleton width="100%" height={180} borderRadius={0} />
+              <Skeleton width="100%" height={160} borderRadius={0} />
               <View style={styles.horizontalCardBody}>
-                <Skeleton width="75%" height={16} borderRadius={5} style={{ marginBottom: 8 }} />
-                <Skeleton width="50%" height={12} borderRadius={4} style={{ marginBottom: 12 }} />
+                <Skeleton width="80%" height={18} borderRadius={4} style={{ marginBottom: 8 }} />
+                <Skeleton width="60%" height={12} borderRadius={4} style={{ marginBottom: 12 }} />
                 <View style={styles.horizontalCardFooter}>
-                  <Skeleton width={60} height={22} borderRadius={8} />
-                  <Skeleton width={80} height={16} borderRadius={4} />
+                  <Skeleton width={70} height={20} borderRadius={4} />
+                  <Skeleton width={60} height={16} borderRadius={4} />
                 </View>
               </View>
             </View>
@@ -50,13 +50,13 @@ export default function HomePageSkeleton() {
 
       {/* Company Trust Block */}
       <View style={styles.companyContainer}>
-        <Skeleton width={180} height={18} borderRadius={6} style={{ marginBottom: 20, alignSelf: "center" }} />
+        <Skeleton width={200} height={20} borderRadius={4} style={{ marginBottom: 20, alignSelf: "center" }} />
         <View style={styles.featuresRow}>
           {[1, 2, 3].map((i) => (
             <View key={i} style={styles.featureItem}>
-              <Skeleton width={44} height={44} borderRadius={22} style={{ marginBottom: 10 }} />
-              <Skeleton width={60} height={12} borderRadius={4} style={{ marginBottom: 4 }} />
-              <Skeleton width={50} height={12} borderRadius={4} />
+              <Skeleton width={48} height={48} borderRadius={24} style={{ marginBottom: 12 }} />
+              <Skeleton width={70} height={12} borderRadius={4} style={{ marginBottom: 6 }} />
+              <Skeleton width={60} height={12} borderRadius={4} />
             </View>
           ))}
         </View>

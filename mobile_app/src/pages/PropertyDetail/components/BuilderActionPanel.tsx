@@ -12,10 +12,13 @@ import {
   Alert,
   Modal,
   KeyboardAvoidingView,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import api from "../../../utils/api";
+import { propertyService } from "@/services/property.service";
+import { GlobalAlert } from '@/components/GlobalAlertModal';
 import { Property } from "../../BrowseProperties/data";
 import EditMediaModal from "./EditMediaModal";
 import { updatePriceSchema } from "@/utils/validationSchemas";
@@ -29,7 +32,8 @@ const formatCurrency = (value: number, currencySymbol: string = "₹") => {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value).replace("₹", currencySymbol);
 };
 
@@ -63,11 +67,11 @@ export default function BuilderActionPanel({ property, onUpdate }: BuilderAction
     setIsSubmitting(true);
     try {
       await api.post(`/builder/property/builder/${property.id}/price-history`, { price: priceNum });
-      Alert.alert("Success", "Property valuation has been updated successfully.");
+      GlobalAlert.alert("Success", "Property valuation has been updated successfully.");
       setIsPriceModalOpen(false);
       onUpdate();
     } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.message || "Failed to update price. Please try again.");
+      GlobalAlert.alert("Error", error.response?.data?.message || "Failed to update price. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -104,49 +108,51 @@ export default function BuilderActionPanel({ property, onUpdate }: BuilderAction
       </View>
 
       {/* PRICE UPDATE MODAL */}
-      <Modal visible={isPriceModalOpen} transparent animationType="slide" onRequestClose={() => setIsPriceModalOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Update Valuation</Text>
-              <TouchableOpacity onPress={() => setIsPriceModalOpen(false)} style={styles.closeBtn}>
-                <Ionicons name="close" size={24} color={Colors.onSurface} />
-              </TouchableOpacity>
-            </View>
-          
-          <Text style={styles.inputLabel}>ENTER NEW TOTAL VALUATION (INR ₹)</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={[styles.priceInput, priceError ? { color: Colors.error } : null]}
-              value={newPrice}
-              onChangeText={(val) => {
-                setNewPrice(val);
-                if (priceError) setPriceError("");
-              }}
-              keyboardType="numeric"
-              placeholder="e.g. 50000000"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              selectTextOnFocus
-            />
-          </View>
-          {priceError ? <Text style={{ color: Colors.error, fontSize: 12, marginTop: 8 }}>{priceError}</Text> : null}
+      <Modal visible={isPriceModalOpen} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setIsPriceModalOpen(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "padding"} style={styles.modalOverlay}>
+          <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Update Valuation</Text>
+                <TouchableOpacity onPress={() => setIsPriceModalOpen(false)} style={styles.closeBtn}>
+                  <Ionicons name="close" size={24} color={Colors.onSurface} />
+                </TouchableOpacity>
+              </View>
+            
+              <Text style={styles.inputLabel}>ENTER NEW TOTAL VALUATION (INR ₹)</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={[styles.priceInput, priceError ? { color: Colors.error } : null]}
+                  value={newPrice}
+                  onChangeText={(val) => {
+                    setNewPrice(val);
+                    if (priceError) setPriceError("");
+                  }}
+                  keyboardType="numeric"
+                  placeholder="e.g. 50000000"
+                  placeholderTextColor="#9CA3AF"
+                  selectTextOnFocus
+                />
+              </View>
+              {priceError ? <Text style={{ color: Colors.error, fontSize: 12, marginTop: -4, marginBottom: 8 }}>{priceError}</Text> : null}
 
-            <TouchableOpacity
-              style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
-              activeOpacity={0.85}
-              onPress={handleUpdatePrice}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.submitBtnText}>Confirm New Price</Text>
-              )}
-            </TouchableOpacity>
-            <Text style={styles.disclaimer}>
-              Updating the price will record a new entry in the property's price history and affect all new fractional units immediately.
-            </Text>
-          </View>
+              <TouchableOpacity
+                style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+                activeOpacity={0.85}
+                onPress={handleUpdatePrice}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.submitBtnText}>Confirm New Price</Text>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.disclaimer}>
+                Updating the price will record a new entry in the property's price history and affect all new fractional units immediately.
+              </Text>
+            </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -270,9 +276,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   inputLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "700",
-    color: "rgba(255,255,255,0.7)",
+    color: "#374151",
     letterSpacing: 0.6,
     marginBottom: 6,
   },

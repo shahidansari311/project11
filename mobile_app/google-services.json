@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "95341181194",
+    "project_id": "project-307fd",
+    "storage_bucket": "project-307fd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:95341181194:android:ee130641c9e7954f2d22f3",
+        "android_client_info": {
+          "package_name": "com.shahid310.SilverRealEstate"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdr1ka4YSgHWnvYAd_L2SerHn2iIf-pqs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

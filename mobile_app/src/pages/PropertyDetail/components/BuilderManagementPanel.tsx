@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
+import { GlobalAlert } from '@/components/GlobalAlertModal';
 import api from "../../../utils/api";
 
 export default function BuilderManagementPanel({ property, onUpdate }: { property: any, onUpdate: () => void }) {
   const [isLoading, setIsLoading] = useState(false);
   const deleteProperty = async () => {
-    Alert.alert(
+    GlobalAlert.alert(
       "Delete Property",
       "Are you sure you want to delete this property? This action cannot be undone.",
       [
@@ -19,10 +20,10 @@ export default function BuilderManagementPanel({ property, onUpdate }: { propert
             setIsLoading(true);
             try {
               await api.delete(`/property/builder/${property.id}`);
-              Alert.alert("Success", "Property deleted");
+              GlobalAlert.alert("Success", "Property deleted");
               onUpdate(); // Trigger refresh or go back
             } catch (error: any) {
-              Alert.alert("Error", error.response?.data?.message || "Failed to delete property");
+              GlobalAlert.alert("Error", error.response?.data?.message || "Failed to delete property");
               setIsLoading(false);
             }
           }
@@ -40,14 +41,14 @@ export default function BuilderManagementPanel({ property, onUpdate }: { propert
         {
           text: "Update",
           onPress: async (text) => {
-            if (!text || isNaN(Number(text))) return Alert.alert("Error", "Invalid price");
+            if (!text || isNaN(Number(text))) return GlobalAlert.alert("Error", "Invalid price");
             setIsLoading(true);
             try {
               await api.post(`/property/builder/${property.id}/price-history`, { price: Number(text) });
-              Alert.alert("Success", "Price updated successfully");
+              GlobalAlert.alert("Success", "Price updated successfully");
               onUpdate();
             } catch (error: any) {
-              Alert.alert("Error", error.response?.data?.message || "Failed to update price");
+              GlobalAlert.alert("Error", error.response?.data?.message || "Failed to update price");
             } finally {
               setIsLoading(false);
             }

@@ -5,20 +5,26 @@ import {
   Modal,
   TouchableOpacity,
 } from "react-native";
+import { usePathname, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 
 interface LoginPromptModalProps {
   visible: boolean;
   onClose: () => void;
-  onLogin: () => void;
 }
 
 export default function LoginPromptModal({
   visible,
   onClose,
-  onLogin,
 }: LoginPromptModalProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogin = () => {
+    onClose();
+    router.push({ pathname: "/", params: { returnTo: pathname } });
+  };
   return (
     <Modal
       visible={visible}
@@ -48,7 +54,7 @@ export default function LoginPromptModal({
 
             <TouchableOpacity
               style={[styles.button, styles.loginButton]}
-              onPress={onLogin}
+              onPress={handleLogin}
               activeOpacity={0.8}
             >
               <Text style={styles.loginText}>Login</Text>

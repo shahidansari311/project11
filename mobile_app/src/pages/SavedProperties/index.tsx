@@ -159,10 +159,6 @@ export default function SavedPropertiesPage() {
       <LoginPromptModal
         visible={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        onLogin={() => {
-          setShowLoginPrompt(false);
-          router.push("/");
-        }}
       />
     </View>
   );

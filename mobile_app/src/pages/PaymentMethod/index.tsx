@@ -417,8 +417,8 @@ export default function PaymentMethodPage() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <View style={[styles.modalIconCircle, { backgroundColor: Colors.tertiary }]}>
-              <Ionicons name="time" size={32} color={Colors.onTertiary} />
+            <View style={[styles.modalIconCircle, { backgroundColor: Colors.primary }]}>
+              <Ionicons name="time" size={32} color={Colors.onPrimary} />
             </View>
             
             <Text style={styles.modalTitle}>Verification Pending</Text>
@@ -427,7 +427,7 @@ export default function PaymentMethodPage() {
             </Text>
 
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: Colors.tertiary }]}
+              style={[styles.modalButton, { backgroundColor: Colors.primary }]}
               onPress={() => {
                 setShowUnderVerificationModal(false);
                 router.replace("/(tabs)/portfolio");

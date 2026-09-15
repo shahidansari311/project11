@@ -32,6 +32,10 @@ router.use("/admin/inquiries", adminInquiryRouter);
 // Mount document routes
 router.use("/", documentRoutes);
 
+// Mount setting routes
+const settingRoutes = require("../modules/setting/setting.routes");
+router.use("/settings", settingRoutes);
+
 // Mount property routes — all protected as admin-only
 router.use("/admin/property", verifyAuth, requireRole("admin"), propertyRoutes);
 

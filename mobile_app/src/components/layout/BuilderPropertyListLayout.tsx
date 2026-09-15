@@ -17,6 +17,7 @@ interface BuilderPropertyListLayoutProps {
   isLoading: boolean;
   isRefreshing: boolean;
   onRefresh: () => void;
+  onDeleteDraft?: (id: string) => void;
 }
 
 export default function BuilderPropertyListLayout({
@@ -30,6 +31,7 @@ export default function BuilderPropertyListLayout({
   isLoading,
   isRefreshing,
   onRefresh,
+  onDeleteDraft,
 }: BuilderPropertyListLayoutProps) {
   if (isLoading) {
     return <BuilderListSkeleton />;
@@ -60,7 +62,7 @@ export default function BuilderPropertyListLayout({
               </View>
             ) : (
               properties.map(prop => (
-                <PropertyCard key={prop.id} property={prop} />
+                <PropertyCard key={prop.id} property={prop} onDeleteDraft={onDeleteDraft} />
               ))
             )}
           </View>

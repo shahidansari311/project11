@@ -1,4 +1,4 @@
-const { errorResponse } = require("../utils/apiResponse");
+const { formatZodError } = require("../utils/zodErrorFormatter");
 
 function validate(schema) {
   return (req, res, next) => {
@@ -22,20 +22,11 @@ function validate(schema) {
       next();
     } catch (error) {
       if (error && error.name === "ZodError") {
-        // Return a simple, plain English list of what went wrong
-        const formattedErrors = error.issues.map(err => ({
-          field: err.path[err.path.length - 1], // Just the field name, e.g. 'title'
-          message: err.message
-        }));
-        
-        // Use the first error as the main message for easy Toast notifications, 
-        // but keep the full array so the frontend can highlight specific fields.
-        const mainMessage = formattedErrors.length > 0 ? formattedErrors[0].message : "Validation failed";
-        
+        const { message, errors } = formatZodError(error);
         return res.status(400).json({
           success: false,
-          message: mainMessage,
-          errors: formattedErrors
+          message,
+          errors
         });
       }
       next(error);
@@ -44,3 +35,4 @@ function validate(schema) {
 }
 
 module.exports = { validate };
+

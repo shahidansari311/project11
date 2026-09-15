@@ -12,8 +12,8 @@
  *   </SafeAreaView>
  */
 
-import { useCallback } from "react";
-import { View, StyleSheet, StatusBar } from "react-native";
+import { useCallback, useEffect, useRef } from "react";
+import { View, StyleSheet, StatusBar, BackHandler } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
@@ -29,8 +29,49 @@ export default function TabsLayout() {
   const userProfileUrl = userProfile?.profileUrl || null;
 
   // Determine which tab is currently active from the URL segments.
-  // segments looks like: ["(tabs)", "home"] or ["(tabs)", "profile"]
+  // segments looks like: ["(tabs)", "home"] or ["(tabs)", "builder-live"]
   const activeRouteName = segments[segments.length - 1] ?? "home";
+  const tabHistoryRef = useRef<string[]>([activeRouteName]);
+
+  // Track tab history whenever activeRouteName changes
+  useEffect(() => {
+    const history = tabHistoryRef.current;
+    if (history[history.length - 1] !== activeRouteName) {
+      history.push(activeRouteName);
+    }
+  }, [activeRouteName]);
+
+  // Handle hardware back button
+  useEffect(() => {
+    const onBackPress = () => {
+      const isBuilder = userProfile?.role === "BUILDER";
+      const homeTab = isBuilder ? "builder-live" : "home";
+
+      // If user is on the root Home/Live tab, back exits the app
+      if (activeRouteName === homeTab) {
+        BackHandler.exitApp();
+        return true;
+      }
+
+      // Pop active route from history stack
+      const history = tabHistoryRef.current;
+      while (history.length > 0 && history[history.length - 1] === activeRouteName) {
+        history.pop();
+      }
+
+      // Navigate to previous tab or default homeTab
+      const prevTab = history.pop();
+      if (prevTab && prevTab !== activeRouteName) {
+        router.navigate(`/(tabs)/${prevTab}` as any);
+      } else {
+        router.navigate(`/(tabs)/${homeTab}` as any);
+      }
+      return true;
+    };
+
+    const backSub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => backSub.remove();
+  }, [activeRouteName, userProfile?.role, router]);
 
   const handleTabPress = useCallback(
     (routeName: string) => {
